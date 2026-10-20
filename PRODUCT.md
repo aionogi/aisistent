@@ -30,7 +30,7 @@ Strong security is a confirmed requirement. Tenant isolation, protected billing,
 
 ## Evidence on Hand
 
-An interactive frontend prototype is being implemented in `demo/`. Its conversations and business records are illustrative. There are no verified customer testimonials, security certifications, commercial benchmarks, final prices, or live AI/telephony integrations available for publication.
+An interactive frontend prototype is implemented in `demo/`. Its conversations and business records are illustrative. There are no verified customer testimonials, security certifications, commercial benchmarks, final prices, or live AI/telephony integrations available for publication.
 
 ## Current Delivery Scope
 

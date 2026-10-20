@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T22:24:08.3634577Z",
+  "title": "Design System: aisistent",
+  "extensions": {
+    "colorMeta": {
+      "blue": {
+        "role": "primary",
+        "displayName": "Azure",
+        "canonical": "#2159e8"
+      },
+      "blue-dark": {
+        "role": "primary",
+        "displayName": "Deep Azure",
+        "canonical": "#1749c8"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#142038"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Blue Gray",
+        "canonical": "#62708a"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Divider Gray",
+        "canonical": "#e6eaf0"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Cloud",
+        "canonical": "#f5f7fb"
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "White",
+        "canonical": "#ffffff"
+      },
+      "call-surface": {
+        "role": "primary",
+        "displayName": "Conversation Blue",
+        "canonical": "#f1f5ff"
+      },
+      "selected": {
+        "role": "primary",
+        "displayName": "Selected Blue",
+        "canonical": "#edf3ff"
+      },
+      "positive": {
+        "role": "secondary",
+        "displayName": "Outcome Green",
+        "canonical": "#307c5b"
+      },
+      "positive-surface": {
+        "role": "secondary",
+        "displayName": "Outcome Green Surface",
+        "canonical": "#eaf5ed"
+      },
+      "pending": {
+        "role": "secondary",
+        "displayName": "Pending Amber",
+        "canonical": "#9b6720"
+      },
+      "pending-surface": {
+        "role": "secondary",
+        "displayName": "Pending Amber Surface",
+        "canonical": "#fff4e7"
+      },
+      "secondary-text": {
+        "canonical": "#5c6d86",
+        "displayName": "Secondary Text",
+        "role": "neutral"
+      },
+      "speaker-text": {
+        "canonical": "#496798",
+        "displayName": "Speaker Text",
+        "role": "primary"
+      },
+      "success-detail": {
+        "canonical": "#4d6a5b",
+        "displayName": "Success Detail",
+        "role": "secondary"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Hero Display",
+        "purpose": "Desktop hero headline, with responsive source overrides."
+      },
+      "headline": {
+        "displayName": "Section Headline",
+        "purpose": "Shared landing section headings."
+      },
+      "title": {
+        "displayName": "Step Title",
+        "purpose": "Compact workflow step headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Shared landing prose baseline."
+      },
+      "control": {
+        "displayName": "Action Label",
+        "purpose": "Primary landing button text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-question",
+        "value": "0 8px 28px #244d8a0a",
+        "purpose": "Small tilted hero conversation prompt."
+      },
+      {
+        "name": "hero-call",
+        "value": "0 22px 58px -17px #1d4b962b",
+        "purpose": "Principal floating conversation example."
+      },
+      {
+        "name": "appointment",
+        "value": "0 12px 38px #254c7b14",
+        "purpose": "Small hero outcome card."
+      },
+      {
+        "name": "phone-ring",
+        "value": "0 0 0 10px #e8eeff",
+        "purpose": "Tonal ring around the simulator phone indicator."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-transition",
+        "value": "background .2s, transform .2s",
+        "purpose": "Shared landing button hover."
+      },
+      {
+        "name": "orb-float",
+        "value": "7s ease-in-out infinite",
+        "purpose": "Slow floating movement of the decorative voice orb."
+      },
+      {
+        "name": "orb-wave",
+        "value": "2.2s ease-in-out infinite alternate",
+        "purpose": "Gentle scale changes in the hero waveform."
+      },
+      {
+        "name": "playback-wave",
+        "value": ".85s ease-in-out infinite alternate",
+        "purpose": "Waveform movement during scripted playback."
+      },
+      {
+        "name": "message-entry",
+        "value": ".25s ease-out",
+        "purpose": "Short opacity and vertical entrance for transcript messages."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "none",
+        "purpose": "Animations and transitions are disabled when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-hero-min",
+        "value": "1500px"
+      },
+      {
+        "name": "compact-hero-max",
+        "value": "1100px"
+      },
+      {
+        "name": "compact-dashboard-max",
+        "value": "960px"
+      },
+      {
+        "name": "mobile-landing-max",
+        "value": "800px"
+      },
+      {
+        "name": "stacked-simulator-max",
+        "value": "780px"
+      },
+      {
+        "name": "horizontal-dashboard-nav-max",
+        "value": "700px"
+      },
+      {
+        "name": "small-landing-max",
+        "value": "520px"
+      },
+      {
+        "name": "small-dashboard-max",
+        "value": "390px"
+      },
+      {
+        "name": "small-simulator-max",
+        "value": "380px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shared azure landing action with its shipped hover and focus treatments.",
+      "html": "<a class=\"ds-primary\" href=\"#demo\">Upoznajte aisistent <svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-7-7 7 7-7 7\"/></svg></a>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:16px;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:13px;font-weight:700;border-radius:8px;padding:13px 19px;min-height:44px;border:0;color:#fff;background:var(--blue,#2159e8);text-decoration:none;white-space:nowrap;transition:background .2s,transform .2s}.ds-primary:hover{background:var(--blue-dark,#1749c8);transform:translateY(-2px)}.ds-primary:focus-visible{outline:3px solid #6b91ef;outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "White Closing Button",
+      "kind": "button",
+      "refersTo": "button-white",
+      "description": "Large white action as used on the azure closing section.",
+      "html": "<div class=\"ds-closing-surface\"><a class=\"ds-white\" href=\"#demo\">Isprobajte aisistent <svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-7-7 7 7-7 7\"/></svg></a></div>",
+      "css": ".ds-closing-surface{background:#2058df;padding:24px;text-align:center}.ds-white{display:inline-flex;align-items:center;justify-content:center;gap:16px;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:14px;font-weight:700;border-radius:9px;padding:13px 23px;min-height:54px;border:0;color:var(--blue-dark,#1749c8);background:#fff;text-decoration:none;white-space:nowrap;transition:background .2s,transform .2s}.ds-white:hover{background:#e9f0ff;transform:translateY(-2px)}.ds-white:focus-visible{outline:3px solid #6b91ef;outline-offset:5px}@media(prefers-reduced-motion:reduce){.ds-white{transition:none}}"
+    },
+    {
+      "name": "Playback Button",
+      "kind": "button",
+      "refersTo": "playback-button",
+      "description": "The simulator control in its initial play state; playback behavior lives in React.",
+      "html": "<button class=\"ds-play\" type=\"button\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 3 14 9-14 9z\"/></svg>Pokreni razgovor</button>",
+      "css": ".ds-play{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;gap:10px;border:0;border-radius:8px;background:var(--blue,#2159e8);color:#fff;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:13px;font-weight:600;cursor:pointer;transition:background .18s,transform .18s}.ds-play:hover{background:#164bd1;transform:translateY(-1px)}.ds-play:active{transform:translateY(0)}.ds-play:focus-visible{outline:3px solid #7598f3;outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-play{transition:none}}"
+    },
+    {
+      "name": "Knowledge Input",
+      "kind": "input",
+      "refersTo": "knowledge-input",
+      "description": "Visible label and field from the temporary knowledge editor.",
+      "html": "<label class=\"ds-field\">Pitanje<input class=\"ds-input\" required maxlength=\"120\" placeholder=\"Npr. Gde se nalazite?\" /></label>",
+      "css": ".ds-field{display:grid;gap:6px;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:12px;font-weight:600;color:var(--ink,#142038)}.ds-input{display:block;width:100%;min-width:0;background:#fff;border:1px solid #d7deeb;border-radius:5px;padding:10px;color:var(--ink,#142038);font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:13px;font-weight:400;caret-color:var(--blue,#2159e8)}.ds-input::placeholder{color:#697995}.ds-input:focus-visible{outline:3px solid #93b5ff;outline-offset:3px}"
+    },
+    {
+      "name": "Pill Navigation",
+      "kind": "nav",
+      "refersTo": "pill-navigation",
+      "description": "Landing header with the inline SVG brand, section links, and demo action; responsive menu behavior remains in the application.",
+      "html": "<header class=\"ds-header\"><a class=\"ds-brand\" href=\"#\" aria-label=\"aisistent početna\"><svg viewBox=\"0 0 36 36\" fill=\"none\" aria-hidden=\"true\"><path d=\"M8 24V14a5 5 0 0 1 10 0v10a5 5 0 0 0 10 0V12\" stroke=\"currentColor\" stroke-width=\"7\" stroke-linecap=\"round\"/></svg>aisistent<span>.</span></a><nav class=\"ds-links\" aria-label=\"Glavna navigacija\"><a href=\"#how-it-works\">Kako radi</a><a href=\"#possibilities\">Mogućnosti</a></nav><a class=\"ds-header-action\" href=\"#demo\">Isprobaj demo <svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-7-7 7 7-7 7\"/></svg></a></header>",
+      "css": ".ds-header{min-height:74px;padding:0 26px;display:flex;align-items:center;justify-content:space-between;gap:22px;border:1px solid var(--line,#e6eaf0);border-radius:42px;background:rgba(255,255,255,.96);font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);color:var(--ink,#142038)}.ds-header a{text-decoration:none}.ds-brand{display:inline-flex;align-items:center;font-size:27px;font-weight:800;letter-spacing:-.04em;white-space:nowrap;color:var(--ink,#142038)}.ds-brand svg{width:34px;height:34px;color:var(--blue,#2159e8);margin-right:9px}.ds-brand span{color:var(--blue,#2159e8)}.ds-links{display:flex;align-items:center;gap:30px;margin-left:15px}.ds-links a{color:#4f5b70;font-size:13px;font-weight:650;padding:12px 0;white-space:nowrap}.ds-links a:hover{color:var(--blue,#2159e8)}.ds-header-action{display:inline-flex;align-items:center;justify-content:center;gap:16px;font-size:13px;font-weight:700;border-radius:24px;padding:13px 19px;min-height:44px;background:var(--blue,#2159e8);color:#fff;white-space:nowrap;transition:background .2s,transform .2s}.ds-header-action svg{transform:rotate(-35deg)}.ds-header-action:hover{background:var(--blue-dark,#1749c8);transform:translateY(-2px)}.ds-header a:focus-visible{outline:3px solid #6b91ef;outline-offset:5px}@media(max-width:800px){.ds-header{padding-inline:20px 12px;min-height:66px}.ds-brand{font-size:24px}.ds-brand svg{width:29px;height:29px;margin-right:6px}.ds-links{display:none}.ds-header-action{font-size:11px;padding:10px 14px;min-height:40px;gap:8px}}@media(prefers-reduced-motion:reduce){.ds-header-action{transition:none}}"
+    },
+    {
+      "name": "Scenario Choice",
+      "kind": "chip",
+      "refersTo": "scenario-tab",
+      "description": "A selected industry tab; full keyboard switching and panel association are implemented in the application.",
+      "html": "<div class=\"ds-tabs\" role=\"tablist\" aria-label=\"Izaberite delatnost\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"true\" type=\"button\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"6\" r=\"3\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><path d=\"m8.12 8.12 12.56 12.56M14 14l6.68-10.68M8.12 15.88 12 12\"/></svg>Salon lepote</button></div>",
+      "css": ".ds-tabs{display:flex;gap:8px}.ds-tab{display:flex;align-items:center;justify-content:center;gap:9px;border:1px solid var(--line,#e6eaf0);background:#fff;border-radius:8px;min-height:44px;padding:0 20px;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:13px;font-weight:600;color:var(--muted,#62708a);cursor:pointer;transition:color .18s,background .18s,border-color .18s}.ds-tab:hover{border-color:#b2c3ee;color:var(--blue,#2159e8)}.ds-tab[aria-selected=\"true\"]{color:var(--blue,#2159e8);background:#edf3ff;border-color:#cddcfc}.ds-tab:focus-visible{outline:3px solid #7598f3;outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-tab{transition:none}}"
+    },
+    {
+      "name": "Outcome Chip",
+      "kind": "chip",
+      "refersTo": "outcome-chip",
+      "description": "Written success and pending statuses on illustrative conversation rows.",
+      "html": "<span class=\"ds-outcome\">Zakazan termin</span> <span class=\"ds-outcome ds-pending\">Za vaš tim</span>",
+      "css": ".ds-outcome{display:inline;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);font-size:10px;font-weight:600;color:#307c5b;border-radius:4px;background:#eaf5ed;padding:4px 6px;white-space:nowrap}.ds-pending{background:#fff4e7;color:#9b6720}"
+    },
+    {
+      "name": "Conversation Detail",
+      "kind": "card",
+      "refersTo": "conversation-detail",
+      "description": "Quiet detail surface beneath the selectable example conversation list.",
+      "html": "<div class=\"ds-detail\"><span class=\"ds-detail-icon\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 11h18\"/></svg></span><div><div class=\"ds-detail-label\">Sažetak razgovora</div><p>Primer razgovora i njegovog ishoda.</p><span class=\"ds-detail-result\">Zakazan termin</span></div></div>",
+      "css": ".ds-detail{display:flex;align-items:flex-start;gap:12px;padding:16px;background:var(--surface,#f5f7fb);border-radius:8px;font-family:var(--font-sans,\"Manrope Variable\",Manrope,sans-serif);color:var(--ink,#142038)}.ds-detail-icon{display:grid;place-items:center;flex:0 0 32px;height:32px;border-radius:7px;background:#fff;color:var(--blue,#2159e8);border:1px solid var(--line,#e6eaf0)}.ds-detail-label{font-size:12px;font-weight:700;margin:1px 0 6px}.ds-detail p{font-size:12px;line-height:1.65;color:var(--muted,#62708a);margin:0 0 7px;max-width:590px}.ds-detail-result{font-size:11px;color:#416086;font-weight:600}"
+    },
+    {
+      "name": "Voice Orb",
+      "kind": "custom",
+      "refersTo": "voice-orb",
+      "description": "The actual CSS voice illustration, isolated from its hero positioning; it is decorative and requests no audio.",
+      "html": "<div class=\"ds-orb\" aria-hidden=\"true\"><div class=\"ds-orb-inner\"></div><div class=\"ds-orb-highlight\"></div><div class=\"ds-orb-wave\"><i style=\"height:18px;animation-delay:0s\"></i><i style=\"height:34px;animation-delay:.12s\"></i><i style=\"height:54px;animation-delay:.24s\"></i><i style=\"height:42px;animation-delay:.36s\"></i><i style=\"height:66px;animation-delay:.48s\"></i><i style=\"height:48px;animation-delay:.60s\"></i><i style=\"height:28px;animation-delay:.72s\"></i></div></div>",
+      "css": ".ds-orb{position:relative;width:245px;height:245px;border-radius:50%;overflow:hidden;background:radial-gradient(circle at 30% 23%,#d5ffff 0%,#5fd6fd 15%,#259afa 37%,#2865e9 61%,#2940bf 80%,#162b8c 100%);box-shadow:inset -14px -16px 28px rgba(13,36,138,.18),inset 6px 9px 15px #c8f7ff8c,0 26px 50px -26px #457ade80;animation:ds-orb-float 7s ease-in-out infinite}.ds-orb-inner{position:absolute;width:310px;height:160px;border-radius:50%;border:23px solid #9cdaff70;transform:rotate(-38deg);left:-47px;top:55px;box-shadow:0 4px 15px #0079d422,inset 0 0 22px #8ec8ff}.ds-orb-highlight{position:absolute;inset:6px 47px 115px 21px;border-radius:50%;background:linear-gradient(140deg,#fff8,#c8faff00 70%);transform:rotate(-30deg);filter:blur(6px)}.ds-orb-wave{display:flex;align-items:center;justify-content:center;gap:6px;position:absolute;inset:0}.ds-orb-wave i{width:6px;background:#fff;border-radius:8px;box-shadow:0 2px 8px #0761cc22;animation:ds-wave 2.2s ease-in-out infinite alternate}@keyframes ds-orb-float{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-12px) rotate(4deg)}}@keyframes ds-wave{0%,100%{transform:scaleY(.8)}50%{transform:scaleY(1.07)}}@media(prefers-reduced-motion:reduce){.ds-orb,.ds-orb-wave i{animation:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A clear voice in a light workspace",
+    "overview": "This phrase describes the implemented system rather than a separately approved brand slogan. The interface uses white space, dark blue text, azure actions, and a softly lit voice orb to make a conversational product approachable. The user selected call0.ai as visual inspiration; aisistent retains its lowercase identity and its own Serbian Latin copy.\n\nThe landing page has generous spacing and large, closely tracked headings. The embedded conversation and dashboard previews use denser rows, quiet dividers, and pale blue selection states. Decorative depth belongs mainly to the hero illustration; working panels stay restrained. These notes capture the static Next.js prototype, whose example records and scripted interactions remain clearly labeled.",
+    "keyCharacteristics": [
+      "White surfaces, azure actions, and muted blue-gray supporting text.",
+      "Self-hosted Manrope for headings, body text, and controls.",
+      "A pill-shaped header and a CSS voice orb with orbit lines and floating conversation cards.",
+      "Compact, bordered demo panels with visible selection and keyboard focus."
+    ],
+    "rules": [
+      {
+        "name": "The State Has a Label Rule",
+        "body": "Pair outcome colors with their written status; retain selected-state semantics on interactive controls.",
+        "section": "colors"
+      },
+      {
+        "name": "The Illustration Carries Depth Rule",
+        "body": "Preserve the hero's soft dimensional artwork and the working panels' quieter borders and tonal separation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve lowercase aisistent branding and Serbian Latin interface copy.",
+      "Do reuse azure actions, white surfaces, pale selections, and the existing Manrope hierarchy.",
+      "Do keep example labels beside simulated conversations, records, and outcomes.",
+      "Do preserve keyboard focus, written status labels, and reduced-motion behavior."
+    ],
+    "donts": [
+      "Don't present the illustrated orb or animated waveform as evidence of a live microphone or call.",
+      "Don't turn fixture metrics, status chips, or temporary knowledge entries into claims of customers, durable storage, or production readiness.",
+      "Don't infer pricing, payment, security, or integration implementation from the prototype's visual polish."
+    ]
+  }
+}

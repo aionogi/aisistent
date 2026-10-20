@@ -39,3 +39,8 @@ logs/
 
 # Antigravity / AI tools
 .gemini/
+
+# Local publishing checkout and generated deployment archives
+.site-publish/
+aisistent-demo.tar.gz
+.impeccable/review/
