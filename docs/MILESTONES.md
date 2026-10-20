@@ -7,12 +7,12 @@ The user requested a demo first, followed by security, then pricing and recurrin
 | Milestone | Status | Depends on | Checkpoint tag |
 | --- | --- | --- | --- |
 | [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
-| [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete; checkpoint tag on the M2 commit | M1 | `milestone-2-app-shell` |
+| [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete and pushed | M1 | `milestone-2-app-shell` |
 | [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | Next; awaiting hosting, identity, and database decisions | M2 | `milestone-3-secure-platform` |
 | [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Planned; deferred | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
-The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. The M2 tag marks the commit that adds the app shell and onboarding; `docs/HANDOFF.md` records its push. M3-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
+The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. The M2 tag is published at commit `479188b983699114e0393875592292f109273dbe`. M3-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
 
 ## M1 — Interactive website demo
 
