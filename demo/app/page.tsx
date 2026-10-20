@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   ArrowDown,
@@ -19,25 +20,15 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import Brand from "../components/Brand";
 import ConversationDemo from "../components/ConversationDemo";
 import DashboardPreview from "../components/DashboardPreview";
-
-function Brand({ light = false }: { light?: boolean }) {
-  return (
-    <span className={`brand${light ? " brand-light" : ""}`}>
-      <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
-        <path d="M8 24V14a5 5 0 0 1 10 0v10a5 5 0 0 0 10 0V12" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
-      </svg>
-      aisistent<span className="brand-dot">.</span>
-    </span>
-  );
-}
 
 const questions = [
   {
     question: "Šta mogu da isprobam u ovom demou?",
     answer:
-      "Možete da izaberete delatnost, pokrenete tekstualnu simulaciju razgovora i istražite primer kontrolne table. U njoj možete da pregledate razgovore i dodate primer odgovora u bazu znanja. Demo ne upućuje stvarne pozive.",
+      "Možete da izaberete delatnost, pokrenete tekstualnu simulaciju razgovora i istražite primer kontrolne table. U demo radnom prostoru možete korak po korak da podesite asistenta: podatke o poslu, radno vreme, ton razgovora i bazu znanja. Demo ne upućuje stvarne pozive i ne čuva podatke na serveru.",
   },
   {
     question: "Da li je ovo pravi AI razgovor?",
@@ -162,6 +153,11 @@ export default function Home() {
           </div>
           <DashboardPreview />
           <div className="workspace-caption"><span><Check size={15} /> Pregled razgovora</span><span><Check size={15} /> Jasni sažeci</span><span><Check size={15} /> Vaša baza znanja</span></div>
+          <div className="workspace-cta">
+            <Link className="button button-blue" href="/onboarding/">Podesite svog asistenta <ArrowRight size={17} /></Link>
+            <Link className="text-link" href="/workspace/">Otvorite demo radni prostor <ArrowRight size={16} /></Link>
+            <p>Primer podataka, bez prijave. Podešavanje se čuva samo u ovoj kartici pregledača.</p>
+          </div>
         </section>
 
         <section className="human-section container">
@@ -195,7 +191,7 @@ export default function Home() {
 
       <footer className="site-footer container">
         <div><a href="#" aria-label="aisistent početna"><Brand /></a><p>Za posao koji ne staje kada telefon zazvoni.</p></div>
-        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><a href="#questions">Pitanja</a></nav>
+        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><Link href="/workspace/">Radni prostor</Link><a href="#questions">Pitanja</a></nav>
         <div className="footer-bottom"><span>© {new Date().getFullYear()} aisistent</span><span>Interaktivni prototip · Bez stvarnih poziva i naplate</span><a href="#main">Na vrh <ArrowDown size={13} /></a></div>
       </footer>
     </>

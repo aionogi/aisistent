@@ -18,6 +18,9 @@ colors:
   positive-surface: "#eaf5ed"
   pending: "#9b6720"
   pending-surface: "#fff4e7"
+  pending-text: "#84561b"
+  danger: "#b42318"
+  danger-surface: "#fdf1f0"
 typography:
   display:
     fontFamily: '"Manrope Variable", Manrope, sans-serif'
@@ -130,7 +133,7 @@ The landing page has generous spacing and large, closely tracked headings. The e
 - A pill-shaped header and a CSS voice orb with orbit lines and floating conversation cards.
 - Compact, bordered demo panels with visible selection and keyboard focus.
 
-Sources: `app/globals.css`, `app/page.tsx`, `app/layout.tsx`, and the `ConversationDemo` and `DashboardPreview` component files. The frontmatter records existing values; it does not add CSS variables to the application. The sidecar's tonal ramps are generated color previews, not additional shipped palette tokens.
+Sources: `app/globals.css`, `app/page.tsx`, `app/layout.tsx`, the `ConversationDemo` and `DashboardPreview` component files, and (since M2) `components/workspace/*.module.css`. Most frontmatter values are literal colors in the CSS; since M2, `:root` in `globals.css` also exposes `--secondary-text`, `--selected`, the positive/pending pairs, and `--danger`/`--danger-surface` as variables. The sidecar (`.impeccable/design.json`) was generated before M2 and does not yet include `pending-text`, `danger`, or `danger-surface`; its tonal ramps are generated previews, not shipped tokens.
 
 ## Colors
 
@@ -145,7 +148,8 @@ White and pale blue surfaces give the saturated action color room to stand out.
 ### Secondary
 
 - **Outcome Green** (`positive`, `positive-surface`): successful illustrative conversation outcomes.
-- **Pending Amber** (`pending`, `pending-surface`): example outcomes that need attention. These status colors are not competing brand accents.
+- **Pending Amber** (`pending`, `pending-surface`): example outcomes that need attention. Small amber text on the pale amber surface uses **Pending Text** (`pending-text`, 5.8:1) rather than `pending` (4.4:1). These status colors are not competing brand accents.
+- **Error Red** (`danger`, `danger-surface`): validation messages, the error summary, problem counts on tabs, and destructive confirmations in the M2 screens. Always paired with a written message.
 
 ### Neutral
 
@@ -231,6 +235,16 @@ The landing header combines the lowercase wordmark, compact section links, and a
 The orb floats slowly (7s); its bars move gently (2.2s). The simulator has a separate active waveform (0.85s), a progress indicator, timed messages, and a completion outcome. These animations visualize scripted text; they do not represent captured audio or a live call.
 
 The application disables animations and transitions under `prefers-reduced-motion: reduce`, including smooth scrolling. The transcript uses a polite live region, and FAQ disclosures use native `details` and `summary` elements.
+
+## Application screens (M2)
+
+The onboarding (`/onboarding/`) and workspace (`/workspace/`) reuse the landing palette and Manrope, but at working density: 14px base text, 13px labels, and 24–30px page titles instead of the landing display scale. Global `h2` sizing from `globals.css` is overridden in each module.
+
+- **Shell:** a 248px sidebar (`#fbfcfe`, divider border) with the wordmark, a workspace card, icon-and-label navigation in pale azure selection, a setup-progress card while onboarding is unfinished, and the storage note with "Obriši nacrt". Below 860px the sidebar becomes a header with a four-column tab row; the reset action becomes an icon button.
+- **Onboarding:** a white top bar, a five-item step indicator (current step outlined in azure, completed steps in Outcome Green, locked steps dashed), and one white card per step on the Cloud background. Below 720px the step labels collapse to numbers with a "Korak N od 5" line, and actions stack full width.
+- **Forms:** visible labels, 44px minimum control height, 6px field radius, azure focus ring, red border plus written message for invalid fields, and an error summary with links that focus each field. Choices use radio cards with a pale azure selected state; booking uses a switch. Inputs use 16px text on narrow screens to avoid mobile zoom.
+- **Feedback:** notices in info (pale azure), success (pale green), and warning (pale amber) variants; native `<dialog>` confirmations for destructive actions; a skeleton loading state while the browser-tab draft is read.
+- **Example labels:** every workspace page header carries a "Primer podataka" badge; reply previews and example conversations state that they are rule-assembled and not AI output or real calls.
 
 ## Do's and Don'ts
 
