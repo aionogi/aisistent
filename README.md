@@ -4,6 +4,8 @@ An AI assistant for business calls and messages. The current deliverable is an i
 
 The demo includes four scripted industry conversations, playback controls, an example dashboard, a temporary knowledge editor, mobile navigation, and FAQ answers. Its businesses, conversations, and metrics are illustrative. It does not connect to real AI, telephony, accounts, or payments.
 
+[Open the private demo](https://aisistent-demo.cheery-pin-9983.chatgpt.site). Access remains limited to the owner's Sites account; GitHub source can be run locally without that account.
+
 ## Run locally
 
 Use Node.js 22 LTS or newer and npm. Development has been checked with Node.js 24.
@@ -40,7 +42,7 @@ Run these commands from `demo/`. The production build exports the static site to
 
 ## Delivery sequence
 
-1. **M1 — Interactive website demo:** implemented and checked locally; GitHub release checkpoint pending.
+1. **M1 — Interactive website demo:** complete; pushed as `milestone-1-interactive-demo`.
 2. **M2 — App shell and onboarding UI:** next, using clearly labeled example data.
 3. **M3 — Persistent platform and production security:** Next.js/Node.js services, identity, tenant boundaries, and operations.
 4. **M4 — Live AI and telephony:** controlled provider integrations after the platform safeguards.

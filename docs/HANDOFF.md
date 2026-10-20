@@ -4,7 +4,12 @@ Updated: 2026-10-21.
 
 ## Current objective
 
-Finish and checkpoint M1, the interactive aisistent website demo. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so another AI agent can continue from GitHub. The next implementation milestone is M2: an app shell and onboarding UI.
+M1 is complete and pushed. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. Stop this checkpoint here; the next implementation milestone is M2: an app shell and onboarding UI.
+
+- Verified source checkpoint: `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
+- Published tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo).
+- Private demo: [aisistent](https://aisistent-demo.cheery-pin-9983.chatgpt.site), published successfully with owner-only access. Other developers can run the GitHub source locally.
+- Subsequent documentation-only commits may follow the tag; continue from current `main`.
 
 The user explicitly deferred production security implementation, pricing, and monthly recurring billing until after the demo. Strong security remains a requirement before real customer data and paid use. The merchant company is based in Serbia.
 
@@ -91,7 +96,7 @@ The design documentation agent wrote `demo/DESIGN.md` and its sidecar before rea
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, and the milestone acceptance criteria.
 3. Install locked dependencies and run the checks above. Read the relevant installed Next.js guide before framework changes.
-4. If M1 still has unchecked release gates, finish those first and record the exact result.
+4. Start from current `main`; M1's implementation and tag are already pushed. Do not recreate them.
 5. Begin M2 with a dedicated app shell and a complete example onboarding flow. Reuse the visual language and the useful parts of the existing dashboard; preserve the landing-page demo.
 6. Decide and document temporary draft-state behavior. Keep example/unsaved state clear in the UI.
 7. Verify the full flow on desktop and mobile, then update these documents and publish a reviewable checkpoint.
@@ -106,7 +111,11 @@ The root repository tracks `demo/` as ordinary files, with no nested Git reposit
 
 The repository began from `main` at `f6f9a2d` (initial repository commit). Subsequent commit hashes and tags are the source of truth; do not reset a newer checkout to that initial commit.
 
-Use small, descriptive commits and milestone tags named `milestone-N-name`. M1's planned tag is `milestone-1-interactive-demo`. Only mark a milestone released after its source and tag are pushed successfully. Never commit `.env` files, provider credentials, `node_modules`, `.next`, `out`, or local runtime helpers.
+Use small, descriptive commits and milestone tags named `milestone-N-name`. M1's published tag is `milestone-1-interactive-demo`. Only mark future milestones released after their source and tag are pushed successfully. Never commit `.env` files, provider credentials, `node_modules`, `.next`, `out`, or local runtime helpers.
+
+## Suggested continuation instruction
+
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, and `demo/DESIGN.md`. Continue M2 only: build a dedicated application shell and a full example onboarding flow with editable business details, working hours, industry, and assistant behavior. Preserve M1 and clearly labeled local demo data. Do not start real authentication, AI calls, telephony, pricing, or payments. Finish with checks, an updated handoff, a commit, and a pushed milestone checkpoint. If context is nearly exhausted, record a coherent partial checkpoint honestly rather than marking incomplete acceptance criteria complete.
 
 ## Open decisions for later phases
 

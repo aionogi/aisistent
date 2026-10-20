@@ -6,13 +6,13 @@ The user requested a demo first, followed by security, then pricing and recurrin
 
 | Milestone | Status | Depends on | Checkpoint tag |
 | --- | --- | --- | --- |
-| [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Verified locally; GitHub checkpoint pending | None | `milestone-1-interactive-demo` |
+| [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
 | [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Next; not implemented | M1 | `milestone-2-app-shell` |
 | [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | Planned; deferred | M2 | `milestone-3-secure-platform` |
 | [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Planned; deferred | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
-Tags are checkpoint names, not evidence that a release has already been created. Create each tag only after its acceptance criteria pass.
+The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. M2-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
 
 ## M1 — Interactive website demo
 
@@ -29,7 +29,7 @@ Goal: show the product's visual direction and let someone try the proposed exper
 - [x] Initial production build and TypeScript validation.
 - [x] Final production build after the latest changes.
 - [x] Final verification recorded in `docs/HANDOFF.md`.
-- [ ] Source pushed to GitHub with the M1 checkpoint tag.
+- [x] Source pushed to GitHub with the M1 checkpoint tag.
 
 Completion does not imply production authentication, data persistence, live calls, or payment readiness.
 
