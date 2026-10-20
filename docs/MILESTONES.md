@@ -7,12 +7,12 @@ The user requested a demo first, followed by security, then pricing and recurrin
 | Milestone | Status | Depends on | Checkpoint tag |
 | --- | --- | --- | --- |
 | [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
-| [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Next; not implemented | M1 | `milestone-2-app-shell` |
-| [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | Planned; deferred | M2 | `milestone-3-secure-platform` |
+| [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete; checkpoint tag on the M2 commit | M1 | `milestone-2-app-shell` |
+| [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | Next; awaiting hosting, identity, and database decisions | M2 | `milestone-3-secure-platform` |
 | [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Planned; deferred | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
-The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. M2-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
+The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. The M2 tag marks the commit that adds the app shell and onboarding; `docs/HANDOFF.md` records its push. M3-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
 
 ## M1 — Interactive website demo
 
@@ -37,16 +37,16 @@ Completion does not imply production authentication, data persistence, live call
 
 Goal: make the proposed application navigable and testable before connecting real services.
 
-- [ ] Create a dedicated app shell with navigation for overview, conversations, assistant setup, and knowledge.
-- [ ] Add onboarding for business details, working hours, industry, and assistant behavior.
-- [ ] Support editing and reviewing a complete example configuration.
-- [ ] Preserve draft state across navigation and clearly explain its temporary storage behavior.
-- [ ] Include empty, loading, validation, and error states appropriate to the demonstrated flow.
-- [ ] Keep example data labeled; do not imply real login, saved server data, active integrations, or paid access.
-- [ ] Verify mobile layouts, keyboard navigation, and the complete onboarding path.
-- [ ] Update the handoff and publish the checkpoint.
+- [x] Create a dedicated app shell with navigation for overview, conversations, assistant setup, and knowledge (`/workspace/`).
+- [x] Add onboarding for business details, working hours, industry, and assistant behavior (`/onboarding/`, five steps).
+- [x] Support editing and reviewing a complete example configuration (onboarding review step and the workspace assistant editor).
+- [x] Preserve draft state across navigation and clearly explain its temporary storage behavior (`sessionStorage`, this tab only).
+- [x] Include empty, loading, validation, and error states appropriate to the demonstrated flow.
+- [x] Keep example data labeled; do not imply real login, saved server data, active integrations, or paid access.
+- [x] Verify mobile layouts, keyboard navigation, and the complete onboarding path (session checks recorded in `docs/HANDOFF.md`).
+- [x] Update the handoff and publish the checkpoint.
 
-Implementation starting point: reuse the existing design language and split reusable views from `DashboardPreview.tsx`. Do not introduce a payment or authentication dependency for this UI milestone.
+The M1 landing dashboard preview was left intact; the workspace reuses its visual language and shares the `Brand` component rather than its fixtures. No payment or authentication dependency was added. Completion does not imply persistence beyond the browser tab, real accounts, or live integrations.
 
 ## M3 — Persistent platform and production security
 

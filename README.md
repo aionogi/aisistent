@@ -2,9 +2,9 @@
 
 An AI assistant for business calls and messages. The current deliverable is an interactive website demo with Serbian UI, built with Next.js, React, TypeScript, and Node.js.
 
-The demo includes four scripted industry conversations, playback controls, an example dashboard, a temporary knowledge editor, mobile navigation, and FAQ answers. Its businesses, conversations, and metrics are illustrative. It does not connect to real AI, telephony, accounts, or payments.
+The landing page includes four scripted industry conversations, playback controls, an example dashboard, mobile navigation, and FAQ answers. A separate demo workspace (`/workspace/`) and guided onboarding (`/onboarding/`) let you configure an example assistant: industry, business details, services, working hours, tone, greeting, handoff rules, and a knowledge base. The configuration stays in the current browser tab. Its businesses, conversations, and metrics are illustrative. It does not connect to real AI, telephony, accounts, or payments.
 
-[Open the private demo](https://aisistent-demo.cheery-pin-9983.chatgpt.site). Access remains limited to the owner's Sites account; GitHub source can be run locally without that account.
+[Open the private demo](https://aisistent-demo.cheery-pin-9983.chatgpt.site) (M1 version; not yet republished with M2). Access remains limited to the owner's Sites account; GitHub source can be run locally without that account.
 
 ## Run locally
 
@@ -16,7 +16,7 @@ npm ci
 npm run dev
 ```
 
-Open [http://127.0.0.1:4310](http://127.0.0.1:4310).
+Open [http://127.0.0.1:4310](http://127.0.0.1:4310), or go straight to [/onboarding/](http://127.0.0.1:4310/onboarding/) or [/workspace/](http://127.0.0.1:4310/workspace/).
 
 ```sh
 npm run typecheck
@@ -31,7 +31,10 @@ Run these commands from `demo/`. The production build exports the static site to
 | --- | --- |
 | `demo/app/` | Landing page, shared styles, layout, and metadata |
 | `demo/components/ConversationDemo.tsx` | Scripted conversations for four industries |
-| `demo/components/DashboardPreview.tsx` | Example dashboard, conversations, and temporary knowledge entries |
+| `demo/components/DashboardPreview.tsx` | Landing-page dashboard preview with temporary knowledge entries |
+| `demo/app/(product)/` | Onboarding and workspace routes sharing one browser-tab draft |
+| `demo/components/workspace/` | App shell, onboarding steps, setup forms, and workspace pages |
+| `demo/lib/workspace/` | Draft types, industry templates, validation, storage, and example conversations |
 | [PRODUCT.md](PRODUCT.md) | Confirmed requirements and current scope |
 | [docs/MILESTONES.md](docs/MILESTONES.md) | Delivery checkpoints, dependencies, and acceptance criteria |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Current state, verification evidence, and next-agent starting point |
@@ -43,8 +46,8 @@ Run these commands from `demo/`. The production build exports the static site to
 ## Delivery sequence
 
 1. **M1 — Interactive website demo:** complete; pushed as `milestone-1-interactive-demo`.
-2. **M2 — App shell and onboarding UI:** next, using clearly labeled example data.
-3. **M3 — Persistent platform and production security:** Next.js/Node.js services, identity, tenant boundaries, and operations.
+2. **M2 — App shell and onboarding UI:** complete, using clearly labeled example data; tagged `milestone-2-app-shell`.
+3. **M3 — Persistent platform and production security:** next; Next.js/Node.js services, identity, tenant boundaries, and operations, after hosting/identity/database decisions.
 4. **M4 — Live AI and telephony:** controlled provider integrations after the platform safeguards.
 5. **M5 — Pricing and subscriptions:** approved recurring-payment integration for the Serbian merchant after security readiness.
 

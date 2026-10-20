@@ -30,11 +30,11 @@ Strong security is a confirmed requirement. Tenant isolation, protected billing,
 
 ## Evidence on Hand
 
-An interactive frontend prototype is implemented in `demo/`. Its conversations and business records are illustrative. There are no verified customer testimonials, security certifications, commercial benchmarks, final prices, or live AI/telephony integrations available for publication.
+An interactive frontend prototype is implemented in `demo/`: a landing page with scripted conversations (M1) and a demo workspace with guided assistant onboarding (M2). Its conversations and business records are illustrative, and the M2 configuration is stored only in the visitor's browser tab. There are no verified customer testimonials, security certifications, commercial benchmarks, final prices, or live AI/telephony integrations available for publication.
 
 ## Current Delivery Scope
 
-The user explicitly requested a website demo first, deferring production security implementation, monthly recurring billing and pricing. The demo uses local browser state and scripted conversations, without real accounts, card collection or paid services. The original production security requirements still apply before a future paid launch.
+The user explicitly requested a website demo first, deferring production security implementation, monthly recurring billing and pricing. The demo uses local browser state and scripted or rule-assembled conversations, without real accounts, card collection or paid services. M1 (website demo) and M2 (app shell and onboarding UI) are complete; M3 (persistent platform and production security) is next and needs hosting, identity, and database decisions. The original production security requirements still apply before a future paid launch.
 
 ## Open Decisions
 

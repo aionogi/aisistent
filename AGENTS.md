@@ -15,7 +15,7 @@ The current application lives in `demo/`. The older `ai-asistent-plan.md` is an 
 - Use Next.js, Node.js, and TypeScript. Add Python only for a specific justified pipeline that the Node.js stack cannot reasonably provide.
 - Keep source code, identifiers, comments, and implementation documentation in English. Current UI copy is Serbian Latin.
 - The website takes inspiration from call0.ai; preserve aisistent's own copy and identity.
-- Current delivery focuses on the interactive demo, then app-shell/onboarding UI. Security, live integrations, pricing, and subscriptions follow their documented milestones.
+- The interactive demo (M1) and app-shell/onboarding UI (M2) are complete. Persistent platform and security (M3), live integrations, pricing, and subscriptions follow their documented milestones.
 - The merchant company is based in Serbia. Revalidate provider availability and approval before choosing a payment integration.
 
 ## Implementation boundaries
@@ -38,7 +38,7 @@ npm run build
 npm run dev
 ```
 
-The dev server is `http://127.0.0.1:4310`; the build output is `demo/out/`. No environment configuration is needed for the current demo.
+The dev server is `http://127.0.0.1:4310` (landing `/`, onboarding `/onboarding/`, workspace `/workspace/`); the build output is `demo/out/`. No environment configuration is needed for the current demo.
 
 For UI changes, check the affected interactions at desktop and mobile sizes, including horizontal overflow and keyboard access. Record checks actually performed and their limitations. Do not present proposed security gates as passing tests.
 
