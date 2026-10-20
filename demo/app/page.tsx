@@ -1,0 +1,207 @@
+"use client";
+
+import { useState } from "react";
+import {
+  ArrowDown,
+  ArrowRight,
+  AudioLines,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Globe2,
+  Headphones,
+  Menu,
+  MessageCircle,
+  Phone,
+  PhoneIncoming,
+  Play,
+  Plus,
+  Sparkles,
+  X,
+} from "lucide-react";
+import ConversationDemo from "../components/ConversationDemo";
+import DashboardPreview from "../components/DashboardPreview";
+
+function Brand({ light = false }: { light?: boolean }) {
+  return (
+    <span className={`brand${light ? " brand-light" : ""}`}>
+      <svg viewBox="0 0 36 36" fill="none" aria-hidden="true">
+        <path d="M8 24V14a5 5 0 0 1 10 0v10a5 5 0 0 0 10 0V12" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
+      </svg>
+      aisistent<span className="brand-dot">.</span>
+    </span>
+  );
+}
+
+const questions = [
+  {
+    question: "Šta mogu da isprobam u ovom demou?",
+    answer:
+      "Možete da izaberete delatnost, pokrenete tekstualnu simulaciju razgovora i istražite primer kontrolne table. U njoj možete da pregledate razgovore i dodate primer odgovora u bazu znanja. Demo ne upućuje stvarne pozive.",
+  },
+  {
+    question: "Da li je ovo pravi AI razgovor?",
+    answer:
+      "Ovo je interaktivni prikaz sa unapred pripremljenim primerima. Pokazuje kako će iskustvo izgledati. Povezivanje AI modela, telefonskih brojeva i glasova dolazi u narednoj fazi.",
+  },
+  {
+    question: "Mogu li da zadržim svoj broj telefona?",
+    answer:
+      "Planirani način rada je preusmeravanje poziva sa postojećeg poslovnog broja. Dostupnost ćemo proveriti sa izabranim telefonskim operaterom pri povezivanju stvarne usluge.",
+  },
+  {
+    question: "Šta ako asistent nema odgovor?",
+    answer:
+      "Predviđeno je da zabeleži pitanje ili ponudi razgovor sa vašim timom. Vi ćete određivati informacije koje asistent koristi i situacije u kojima treba da prepusti razgovor čoveku.",
+  },
+];
+
+export default function Home() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = () => setMenuOpen(false);
+
+  return (
+    <>
+      <a className="skip-link" href="#main">Pređi na sadržaj</a>
+      <header className="site-header">
+        <a className="brand-link" href="#" aria-label="aisistent početna" onClick={closeMenu}>
+          <Brand />
+        </a>
+        <nav className={menuOpen ? "desktop-nav nav-open" : "desktop-nav"} id="main-navigation" aria-label="Glavna navigacija">
+          <a href="#how-it-works" onClick={closeMenu}>Kako radi</a>
+          <a href="#possibilities" onClick={closeMenu}>Mogućnosti</a>
+          <a href="#demo" onClick={closeMenu}>Za vaš posao <ChevronDown size={13} /></a>
+        </nav>
+        <div className="header-actions">
+          <span className="demo-label">Demo verzija</span>
+          <a className="button button-blue header-cta" href="#demo">Isprobaj demo <ArrowUpRight /></a>
+          <button className="menu-button" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" aria-label={menuOpen ? "Zatvori meni" : "Otvori meni"} onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
+      </header>
+
+      <main id="main">
+        <section className="hero container" aria-labelledby="hero-heading">
+          <div className="hero-copy">
+            <h1 id="hero-heading">Vaš novi asistent.<br /><span>Uvek pri<br className="desktop-break" /> telefonu.</span></h1>
+            <p>Dok ste vi posvećeni poslu, aisistent je tu za vaše klijente. Pozivi, pitanja i dogovori — sve počinje dobrim razgovorom.</p>
+            <div className="hero-actions">
+              <a className="button button-blue button-large" href="#demo">Upoznajte aisistent <ArrowRight size={19} /></a>
+              <a className="text-link" href="#how-it-works"><span className="play-circle"><Play size={12} fill="currentColor" /></span> Kako radi?</a>
+            </div>
+            <div className="hero-note"><Check size={15} /> Bez registracije <span /> Interaktivni demo</div>
+          </div>
+
+          <div className="hero-art" aria-label="Ilustracija AI asistenta i primera razgovora">
+            <div className="orbit orbit-one" aria-hidden="true" />
+            <div className="orbit orbit-two" aria-hidden="true" />
+            <div className="orbit orbit-three" aria-hidden="true" />
+            <div className="orb-shadow" aria-hidden="true" />
+            <div className="voice-orb" aria-hidden="true">
+              <div className="orb-inner" />
+              <div className="orb-highlight" />
+              <div className="orb-wave">
+                {[18, 34, 54, 42, 66, 48, 28].map((height, index) => <i key={index} style={{ height, animationDelay: `${index * 0.12}s` }} />)}
+              </div>
+            </div>
+            <div className="language-chip"><span className="status-dot" /> Priča vašim jezikom</div>
+            <div className="floating-question"><MessageCircle size={16} /><span>„Imate li slobodan termin?“</span></div>
+            <div className="hero-call">
+              <div className="hero-call-top">
+                <span className="call-symbol"><PhoneIncoming size={19} /></span>
+                <div><strong>Vaš aisistent</strong><span>Primer dolaznog poziva</span></div>
+                <span className="call-time">00:12</span>
+              </div>
+              <p>„Dobar dan! Rado ću vam pomoći.<br />Koji termin bi vam odgovarao?“</p>
+              <div className="call-bottom"><div className="small-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <i key={index} style={{ height: 5 + ((index * 7) % 19) }} />)}</div><span>Tu je za vaše klijente</span></div>
+            </div>
+            <div className="appointment-chip"><span><Check size={15} /></span><div><strong>Jedan dogovor više.</strong><small>Jedna obaveza manje.</small></div></div>
+          </div>
+        </section>
+
+        <section className="channels container" aria-label="Planirane mogućnosti asistenta">
+          <p>Jedan asistent.<br /><strong>Mnogo načina da pomogne.</strong></p>
+          <div><Phone size={20} /><span>Pozivi</span></div>
+          <div><MessageCircle size={21} /><span>Poruke</span></div>
+          <div><CalendarDays size={21} /><span>Termini</span></div>
+          <div><Globe2 size={21} /><span>Znanje o vašem poslu</span></div>
+        </section>
+
+        <section className="how-section container" id="how-it-works" aria-labelledby="how-title">
+          <div className="section-heading split-heading">
+            <h2 id="how-title">Vaš posao.<br /><span>Njegova sledeća tema.</span></h2>
+            <p>Vi najbolje poznajete svoj posao.<br />Dajte to znanje asistentu koji zna da sasluša.</p>
+          </div>
+          <div className="steps">
+            <article className="step">
+              <div className="step-visual website-visual"><div className="tiny-browser"><div><i /><i /><i /></div><span><Globe2 size={16} /> vasposao.rs</span><b /><b /><b /></div><span className="step-icon"><Plus size={18} /></span></div>
+              <div className="step-heading"><span>01</span><h3>Upoznajte ga sa poslom</h3></div>
+              <p>Usluge, radno vreme i odgovori na česta pitanja. Sve što želite da vaši klijenti znaju.</p>
+            </article>
+            <article className="step">
+              <div className="step-visual voice-visual"><div className="voice-lines" aria-hidden="true">{[16, 27, 43, 32, 57, 72, 48, 30, 44, 24, 13].map((height, i) => <i key={i} style={{ height }} />)}</div><span className="voice-caption"><AudioLines size={14} /> Ton koji liči na vas</span></div>
+              <div className="step-heading"><span>02</span><h3>Dajte mu svoj karakter</h3></div>
+              <p>Smiren i profesionalan ili srdačan i opušten. Vi birate kako vas asistent predstavlja.</p>
+            </article>
+            <article className="step">
+              <div className="step-visual ready-visual"><div className="ready-avatar"><Brand /></div><span className="ready-message"><Check size={14} /> Spreman za razgovor</span></div>
+              <div className="step-heading"><span>03</span><h3>Proverite prvi razgovor</h3></div>
+              <p>Isprobajte odgovore i prilagodite detalje. Dobar početak pre prvog razgovora sa klijentom.</p>
+            </article>
+          </div>
+          <div className="section-footnote"><Sparkles size={14} /> Ovde možete istražiti primer tog iskustva. Povezivanje vašeg posla dolazi u sledećoj fazi.</div>
+        </section>
+
+        <div className="demo-section-wrap"><ConversationDemo /></div>
+
+        <section className="workspace-section container" id="possibilities" aria-labelledby="workspace-title">
+          <div className="section-heading centered-heading">
+            <h2 id="workspace-title">Svaki razgovor.<br /><span>Sve na svom mestu.</span></h2>
+            <p>Bez traženja beležaka i preslušavanja svega.<br />Pogledajte kako bi vaš radni dan mogao da izgleda.</p>
+          </div>
+          <DashboardPreview />
+          <div className="workspace-caption"><span><Check size={15} /> Pregled razgovora</span><span><Check size={15} /> Jasni sažeci</span><span><Check size={15} /> Vaša baza znanja</span></div>
+        </section>
+
+        <section className="human-section container">
+          <div className="human-mark" aria-hidden="true"><Headphones size={46} strokeWidth={1.3} /><span><Phone size={17} /></span></div>
+          <div><h2>Tehnologija koja zna<br />kada je potreban čovek.</h2><p>Za jednostavna pitanja tu je asistent. Za važne razgovore — vaš tim. Vi određujete granicu.</p></div>
+          <a className="text-link" href="#demo">Pogledajte primer <ArrowRight size={18} /></a>
+        </section>
+
+        <section className="faq-section container" id="questions" aria-labelledby="faq-title">
+          <div className="faq-intro"><h2 id="faq-title">Dobra pitanja.<br /><span>Jasni odgovori.</span></h2><p>Još malo o demou i ideji<br />iza vašeg budućeg asistenta.</p></div>
+          <div className="faq-list">
+            {questions.map((item, index) => (
+              <details key={item.question} open={index === 0}>
+                <summary>{item.question}<Plus size={18} /></summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <section className="closing-section" aria-labelledby="closing-title">
+          <div className="closing-orbit" aria-hidden="true" />
+          <div className="container closing-content">
+            <Brand light />
+            <h2 id="closing-title">Manje „javiću se kasnije“.<br />Više vremena za vaš posao.</h2>
+            <a className="button button-white button-large" href="#demo">Isprobajte aisistent <ArrowRight size={19} /></a>
+            <p>Vaš sledeći dobar razgovor počinje ovde.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer className="site-footer container">
+        <div><a href="#" aria-label="aisistent početna"><Brand /></a><p>Za posao koji ne staje kada telefon zazvoni.</p></div>
+        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><a href="#questions">Pitanja</a></nav>
+        <div className="footer-bottom"><span>© {new Date().getFullYear()} aisistent</span><span>Interaktivni prototip · Bez stvarnih poziva i naplate</span><a href="#main">Na vrh <ArrowDown size={13} /></a></div>
+      </footer>
+    </>
+  );
+}
+
+function ArrowUpRight() {
+  return <ArrowRight size={16} className="arrow-diagonal" aria-hidden="true" />;
+}

@@ -1,0 +1,9 @@
+node_modules/
+.next/
+out/
+.sites-local/
+.sites-runtime/
+.impeccable/review/
+*.tsbuildinfo
+.env*
+!.env.example
