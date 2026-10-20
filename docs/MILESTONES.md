@@ -8,7 +8,7 @@ The user requested a demo first, followed by security, then pricing and recurrin
 | --- | --- | --- | --- |
 | [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
 | [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete and pushed | M1 | `milestone-2-app-shell` |
-| [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | Next; awaiting hosting, identity, and database decisions | M2 | `milestone-3-secure-platform` |
+| [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | In progress; platform chosen (Render, Auth0, R2) | M2 | `milestone-3-secure-platform` |
 | [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Planned; deferred | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
@@ -52,7 +52,7 @@ The M1 landing dashboard preview was left intact; the workspace reuses its visua
 
 Goal: support real organizations and data through the requested Next.js/Node.js stack.
 
-- [ ] Record hosting, managed identity, database, and private storage decisions.
+- [x] Record hosting, managed identity, database, and private storage decisions ([m3-platform-options.md](architecture/m3-platform-options.md): Render Frankfurt, Render Postgres, Auth0 EU, Cloudflare R2 EU).
 - [ ] Replace static-only deployment with a suitable Node.js deployment when server features are introduced.
 - [ ] Implement organizations, memberships, roles, and durable assistant/knowledge/conversation records.
 - [ ] Enforce server-side authorization and tenant isolation on each protected operation.

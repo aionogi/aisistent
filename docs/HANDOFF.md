@@ -4,7 +4,7 @@ Updated: 2026-10-21.
 
 ## Current objective
 
-M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. The next milestone is M3: persistent platform and production security. M3 starts with decisions the user must make (hosting, identity provider, database/storage); do not implement M3 infrastructure before those are recorded.
+M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
 - M2 tag: [`milestone-2-app-shell`](https://github.com/aionogi/aisistent/tree/milestone-2-app-shell) at `479188b983699114e0393875592292f109273dbe`, pushed on 2026-10-21 together with `main`. The implementation commit is `fbd4ae8`.
@@ -138,8 +138,8 @@ The CI template at `docs/ci/demo-checks.yml.example` repeats dependency installa
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, and `docs/architecture/security-and-billing.md`.
 3. Install locked dependencies and run the checks above. Read the relevant installed Next.js guide before framework changes.
-4. M3 needs the user's decisions first: production hosting, managed identity provider, database and private storage. Present options with current provider verification and record the choices in `docs/` before writing server code.
-5. When M3 starts, replace `output: "export"` with a Node.js deployment, move the `WorkspaceDraft` shape to server-validated persisted records per organization, and keep the M2 UI as the client of those APIs.
+4. The M3 platform is decided (see [m3-platform-options.md](architecture/m3-platform-options.md)). Provider accounts must be opened by the user; agents must not create accounts or handle credentials.
+5. M3 work: replace `output: "export"` with a Node.js deployment, move the `WorkspaceDraft` shape to server-validated persisted records per organization, and keep the M2 UI as the client of those APIs.
 6. Keep the M2 demo path available (or clearly separated) until real accounts exist, so example data never mixes with customer data.
 
 Do not add real authentication, payment collection, or live provider calls merely to make the UI appear complete. Those belong to their milestones and require the corresponding controls.
