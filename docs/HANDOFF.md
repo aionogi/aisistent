@@ -185,6 +185,12 @@ Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILES
 
 ## Verification record
 
+### M3 follow-up — invitation HTTP authorization (2026-10-21)
+
+A new regression calls the real invitation Server Action through HTTP. It rejects anonymous callers, a verified user with the wrong email, and an older unverified session even after another session of the same user verifies the shared database profile. Denied requests leave both membership and invitation acceptance unchanged; the verified matching session then accepts successfully and receives exactly the invited role. All identities and data are synthetic.
+
+Validation: `npm run test:e2e` **13/13 passed** and `npm run typecheck` passed. Only test code and documentation changed; the 71-test unit/database suite and production build were not rerun for this follow-up. M3 remains open and its next implementation task is unchanged.
+
 ### M3 checkpoint 5 — review and operational safeguards (2026-10-21)
 
 | Check | Evidence |

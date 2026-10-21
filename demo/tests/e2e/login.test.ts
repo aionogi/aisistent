@@ -3,7 +3,9 @@ import { after, before, beforeEach, test } from "node:test";
 import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
 import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
 import { readFile } from "node:fs/promises";
-import { createOrganization } from "../../lib/db/repositories.ts";
+import { createOrganization, provisionUser } from "../../lib/db/repositories.ts";
+import { withOrganization } from "../../lib/db/context.ts";
+import { createInvitation } from "../../lib/db/team.ts";
 import { createEmptyDraft } from "../../lib/workspace/templates.ts";
 
 // Full sign-in round trip through the real Auth0 SDK, proxy, session store,
@@ -317,4 +319,52 @@ test("organization creation budgets use the verified user across sessions and is
   assert.equal(admitted.response.status, 303);
   assert.match(admitted.response.headers.get("location") ?? "", /^\/org\/[0-9a-f-]+\/onboarding\/?$/i);
   assert.equal(Number((await stack.db.admin.query("SELECT count(*) FROM app.organizations")).rows[0].count), before + 1, "another verified user has an independent action budget");
+});
+
+test("invitation acceptance requires the current session's verified matching email, not just a verified database profile", async () => {
+  const ownerId = await provisionUser(stack.db.appPool, { subject: "mock|invitation-owner", email: "owner@example.test", displayName: "Invitation Owner" });
+  const organizationId = await createOrganization(stack.db.appPool, ownerId, "Invitation HTTP regression");
+  const invitation = await withOrganization(stack.db.appPool, { userId: ownerId, organizationId }, (client) => createInvitation(client, { email: "ana@example.test", role: "member" }));
+  const path = `/invite/${invitation.token}/`;
+  const unverified = new Browser();
+  stack.user.emailVerified = false;
+  try {
+    await unverified.get("/auth/login?returnTo=/account/");
+  } finally {
+    stack.user.emailVerified = true;
+  }
+  // A newer verified session updates the shared profile, but the earlier
+  // unverified session must not inherit its proof of email ownership.
+  const verified = new Browser();
+  await verified.get("/auth/login?returnTo=/account/");
+  const page = await verified.get(path);
+  assert.match(page.body, /Prihvati poziv/);
+  const manifest = JSON.parse(await readFile(new URL("../../.next/dev/server/server-reference-manifest.json", import.meta.url), "utf8")) as { node: Record<string, { exportedName: string }> };
+  const actionId = Object.entries(manifest.node).find(([, action]) => action.exportedName === "acceptInvitationAction")?.[0];
+  assert.ok(actionId, "the invitation page provides the current compiled action reference");
+  const inviteeId = (await stack.db.admin.query("SELECT id FROM app.users WHERE auth_subject = 'mock|ana' AND email = 'ana@example.test'")).rows[0].id as string;
+
+  async function accept(browser: Browser) {
+    const response = await fetch(`${stack.appUrl}${path}`, {
+      method: "POST", redirect: "manual",
+      headers: { origin: stack.appUrl, "next-action": actionId!, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...browser.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+      body: JSON.stringify([invitation.token, { error: null }]),
+    });
+    return { response, body: await response.text() };
+  }
+  assert.match((await accept(new Browser())).body, /Prijavite se da biste prihvatili poziv/);
+  assert.match((await accept(unverified)).body, /Potvrdite email adresu pre nego što prihvatite poziv/);
+  const wrongUser = new Browser();
+  await wrongUser.get("/auth/login?returnTo=/account/&login_hint=wrong-invitee@example.test");
+  assert.match((await accept(wrongUser)).body, /Poziv glasi na drugu email adresu/);
+  assert.equal((await stack.db.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1 AND user_id <> $2", [organizationId, ownerId])).rowCount, 0);
+  assert.equal((await stack.db.admin.query("SELECT accepted_at FROM app.invitations WHERE id = $1", [invitation.id])).rows[0].accepted_at, null);
+
+  const accepted = await accept(verified);
+  // Next may stream the redirect with 200; the redirect header and persisted
+  // membership are the authoritative completion signals for this action.
+  assert.ok([200, 303].includes(accepted.response.status));
+  assert.match(accepted.response.headers.get("x-action-redirect") ?? "", new RegExp(`/org/${organizationId}/`));
+  assert.deepEqual((await stack.db.admin.query("SELECT role FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, inviteeId])).rows, [{ role: "member" }]);
+  assert.ok((await stack.db.admin.query("SELECT accepted_at FROM app.invitations WHERE id = $1", [invitation.id])).rows[0].accepted_at);
 });
