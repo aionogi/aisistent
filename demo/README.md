@@ -6,7 +6,7 @@ A Next.js/React/TypeScript prototype with Serbian UI, self-hosted Manrope typogr
 
 Install dependencies with `npm ci`, then run `npm run dev`. Local address: `http://127.0.0.1:4310`.
 
-`npm run typecheck` checks TypeScript. `npm run build` produces a static Next.js export in `out/`, used for the private Sites demo.
+`npm run typecheck` checks TypeScript. `npm run build` produces the Node.js application in `.next/`; `npm run start` serves it. Static export is no longer configured. `npm test` runs unit/database tests and `npm run test:e2e` runs a disposable local identity/database/server stack. Stop any development server for this project before running the HTTP suite.
 
 ## Demo behavior
 
@@ -15,4 +15,6 @@ Install dependencies with `npm ci`, then run `npm run dev`. Local address: `http
 - Workspace (`/workspace/`): overview, example conversations built from the configuration, an assistant settings editor, and a knowledge base editor.
 - The onboarding and workspace share one draft stored in `sessionStorage`: it survives navigation and reloads in the same tab and is cleared when the tab closes or with "Obriši nacrt".
 
-All business names and conversation records are illustrative. There is no microphone access, live telephony, account, payment, pricing, subscription, or external AI connection. Production security and billing remain future work per the user's revised scope.
+Demo business names and conversation records are illustrative. No microphone, live telephony, payment, pricing, subscription or external AI connection exists. M3 additionally provides configured sign-in, organization storage and team management at `/account/` and `/org/<id>/`; these routes are separate from the public demo. Hosting/identity remain provisional and nothing is deployed for production.
+
+Database-backed requests require `RATE_LIMIT_SECRET` (32+ characters, shared across replicas). `npm run dev:local-auth` configures a mock identity provider, disposable PostgreSQL and a temporary secret automatically. `npm run ops:cleanup` runs bounded expiry cleanup with the restricted `DATABASE_URL`; an external scheduler still needs configuration. Read [the handoff](../docs/HANDOFF.md) and [operations runbook](../docs/operations/RUNBOOK.md) before deployment.

@@ -4,6 +4,7 @@ import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
 import { formatUpdatedAt } from "../../lib/workspace/format";
 import { useDraft } from "./DraftProvider";
 import { Notice } from "./FormControls";
+import { useWorkspaceEnvironment } from "./WorkspaceEnvironment";
 import styles from "./pages.module.css";
 
 /** Shown while the draft is read from this tab's storage after hydration. */
@@ -19,9 +20,15 @@ export function DraftLoading({ label = "Učitavanje nacrta…" }: { label?: stri
 /** Storage problems that change what the user can expect from the draft. */
 export function DraftNotices() {
   const { storageMode, loadNotice, dismissLoadNotice, saveState, readOnly } = useDraft();
+  const { stepUpPath } = useWorkspaceEnvironment();
   return (
     <>
-      {readOnly && (
+      {readOnly && stepUpPath && (
+        <Notice tone="warning" title="Potvrdite prijavu za izmene" action={<a href={stepUpPath}>Dvofaktorska potvrda</a>}>
+          Možete da pregledate podešavanje. Za izmene je potrebna prijava sa dvofaktorskom potvrdom.
+        </Notice>
+      )}
+      {readOnly && !stepUpPath && (
         <Notice tone="info" title="Samo pregled">
           Kao član firme možete da pregledate podešavanje. Izmene prave vlasnik i administratori.
         </Notice>

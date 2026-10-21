@@ -86,6 +86,9 @@ export async function startLocalAuthStack(options: { appPort: number; issuerPort
       APP_BASE_URL: appUrl,
       AUTH0_ALLOW_INSECURE_LOCAL: "true",
       AUTH_REQUIRE_MFA: "true",
+      RATE_LIMIT_SECRET: randomBytes(32).toString("hex"),
+      // No ingress in this local stack: requests deliberately share the fallback bucket.
+      RATE_LIMIT_IP_HEADER: "",
       NEXT_TELEMETRY_DISABLED: "1",
     },
     stdio: options.quiet ? "ignore" : "inherit",

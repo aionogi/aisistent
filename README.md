@@ -8,7 +8,7 @@ The landing page includes four scripted industry conversations, playback control
 
 ## Run locally
 
-Use Node.js 22 LTS or newer and npm. Development has been checked with Node.js 24.
+Use Node.js 22.18 or newer and npm. Development has been checked with Node.js 24.
 
 ```sh
 cd demo
@@ -25,7 +25,7 @@ npm run build
 npm run start
 ```
 
-Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 server for the database tests (no Docker needed). `npm run dev:local-auth` runs the signed-in app locally with a mock identity provider at http://127.0.0.1:4313/account/, and `npm run test:e2e` tests the sign-in flow end to end. The app runs without environment variables or provider accounts; database features activate only when a database is configured. Deployment uses `render.yaml` (Render, Frankfurt).
+Run these commands from `demo/`. `npm test` starts temporary PostgreSQL 17 databases (no Docker needed). `npm run dev:local-auth` runs the signed-in app with a mock identity provider at http://127.0.0.1:4313/account/, and `npm run test:e2e` tests sign-in, MFA and request limits through HTTP. Stop this project's development server first. The public demo runs without environment variables or provider accounts. Database-backed operations additionally require `RATE_LIMIT_SECRET`; the local mock stack generates one. `render.yaml` is a provisional deployment template; hosting and identity remain undecided.
 
 ## Project map
 
@@ -39,6 +39,8 @@ Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 ser
 | `demo/lib/workspace/` | Draft types, industry templates, validation, storage, persistence, and example conversations |
 | `demo/app/(platform)/` | Signed-in area: account page and organization workspaces (`/org/<id>/`) |
 | `demo/lib/db/`, `demo/lib/auth/` | PostgreSQL tenancy and sign-in (provider-specific code is listed in `docs/architecture/m3-platform-options.md`) |
+| `demo/lib/operations/`, `demo/scripts/operations/` | Request limits, safe operational logs and bounded cleanup |
+| [docs/operations/RUNBOOK.md](docs/operations/RUNBOOK.md) | Configuration, cleanup scheduling, logs, backup/restore and incident procedures |
 | [PRODUCT.md](PRODUCT.md) | Confirmed requirements and current scope |
 | [docs/MILESTONES.md](docs/MILESTONES.md) | Delivery checkpoints, dependencies, and acceptance criteria |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Current state, verification evidence, and next-agent starting point |
@@ -51,7 +53,7 @@ Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 ser
 
 1. **M1 — Interactive website demo:** complete; pushed as `milestone-1-interactive-demo`.
 2. **M2 — App shell and onboarding UI:** complete, using clearly labeled example data; tagged `milestone-2-app-shell`.
-3. **M3 — Persistent platform and production security:** in progress on Render (Frankfurt), Auth0 (EU), and Cloudflare R2 (EU); database tenancy foundation with tested row-level security is in place.
+3. **M3 — Persistent platform and production security:** in progress; tenancy, sign-in, organization/team management and operational safeguards implemented locally. Provider choice, deployment, scheduled jobs and recovery evidence remain open.
 4. **M4 — Live AI and telephony:** controlled provider integrations after the platform safeguards.
 5. **M5 — Pricing and subscriptions:** approved recurring-payment integration for the Serbian merchant after security readiness.
 

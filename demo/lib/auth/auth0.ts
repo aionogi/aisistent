@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getPool } from "../db/pool.ts";
 import { provisionUser } from "../db/repositories.ts";
 import { PostgresSessionStore, SESSION_DURATIONS } from "./session-store.ts";
+import { logEvent } from "../operations/logging.ts";
 
 const REQUIRED_ENV = ["AUTH0_DOMAIN", "AUTH0_CLIENT_ID", "AUTH0_CLIENT_SECRET", "AUTH0_SECRET", "APP_BASE_URL"] as const;
 
@@ -86,7 +87,7 @@ function createClient(): Auth0Client | null {
       const base = context.appBaseUrl ?? process.env.APP_BASE_URL!;
       if (error) {
         // Do not reflect provider error text; it can contain user input.
-        console.error("Sign-in callback failed:", error.code);
+        logEvent("auth.callback_failed", { operation: "auth.callback", outcome: "error" });
         return NextResponse.redirect(new URL(`${ACCOUNT_PATH}?status=login-failed`, base));
       }
       return NextResponse.redirect(new URL(safeReturnPath(context.returnTo, base), base));

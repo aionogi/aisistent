@@ -44,8 +44,6 @@ export class PostgresSessionStore implements SessionDataStore {
 
   async set(id: string, session: SessionData): Promise<void> {
     const hash = hashId(id);
-    // New sign-ins occasionally clear out expired rows, so the table does not grow without a scheduled job.
-    if (Math.random() < 1 / 50) await this.pool.query("SELECT app.auth_session_purge_expired()");
     await this.pool.query("SELECT app.auth_session_put($1, $2, $3, $4, $5)", [
       hash,
       session.user.sub,

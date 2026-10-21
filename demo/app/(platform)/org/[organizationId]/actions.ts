@@ -6,6 +6,8 @@ import { getPool } from "../../../../lib/db/pool.ts";
 import { ConflictError, saveWorkspace } from "../../../../lib/db/repositories.ts";
 import { checkDraftLimits, toStoredConfig, type SaveWorkspaceResult } from "../../../../lib/workspace/persistence.ts";
 import { parseDraft } from "../../../../lib/workspace/storage.ts";
+import { mfaRequired } from "../../../../lib/auth/auth0.ts";
+import { actionLimit, actionLog } from "../../../../lib/operations/action-guard.ts";
 
 /**
  * Saves the organization's workspace from the editor. Everything the browser
@@ -17,6 +19,12 @@ export async function saveWorkspaceAction(organizationId: string, draft: unknown
   const account = await getCurrentAccount();
   const pool = getPool();
   if (!account || !pool) return { status: "signed-out" };
+  const rateError = await actionLimit(pool, "workspace.save", account.userId);
+  if (rateError) return { status: "invalid", message: rateError };
+  if (mfaRequired() && !account.mfa) {
+    await actionLog("workspace.save", "denied");
+    return { status: "forbidden" };
+  }
   if (typeof expectedRevision !== "number" || !Number.isInteger(expectedRevision) || expectedRevision < 0) return { status: "invalid", message: "Neispravan zahtev za čuvanje." };
 
   const parsed = parseDraft(draft);
@@ -25,7 +33,7 @@ export async function saveWorkspaceAction(organizationId: string, draft: unknown
   if (limitError) return { status: "invalid", message: limitError };
 
   try {
-    return await withOrganization(pool, { userId: account.userId, organizationId }, async (client, role) => {
+    const result = await withOrganization(pool, { userId: account.userId, organizationId }, async (client, role) => {
       if (!canManage(role)) return { status: "forbidden" } as const;
       const { revision, idMap } = await saveWorkspace(client, {
         config: toStoredConfig(parsed) as unknown as Record<string, unknown>,
@@ -34,10 +42,12 @@ export async function saveWorkspaceAction(organizationId: string, draft: unknown
       });
       return { status: "saved", revision, savedAt: new Date().toISOString(), idMap } as const;
     });
+    await actionLog("workspace.save", result.status === "saved" ? "success" : "denied");
+    return result;
   } catch (error) {
     if (error instanceof ConflictError) return { status: "conflict" };
     if (error instanceof ForbiddenError) return { status: "forbidden" };
-    console.error("Workspace save failed:", (error as Error).message);
+    await actionLog("workspace.save", "error");
     return { status: "error" };
   }
 }

@@ -16,6 +16,8 @@ export type WorkspaceEnvironment = {
   onboardingBasePath: string;
   organizationName?: string;
   role?: MemberRole;
+  /** Set by the server when this privileged session needs MFA before editing. */
+  stepUpPath?: string;
 };
 
 export const DEMO_ENVIRONMENT: WorkspaceEnvironment = { mode: "demo", basePath: "/workspace", onboardingBasePath: "/onboarding" };

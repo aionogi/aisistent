@@ -4,6 +4,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
+import { readdir } from "node:fs/promises";
 import pg from "pg";
 import { appConnectionString } from "../../lib/db/config.ts";
 import { APP_PASSWORD, startTestDatabase, type TestDatabase } from "./harness.ts";
@@ -24,7 +25,8 @@ test("the deploy migration command prepares a working restricted login", async (
   assert.match(first.stdout, /Application database login is up to date/);
 
   const second = await run(process.execPath, ["scripts/db/migrate.ts"], { cwd: projectDir, env });
-  assert.match(second.stdout, /Migrations applied: none \(3 already applied\)/);
+  const migrationCount = (await readdir(path.join(projectDir, "db/migrations"))).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).length;
+  assert.ok(second.stdout.includes(`Migrations applied: none (${migrationCount} already applied)`));
 
   const derived = appConnectionString({ DATABASE_ADMIN_URL: db.adminUrl, DATABASE_APP_PASSWORD: APP_PASSWORD });
   assert.ok(derived);

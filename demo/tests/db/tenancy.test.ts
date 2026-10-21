@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import pg, { type PoolClient } from "pg";
+import { readdir } from "node:fs/promises";
 import { ForbiddenError, withOrganization, withUser } from "../../lib/db/context.ts";
 import { migrate } from "../../lib/db/migrator.ts";
 import {
@@ -77,7 +78,8 @@ describe("database roles", () => {
   test("running migrations again applies nothing", async () => {
     const result = await migrate(db.admin, MIGRATIONS_DIR);
     assert.deepEqual(result.applied, []);
-    assert.deepEqual(result.skipped, ["0001_core_tenancy", "0002_auth_sessions", "0003_team_management"]);
+    const expected = (await readdir(MIGRATIONS_DIR)).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort().map((name) => name.replace(/\.sql$/, ""));
+    assert.deepEqual(result.skipped, expected);
   });
 });
 

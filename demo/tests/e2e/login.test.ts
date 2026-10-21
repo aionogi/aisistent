@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { after, before, test } from "node:test";
+import { after, before, beforeEach, test } from "node:test";
+import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
 import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
+import { readFile } from "node:fs/promises";
+import { createOrganization } from "../../lib/db/repositories.ts";
+import { createEmptyDraft } from "../../lib/workspace/templates.ts";
 
 // Full sign-in round trip through the real Auth0 SDK, proxy, session store,
 // and database, with a mock OpenID Connect provider standing in for Auth0.
@@ -8,6 +12,10 @@ import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-
 let stack: LocalAuthStack;
 before(async () => { stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true }); }, { timeout: 180_000 });
 after(async () => { await stack?.stop(); });
+beforeEach(async () => {
+  await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
+  await stack.db.admin.query("DELETE FROM app.auth_sessions");
+});
 
 /** Minimal browser: keeps cookies for the app origin and follows redirects across the app and the mock provider. */
 class Browser {
@@ -32,6 +40,22 @@ class Browser {
     throw new Error("Too many redirects");
   }
 
+  /** Submit the server-rendered native form without a Next-Action header. */
+  async post(url: string, form: FormData, additionalHeaders: Record<string, string> = {}): Promise<{ response: Response; body: string }> {
+    const response = await fetch(new URL(url, stack.appUrl), {
+      method: "POST",
+      headers: {
+        origin: stack.appUrl,
+        cookie: [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; "),
+        ...additionalHeaders,
+      },
+      body: form,
+      redirect: "manual",
+    });
+    this.store(response);
+    return { response, body: await response.text() };
+  }
+
   private store(response: Response): void {
     for (const header of response.headers.getSetCookie()) {
       this.setCookieHeaders.push(header);
@@ -48,12 +72,90 @@ class Browser {
 
 const sessionCount = async () => Number((await stack.db.admin.query("SELECT count(*) FROM app.auth_sessions")).rows[0].count);
 
+function decodeAttribute(value: string): string {
+  const named: Record<string, string> = { amp: "&", quot: '"', apos: "'", lt: "<", gt: ">" };
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|quot|apos|lt|gt);/gi, (_, entity: string) => {
+    if (entity.startsWith("#")) return String.fromCodePoint(parseInt(entity.slice(entity[1]?.toLowerCase() === "x" ? 2 : 1), entity[1]?.toLowerCase() === "x" ? 16 : 10));
+    return named[entity.toLowerCase()];
+  });
+}
+
+/** Read action metadata from the actual page, never hard-code a generated action id. */
+function organizationForm(html: string, name: string): FormData {
+  const form = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)].map(([markup]) => markup).find((markup) => /id="organization-name"/.test(markup));
+  assert.ok(form, "organization form is rendered");
+  const data = new FormData();
+  for (const [input] of form.matchAll(/<input\b[^>]*>/gi)) {
+    const attributes = Object.fromEntries([...input.matchAll(/([\w$:-]+)="([^"]*)"/g)].map(([, key, value]) => [key, decodeAttribute(value)]));
+    if (attributes.type === "hidden" && attributes.name) data.append(attributes.name, attributes.value ?? "");
+  }
+  assert.ok([...data.keys()].some((key) => key.startsWith("$ACTION_")), "native action metadata is rendered");
+  data.set("name", name);
+  return data;
+}
+
+function assertBlocked(response: Response, expectedStatus: 429 | 503): void {
+  assert.equal(response.status, expectedStatus);
+  assert.match(response.headers.get("cache-control") ?? "", /no-store/);
+  const retryAfter = Number(response.headers.get("retry-after"));
+  assert.ok(Number.isInteger(retryAfter) && retryAfter > 0, "Retry-After is a positive number of seconds");
+  assert.match(response.headers.get("x-request-id") ?? "", /^[0-9a-f-]{36}$/i);
+}
+
 test("signed-out visitors see the sign-in page, not account data", async () => {
   const browser = new Browser();
   const { response, body } = await browser.get("/account/");
   assert.equal(response.status, 200);
   assert.match(body, /Prijavite se/);
   assert.doesNotMatch(body, /Vaš nalog/);
+});
+
+test("workspace writes require MFA and current membership through the actual Server Action", async () => {
+  const verified = new Browser();
+  await verified.get("/auth/login?returnTo=/account/");
+  const userId = (await stack.db.admin.query("SELECT id FROM app.users WHERE auth_subject = 'mock|ana'")).rows[0].id as string;
+  const organizationId = await createOrganization(stack.db.appPool, userId, "MFA regression organization");
+  const path = `/org/${organizationId}/knowledge/`;
+  assert.equal((await verified.get(path)).response.status, 200);
+
+  // Discover the current compiled action reference; never persist generated IDs.
+  const manifest = JSON.parse(await readFile(new URL("../../.next/dev/server/server-reference-manifest.json", import.meta.url), "utf8")) as { node: Record<string, { exportedName: string }> };
+  const actionId = Object.entries(manifest.node).find(([, action]) => action.exportedName === "saveWorkspaceAction")?.[0];
+  assert.ok(actionId, "the workspace save action was compiled from the rendered route");
+  const draft = createEmptyDraft();
+  draft.business.name = "Verified edit";
+  async function save(browser: Browser, revision: number) {
+    const response = await fetch(`${stack.appUrl}${path}`, {
+      method: "POST", redirect: "manual",
+      headers: { origin: stack.appUrl, "next-action": actionId!, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...browser.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+      body: JSON.stringify([organizationId, draft, revision]),
+    });
+    return { response, body: await response.text() };
+  }
+  const admitted = await save(verified, 0);
+  assert.equal(admitted.response.status, 200);
+  assert.match(admitted.body, /"status":"saved"/);
+
+  stack.user.mfa = false;
+  try {
+    const withoutMfa = new Browser();
+    await withoutMfa.get("/auth/login?returnTo=/account/");
+    const page = await withoutMfa.get(path);
+    assert.match(page.body, /Potvrdite prijavu za izmene/);
+    assert.match(page.body, /Dvofaktorska potvrda/);
+    draft.business.name = "Unauthorized edit";
+    const denied = await save(withoutMfa, 1);
+    assert.match(denied.body, /"status":"forbidden"/);
+    const stored = await stack.db.admin.query("SELECT revision, config->'business'->>'name' AS name FROM app.assistant_configs WHERE organization_id = $1", [organizationId]);
+    assert.deepEqual(stored.rows, [{ revision: 1, name: "Verified edit" }]);
+  } finally {
+    stack.user.mfa = true;
+  }
+
+  await stack.db.admin.query("DELETE FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, userId]);
+  const removed = await save(verified, 1);
+  assert.match(removed.body, /"status":"forbidden"/);
+  assert.equal((await stack.db.admin.query("SELECT revision FROM app.assistant_configs WHERE organization_id = $1", [organizationId])).rows[0].revision, 1);
 });
 
 test("sign-in creates the user, an encrypted server-side session, and an HttpOnly cookie", async () => {
@@ -136,4 +238,83 @@ test("the client-side access token endpoint is disabled", async () => {
   await browser.get("/auth/login?returnTo=/account/");
   const { response } = await browser.get("/auth/access-token");
   assert.notEqual(response.status, 200);
+});
+
+test("auth admission returns 429 and cannot be bypassed by prefetch or untrusted forwarding headers", async () => {
+  const admitted = await fetch(`${stack.appUrl}/auth/login/`, { redirect: "manual" });
+  assert.ok(admitted.status >= 300 && admitted.status < 400);
+  const seeded = await stack.db.admin.query("UPDATE app.rate_limit_buckets SET request_count = $1, expires_at = now() + interval '5 minutes' RETURNING bucket_key", [RATE_POLICIES["auth.login"].limit]);
+  assert.equal(seeded.rowCount, 1);
+
+  const headerVariants: Record<string, string>[] = [{}, { "next-router-prefetch": "1", purpose: "prefetch" }, { "x-forwarded-for": "198.51.100.1" }, { "x-forwarded-for": "203.0.113.2" }];
+  for (const headers of headerVariants) {
+    const response = await fetch(`${stack.appUrl}/auth/login/?returnTo=/account/`, { headers, redirect: "manual" });
+    assertBlocked(response, 429);
+    assert.match(await response.text(), /Previše zahteva/);
+  }
+  const counters = await stack.db.admin.query("SELECT request_count FROM app.rate_limit_buckets");
+  assert.deepEqual(counters.rows, [{ request_count: RATE_POLICIES["auth.login"].limit }], "spoofed IPs did not create a new bucket");
+
+  // A full login bucket must not prevent an in-flight callback or a logout.
+  for (const path of ["/auth/callback/", "/auth/logout/"]) {
+    const response = await fetch(`${stack.appUrl}${path}`, { redirect: "manual" });
+    assert.notEqual(response.status, 429);
+    assert.notEqual(response.status, 503);
+  }
+  const scopes = await stack.db.admin.query("SELECT request_count FROM app.rate_limit_buckets ORDER BY request_count");
+  assert.deepEqual(scopes.rows, [{ request_count: 1 }, { request_count: 1 }, { request_count: RATE_POLICIES["auth.login"].limit }]);
+});
+
+test("auth admission fails closed with 503 when its database function is unavailable", async () => {
+  await stack.db.admin.query("REVOKE EXECUTE ON FUNCTION app.consume_rate_limit(bytea, integer, integer) FROM aisistent_runtime");
+  try {
+    const response = await fetch(`${stack.appUrl}/auth/login/`, { redirect: "manual" });
+    assertBlocked(response, 503);
+    assert.equal(response.headers.get("retry-after"), "30");
+    assert.match(await response.text(), /Usluga trenutno nije dostupna/);
+    assert.equal(response.headers.get("location"), null, "failed admission does not reach the identity provider");
+  } finally {
+    await stack.db.admin.query("GRANT EXECUTE ON FUNCTION app.consume_rate_limit(bytea, integer, integer) TO aisistent_runtime");
+  }
+  const recovered = await fetch(`${stack.appUrl}/auth/login/`, { redirect: "manual" });
+  assert.ok(recovered.status >= 300 && recovered.status < 400, "admission recovers after the database capability is restored");
+});
+
+test("native Server Action forms consume the request budget without a Next-Action header", async () => {
+  const browser = new Browser();
+  const page = await browser.get("/auth/login?returnTo=/account/");
+  await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
+  const first = await browser.post("/account/", organizationForm(page.body, "x"));
+  assert.equal(first.response.status, 200);
+  assert.match(first.body, /Naziv firme mora imati od 2 do 60 znakova/);
+  const requestBucket = await stack.db.admin.query("UPDATE app.rate_limit_buckets SET request_count = $1, expires_at = now() + interval '5 minutes' WHERE expires_at < now() + interval '2 minutes' RETURNING bucket_key", [RATE_POLICIES["action.ip"].limit]);
+  assert.equal(requestBucket.rowCount, 1, "native POST created the short request bucket");
+  const blocked = await browser.post("/account/", organizationForm(page.body, "Blocked organization"), { "next-router-prefetch": "1", purpose: "prefetch", "x-forwarded-for": "198.51.100.5" });
+  assertBlocked(blocked.response, 429);
+});
+
+test("organization creation budgets use the verified user across sessions and isolate other users", async () => {
+  const firstSession = new Browser();
+  const secondSession = new Browser();
+  const otherUser = new Browser();
+  const firstPage = await firstSession.get("/auth/login?returnTo=/account/");
+  const secondPage = await secondSession.get("/auth/login?returnTo=/account/");
+  const otherPage = await otherUser.get("/auth/login?returnTo=/account/&login_hint=marko@example.test");
+  await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
+
+  const first = await firstSession.post("/account/", organizationForm(firstPage.body, "x"));
+  assert.match(first.body, /Naziv firme mora imati od 2 do 60 znakova/);
+  const userBucket = await stack.db.admin.query("UPDATE app.rate_limit_buckets SET request_count = $1 WHERE expires_at > now() + interval '5 minutes' RETURNING bucket_key", [RATE_POLICIES["organization.create"].limit]);
+  assert.equal(userBucket.rowCount, 1);
+
+  const before = Number((await stack.db.admin.query("SELECT count(*) FROM app.organizations")).rows[0].count);
+  const denied = await secondSession.post("/account/", organizationForm(secondPage.body, "Blocked organization"));
+  assert.equal(denied.response.status, 200);
+  assert.match(denied.body, /Previše zahteva/);
+  assert.equal(Number((await stack.db.admin.query("SELECT count(*) FROM app.organizations")).rows[0].count), before, "a second session cannot reset the user budget");
+
+  const admitted = await otherUser.post("/account/", organizationForm(otherPage.body, "Marko test organization"));
+  assert.equal(admitted.response.status, 303);
+  assert.match(admitted.response.headers.get("location") ?? "", /^\/org\/[0-9a-f-]+\/onboarding\/?$/i);
+  assert.equal(Number((await stack.db.admin.query("SELECT count(*) FROM app.organizations")).rows[0].count), before + 1, "another verified user has an independent action budget");
 });

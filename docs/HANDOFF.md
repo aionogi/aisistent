@@ -14,6 +14,10 @@ M3 checkpoint 3 connects the M2 workspace screens to organization data: `/org/<i
 
 M3 checkpoint 4 adds team management: owners invite people by link, change roles, and remove members; owners and admins read the organization's activity log.
 
+M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concurrency defects, and adds provider-neutral operational safeguards. M3 remains incomplete; there is no deployed production environment, active cleanup schedule, configured alert sink, restore-drill evidence, or approved hosting choice. See [operations/RUNBOOK.md](operations/RUNBOOK.md).
+
+The earlier uncommitted local M2 draft was preserved in a local Git stash named `preserve pre-Claude local M2 draft before ec549e3 sync` before fast-forwarding to Claude's work. It is obsolete relative to the shipped M2 implementation; do not apply it to current `main`. It is not part of the GitHub handoff.
+
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
 - M2 tag: [`milestone-2-app-shell`](https://github.com/aionogi/aisistent/tree/milestone-2-app-shell) at `479188b983699114e0393875592292f109273dbe`, pushed on 2026-10-21 together with `main`. The implementation commit is `fbd4ae8`.
 - Private demo: [aisistent](https://aisistent-demo.cheery-pin-9983.chatgpt.site), owner-only access. It was published from M1 and has **not** been republished with M2; the M2 screens are available by running the source locally.
@@ -69,6 +73,15 @@ The user explicitly deferred production security implementation, pricing, and mo
   - `npm run dev:local-auth` accepts `/auth/login?login_hint=<name>@example.test` to sign in as another mock user.
 - Production architecture and security requirements in the documents linked below.
 
+- **Operational safeguards and review fixes (checkpoint 5):**
+  - Migration `0004_operational_safeguards.sql`: atomic PostgreSQL fixed-window rate buckets with no direct runtime table access, and bounded expiry cleanup. Raw IPs/user IDs are replaced with secret-keyed digests in rate storage.
+  - `/auth/*` and page POST requests are limited before the identity SDK; prefetch headers cannot bypass the proxy. Actions additionally limit the server-resolved user across sessions/organizations. Login, callback and logout budgets are separate. Rejections use 429 plus retry headers; missing configuration/database capability fails closed with 503.
+  - `RATE_LIMIT_SECRET` is required whenever database-backed operations are enabled. It is generated in the provisional Render template and disposable local test stack. `RATE_LIMIT_IP_HEADER` is deliberately unset until ingress overwrite and origin isolation are verified; an unset/invalid address uses a shared conservative bucket, not untrusted forwarded headers.
+  - Allowlisted JSON operational logs replace raw error messages on handled mutation/callback failures. They exclude request content, tokens, cookies, URLs, emails and raw IPs. Framework/provider/access/database logs need separate deployment redaction; see the runbook.
+  - `npm run ops:cleanup` is a one-shot, provider-neutral command using the restricted `DATABASE_URL`; it deletes expired sessions, invitations and rate buckets in bounded batches, preserving memberships and audit history. It has no public endpoint. A scheduler is documented but not activated. Random sign-in cleanup was removed, also resolving the observed flaky session-purge test.
+  - Migration `0005_team_authorization_lock.sql` fixes two reproduced races: queued mutations by a demoted/removed owner and duplicate active invitations with different roles. Mutations serialize per organization and recheck ownership after waiting; invitation acceptance follows the same lock order. Existing duplicate pending links are reconciled, keeping the newest and auditing older revocations.
+  - Workspace saves now enforce the configured MFA policy. A non-MFA privileged session sees a read-only view and step-up link. Invitation acceptance explicitly rechecks current-session email verification as well as the database email match.
+
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
 
 ## Draft state decision (M2)
@@ -84,7 +97,7 @@ One `WorkspaceDraft` object (`demo/lib/workspace/types.ts`) holds the whole exam
 
 - Conversations are scripted or rule-assembled text. There is no microphone, audio recording, live AI request, or telephony connection. The "reply preview" and example conversations are deterministic templates filled from the draft, not AI output.
 - The workspace shows "Telefonska linija: Nije povezana"; no integration exists.
-- There is no authentication, persistent organization state, pricing, checkout, billing, or subscription enforcement. The workspace is open to anyone who loads the page and contains only browser-local example data.
+- The public `/workspace/` demo remains open and browser-local. `/org/<id>/` has server-side identity, organization storage and authorization when configured. Pricing, checkout, billing and subscription enforcement do not exist.
 - The M1 landing dashboard preview (`DashboardPreview.tsx`) keeps its own fixtures and temporary knowledge editor; it is independent of the M2 draft.
 - The app now needs a Node.js server; `npm run build` no longer produces `demo/out/`, so the private Sites static demo cannot be refreshed from this source as before. `demo/.openai/hosting.json` describes that retired static path.
 - The metadata requests no indexing. Preview metadata and production indexing need an explicit launch decision later.
@@ -107,6 +120,7 @@ Run validation from `demo/`:
 ```sh
 npm run typecheck
 npm test
+npm run test:e2e
 npm run build
 npm run start
 ```
@@ -168,6 +182,21 @@ The app runs without any database or `.env`; database code activates only when `
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 5 — review and operational safeguards (2026-10-21)
+
+| Check | Evidence |
+| --- | --- |
+| Dependency installation | `npm ci` passed from the lockfile; npm reported zero known vulnerabilities at installation time. This is not an independent security audit. |
+| Claude baseline | First 51-test run had one flaky purge assertion caused by random sign-in cleanup. The original seven HTTP tests passed. New deterministic expiry fixture and removal of random cleanup resolve that failure. |
+| Unit/database regression suite | `npm test`: **71/71 passed** against disposable PostgreSQL 17. Covers atomic admission under concurrency, bounded counters, expiry, ACLs, cleanup batching/locks/preservation, CLI least privilege, redacted errors, team races, upgrade reconciliation and previous tenant/session tests. |
+| HTTP integration suite | `npm run test:e2e`: **12/12 passed** through the real SDK, Next proxy/actions and mock identity provider. Includes native forms, user budgets across sessions, independent users, 429/retry headers, prefetch/XFF spoofing, 503 failure/recovery, actual workspace save without MFA and removed-member denial. |
+| TypeScript and production build | `npm run typecheck` and `npm run build` passed after implementation and the final test-only TypeScript annotation fix. |
+| Targeted browser check | Non-MFA owner view displayed the warning and step-up link; editing controls absent. DOM measurements at 1440 and 390 px found no horizontal document overflow. |
+| Browser limitations | Screenshot capture and keyboard traversal were interrupted by browser-tool context/capture errors. Full visual/keyboard confirmation of this small notice remains pending; no screenshot review or complete accessibility audit is claimed. |
+| Production evidence | No real provider tenant, deployment, ingress trust test, scheduled cleanup, alert-delivery test or backup restore drill. The runbook describes required operator actions and evidence. |
+
+The HTTP test agent reached its usage limit after writing tests. The primary agent completed trailing-slash corrections, test isolation, the actual workspace-action MFA regression, TypeScript fixes and all final checks. Historical checkpoint verification below describes the earlier source, not current full launch readiness.
 
 ### M3 checkpoint 4 — team management (2026-10-21)
 
@@ -270,9 +299,9 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Next M3 step: operational safeguards that do not need provider accounts: rate limits for Server Actions and `/auth/*` (per IP and per user, stored in PostgreSQL), structured server logs without personal data or tokens, a scheduled purge of expired sessions and invitations, and a written backup/restore and incident/rollback runbook.
-5. Needs accounts or decisions: confirm the platform, then deploy staging, run a restore drill, choose an email provider for invitations, enable `AUTH_REQUIRE_MFA=true`, and enable the CI template.
-6. Later in M3: R2 private storage with short-lived signed URLs, a backup and restore drill (database and objects), observability, an incident and rollback runbook, and enabling the CI template.
+4. Finish the small outstanding browser visual/keyboard check of the non-MFA owner notice; use `npm run dev:local-auth` with `MOCK_MFA=false` and synthetic organization data. The server-side MFA denial is already covered by HTTP regression tests.
+5. Next provider-independent M3 work: build an automated isolated logical backup/restore rehearsal using synthetic records, with assertions for restored roles/RLS and invalidated old sessions. Use the runbook and record real results; do not mark production recovery proven from this test.
+6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open.
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict.
 
@@ -290,7 +319,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`. M1 and M2 are complete; M3 is in progress on Render + Auth0 (EU) + Cloudflare R2 (EU) with the database tenancy foundation in place. Continue with the next M3 step in this handoff. Preserve the M2 onboarding and workspace UI. Do not start real AI calls, telephony, pricing, or payments. Finish each checkpoint with checks, an updated handoff, a commit, and a push. If context is nearly exhausted, record a coherent partial checkpoint honestly rather than marking incomplete acceptance criteria complete.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 5 implemented, hosting and identity still provisional. First finish the documented browser check, then implement a provider-independent isolated backup/restore rehearsal using synthetic data. Do not redo the limiter, logs, cleanup or fixed team races. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 

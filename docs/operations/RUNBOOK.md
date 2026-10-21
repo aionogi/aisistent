@@ -1,0 +1,109 @@
+# M3 operations runbook
+
+Status: implemented local safeguards; no production deployment, scheduler, alert destination, or restore drill has been configured. Hosting and identity remain provisional. This document is an executable checklist for the eventual staging operator, not evidence of production readiness.
+
+## Release and configuration
+
+Use Node.js 24 and PostgreSQL 17. Run from `demo/`: `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`. Stop this project's development server before the HTTP suite; it starts its own disposable database, mock identity provider and Next server. Tests use example identities only.
+
+Before staging receives traffic:
+
+1. Record the release commit and a verified database backup. Apply migrations with `npm run db:migrate` using a separate migration identity where possible. Migrations are ordered, checksum checked and transactional. Never edit an already applied SQL file.
+2. Supply a restricted `DATABASE_URL` for `aisistent_app` to the web service. The current provisional Render template also supports deriving it from `DATABASE_ADMIN_URL` and `DATABASE_APP_PASSWORD`; remove the admin credential from the web process when a separate migration job is available.
+3. Set `RATE_LIMIT_SECRET` to an independently generated random secret of at least 32 characters, identical across all replicas. Keep it in the deployment secret store, separate from `AUTH0_SECRET`. Missing/short secrets or an unavailable limiter return 503 for protected requests. Do not disable this behavior to resolve an incident.
+4. Leave `RATE_LIMIT_IP_HEADER` unset until the selected ingress is verified to **overwrite** that header with a single canonical IP and direct access to the origin is blocked. The implementation does not trust `X-Forwarded-For` by default or parse chains. Missing/invalid addresses use one shared `unknown-client` budget. This protects against spoofing but can throttle unrelated visitors, so ingress verification is a staging gate.
+5. Configure the identity callback/logout addresses and require privileged-account MFA before real data. `AUTH_REQUIRE_MFA=true` gates organization creation, team changes and workspace writes. Check fresh MFA and non-MFA sessions against actual HTTP operations.
+6. Configure cleanup and alerts below. Confirm `/api/health/` responds, then test sign-in, organization save, invite/accept, role change and removed-member denial. Health is liveness only; it does not prove database or identity availability.
+
+No new provider account, paid service or public deployment is authorized by this runbook. The existing private Sites preview still shows M1; this application now requires a Node.js server and must not be republished as a static export.
+
+## Request limits
+
+The PostgreSQL limiter atomically admits a bounded number of requests per fixed window across all replicas. A window begins with its first request. Rejected requests do not extend it. The database stores only an HMAC digest, counter and expiry; neither raw IP addresses nor user identifiers are stored in these rows. Digests are pseudonymous operational data, not guaranteed anonymous data.
+
+| Scope | Budget | Identity |
+| --- | --- | --- |
+| Login | 30 / minute | Ingress IP or shared fallback |
+| Callback | 60 / minute | Ingress IP or shared fallback |
+| Logout and back-channel logout | 120 / minute | Ingress IP or shared fallback |
+| Other `/auth/*` paths | 60 / minute | Ingress IP or shared fallback |
+| Every page POST, including native forms | 180 / minute | Ingress IP or shared fallback |
+| Organization creation | 5 / hour | Verified server-resolved account |
+| Workspace saves | 90 / minute | Verified server-resolved account |
+| Team changes | 30 / minute | Verified server-resolved account |
+| Invitation acceptance | 20 / minute | Verified server-resolved account |
+
+User budgets span organizations and sessions. Callbacks and logout have separate budgets so a login burst does not consume their quota. Proxy rejection returns 429 and `Retry-After`, `Cache-Control: no-store`, and a server-generated `x-request-id`. Limiter failures return 503 with a 30-second retry instruction. Action-level rejections use the existing Serbian form/save error UI; they perform no write. Unsaved editor changes remain in browser memory; after waiting, editing again triggers another save.
+
+These are staging defaults, not measured production capacity. Set ingress connection/body limits and DDoS controls when hosting is chosen: a database limiter alone cannot protect network or connection saturation. Unauthenticated GET pages and `/api/health/` are not globally throttled. Future APIs, downloads, uploads and integrations need their own budgets. Observe legitimate shared-IP usage before tuning limits in `lib/operations/rate-limits.ts`.
+
+## Cleanup job
+
+Run `npm run ops:cleanup` from `demo/` with **only the restricted `DATABASE_URL`**. The command refuses an owner, superuser, BYPASSRLS or owner-role-member connection. No HTTP cleanup endpoint or shared web cron token exists.
+
+Once hosting is approved, configure its private scheduler every 15 minutes with this command, a five-minute process deadline, the same database network rules, and failure alerts. An equivalent cron entry on an approved Node host is:
+
+```cron
+*/15 * * * * cd /srv/aisistent/demo && npm run ops:cleanup
+```
+
+Inject the connection secret through the scheduler's secret store, never the cron line. This schedule is a proposed staging default and **has not been activated**.
+
+Each pass removes at most 500 expired sessions, 500 expired invitations and 500 expired rate buckets; a run stops after at most 20 passes. Accepted/revoked invitation rows are retained until their original expiry. Member access and audit records remain. Expired or purged links cannot be accepted; a purged link shows “not found” rather than “expired”. There is no general customer-data or audit-retention policy yet.
+
+The command prints count-only `operations.cleanup` JSON and exits nonzero on failure. `reachedPassLimit=true` means another run may be needed. Locked rows are skipped and picked up on later runs; a low count alone does not prove an empty backlog. Parallel runs safely skip each other's locked rows. Failed statements roll back their transaction; rerunning is safe. Sign-in no longer performs random cleanup.
+
+## Logs and alerts
+
+Application operational events use an allowlist: timestamp, severity, fixed event/operation, success/denied/error, generated request ID and bounded retry time. They never serialize arbitrary exception messages, SQL parameters, tokens, cookies, invitation links, emails, workspace contents or raw IPs. Team audit records are separate, access-controlled business records and still contain actor/target references.
+
+Relevant events: `request.blocked`, `rate_limit.unavailable`, `action.completed`, `action.failed`, `auth.callback_failed`, `database.idle_error`, and the count-only cleanup result. SDK, Next development output, reverse-proxy access logs and database statement logs are outside this serializer. Configure those sinks to redact query strings, auth callbacks, cookies and `/invite/<token>/` paths. Keep SQL statement/parameter logging off around credentials and session payloads. Do not send debug logs to an external service without reviewing that service and its retention/access controls. These exclusions follow [OWASP logging guidance](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html).
+
+Before staging, name a primary and backup operator and configure a restricted log sink and alert destination. Suggested initial alerts, to be tuned with real staging data:
+
+- Any repeated `rate_limit.unavailable`, idle database error, or failed cleanup: investigate immediately.
+- No successful cleanup for 45 minutes: check scheduler, network and database access.
+- `reachedPassLimit` on two consecutive runs: inspect expiry backlog and scheduler frequency.
+- Repeated action/callback failures or a sudden sustained increase in 429s: distinguish misconfiguration, legitimate shared-IP traffic and abuse before changing budgets.
+
+Verify alerts reach an operator. Record the test timestamp and recipient in the release evidence; no alert-delivery test has yet been performed.
+
+## Backups and isolated restore drill
+
+Choose and record recovery point/time objectives, backup frequency, retention, encryption and access ownership before real data. Managed point-in-time recovery and an independently accessible encrypted backup are deployment decisions still pending. A database backup does not include future object-storage files.
+
+For a PostgreSQL logical backup, use a protected PostgreSQL service/passfile configuration for a backup identity with access to the full database. Never place passwords in commands, chat or committed files. Example commands using configured service names:
+
+```sh
+pg_dump --dbname=service=aisistent_backup --format=custom --file=aisistent-backup.dump
+pg_restore --list aisistent-backup.dump
+```
+
+Encrypt the artifact, verify its checksum and restrict access; do not put dumps in this repository. A successful dump/list is not a recovery test. PostgreSQL documents the ownership/role prerequisites and consistent-snapshot behavior in its [backup guide](https://www.postgresql.org/docs/17/backup-dump.html).
+
+For each drill:
+
+1. Create a separate empty PostgreSQL 17 restore target with no production traffic or outbound integrations. Never restore over the running database. Record backup ID, snapshot time, target and start time.
+2. Prepare the non-superuser migration owner, `aisistent_runtime` NOLOGIN role and restricted `aisistent_app` login with a **new** password. Restore roles/privileges intentionally; do not use `--no-acl` and accidentally remove access controls. Do not expose the original production passwords to the drill.
+3. Restore into that empty target as its migration owner:
+
+   ```sh
+   pg_restore --dbname=service=aisistent_restore --no-owner --exit-on-error --single-transaction aisistent-backup.dump
+   ```
+
+4. Check `schema_migrations` checksums against the matching source release before applying later migrations. Verify tables, indexes, functions, RLS policies and grants. `aisistent_app` must be non-owner and unable to bypass RLS or assume the owner role.
+5. Remove restored login sessions and invitations in the isolated target before enabling traffic, and generate fresh application/identity secrets. Restoring old sessions could revive a session revoked after the backup. Use test identities and synthetic organization records for the drill.
+6. Connect a separate test app to the restored target. Verify two organizations cannot cross-read/write, removed members remain denied, configuration and knowledge agree with the snapshot, and fresh sign-in plus save works. Record row counts/checksums without copying customer content into logs.
+7. Once files exist, separately restore an object snapshot and reconcile authorized object references and actual file bytes. This is not implemented yet.
+8. Record finish time, observed data loss, recovery duration, failures and accountable owner. Destroy the isolated environment through the approved provider procedure after retaining sanitized evidence. Only then mark the drill passed.
+
+## Incident and rollback
+
+1. Record incident time, release SHA, affected fixed operation and request IDs. Preserve restricted logs and a backup without collecting cookies, tokens or personal data into chat.
+2. Contain: stop deploys, restrict ingress or place the service into maintenance at the hosting layer. For suspected credential compromise, disable affected identity access and rotate credentials through the provider; revoke application sessions as well. Keep callback/logout availability in mind when tightening request limits.
+3. Triage 503s by checking database connectivity, migration state and `RATE_LIMIT_SECRET` presence/length without printing values. For 429s, check shared-IP fallback and ingress configuration. Do not accept user-supplied IP headers as a quick fix.
+4. Roll back application code to the last verified compatible immutable commit. Migrations are forward-only; do not delete `schema_migrations` entries, alter old migration files or run destructive down scripts. If the old app is not compatible with the current schema, use a reviewed forward fix or restore into a separate database with an explicitly approved cutover and data-loss assessment.
+5. For data compromise, coordinate with the responsible business/legal owner on notifications and retention. This runbook does not define legal deadlines.
+6. Recheck sign-in, role/MFA enforcement, cross-tenant isolation, saves, cleanup, alerts and security headers before reopening traffic. Record root cause, fix SHA, timeline, impact and follow-up tests.
+
+Rotating `RATE_LIMIT_SECRET` resets effective budgets until old digests expire; coordinate all replicas. Rotating `AUTH0_SECRET` invalidates cookies and encrypted stored sessions; plan forced reauthentication. Rotating the database password requires updating every web/cleanup connection and testing new connections before retiring the old credential. Never log old/new secret values.

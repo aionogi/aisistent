@@ -6,6 +6,7 @@ import { mfaRequired } from "../../../../../../lib/auth/auth0.ts";
 import { ForbiddenError, withOrganization, type MemberRole } from "../../../../../../lib/db/context.ts";
 import { getPool } from "../../../../../../lib/db/pool.ts";
 import { changeMemberRole, createInvitation, isValidInvitationEmail, removeMember, revokeInvitation, TeamError, type TeamErrorCode } from "../../../../../../lib/db/team.ts";
+import { actionLimit, actionLog } from "../../../../../../lib/operations/action-guard.ts";
 
 export type TeamActionResult = { error: string | null };
 export type InviteState = { error: string | null; invitation: { path: string; email: string; expiresAt: string } | null };
@@ -34,13 +35,17 @@ async function runTeamChange(organizationId: string, work: Parameters<typeof wit
   const checked = await guard();
   const pool = getPool();
   if (!checked.account || !pool) return { error: checked.error ?? "Prijava nije podešena." };
+  const limitError = await actionLimit(pool, "team.change", checked.account.userId);
+  if (limitError) return { error: limitError };
   try {
     await withOrganization(pool, { userId: checked.account.userId, organizationId }, work);
   } catch (error) {
+    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error");
     if (error instanceof TeamError) return { error: MESSAGES[error.code] ?? "Izmena nije uspela." };
     if (error instanceof ForbiddenError) return { error: "Nemate pristup ovoj firmi." };
-    throw error;
+    return { error: "Izmena trenutno nije moguća. Pokušajte ponovo kasnije." };
   }
+  await actionLog("team.change", "success");
   revalidatePath(`/org/${organizationId}/team/`);
   return { error: null };
 }

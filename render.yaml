@@ -45,6 +45,11 @@ services:
       # Must be "true" before real customer data; requires an MFA factor in the tenant.
       - key: AUTH_REQUIRE_MFA
         value: "false"
+      # Same secret across replicas; only keyed digests reach rate-limit storage.
+      - key: RATE_LIMIT_SECRET
+        generateValue: true
+      # RATE_LIMIT_IP_HEADER stays unset until ingress overwrite/origin access
+      # rules are verified. Unset uses a shared conservative fallback budget.
 
 databases:
   - name: aisistent-staging-db

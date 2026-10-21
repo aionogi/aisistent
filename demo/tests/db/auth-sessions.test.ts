@@ -104,6 +104,7 @@ test("the application role cannot read the sessions table directly", async () =>
 });
 
 test("expired sessions can be purged", async () => {
+  await store.set("purge-fixture", session("auth0|purge", "sid-purge", { internal: { createdAt: 1, sid: "sid-purge" } }));
   const { rows } = await db.appPool.query("SELECT app.auth_session_purge_expired() AS removed");
   assert.ok(rows[0].removed >= 1);
   assert.equal((await db.admin.query("SELECT 1 FROM app.auth_sessions WHERE expires_at <= now()")).rowCount, 0);
