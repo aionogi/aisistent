@@ -18,6 +18,14 @@ npm run dev
 
 Open [http://127.0.0.1:4310](http://127.0.0.1:4310), or go straight to [/onboarding/](http://127.0.0.1:4310/onboarding/) or [/workspace/](http://127.0.0.1:4310/workspace/).
 
+| Mode | Command from `demo/` | Address and data |
+| --- | --- | --- |
+| Public demo | `npm run dev` | `http://127.0.0.1:4310`; example workspace data stays in the browser tab |
+| Local sign-in test | `npm run dev:local-auth` | `http://127.0.0.1:4313/account/`; mock identities and a temporary database discarded on exit |
+| Production build locally | `npm run build`, then `npm run start` | `http://localhost:3000` by default; Node.js server, no `out/` export; organization features require server configuration |
+
+Run only one development server for this directory at a time. The local sign-in test is for development only and needs no real provider account.
+
 ```sh
 npm run typecheck
 npm test
@@ -57,7 +65,7 @@ Run these commands from `demo/`. `npm test` starts temporary PostgreSQL 17 datab
 4. **M4 — Live AI and telephony:** controlled provider integrations after the platform safeguards.
 5. **M5 — Pricing and subscriptions:** approved recurring-payment integration for the Serbian merchant after security readiness.
 
-Security, live integrations, pricing, and recurring billing are future milestones. They must not be inferred from the demo's appearance.
+M3 security work remains incomplete; live integrations, pricing and recurring billing are later milestones. Production readiness must not be inferred from the demo's appearance.
 
 ## Continuing development
 

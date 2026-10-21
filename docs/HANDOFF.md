@@ -16,6 +16,8 @@ M3 checkpoint 4 adds team management: owners invite people by link, change roles
 
 M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concurrency defects, and adds provider-neutral operational safeguards. M3 remains incomplete; there is no deployed production environment, active cleanup schedule, configured alert sink, restore-drill evidence, or approved hosting choice. See [operations/RUNBOOK.md](operations/RUNBOOK.md).
 
+Implementation checkpoint: [`9e813b3`](https://github.com/aionogi/aisistent/commit/9e813b3685413b4ce72558ab442c1876693b535c), pushed to `main`. A subsequent documentation-only cleanup corrects the retired static-build instructions, distinguishes demo/mock/production startup, and refreshes current-state descriptions. Verified against `package.json`, `next.config.ts`, the local-auth launcher and migrations; `git diff --check` passed. No application code changed and the test/build suites were not rerun for that documentation cleanup. The next implementation task and open M3 gates below are unchanged.
+
 The earlier uncommitted local M2 draft was preserved in a local Git stash named `preserve pre-Claude local M2 draft before ec549e3 sync` before fast-forwarding to Claude's work. It is obsolete relative to the shipped M2 implementation; do not apply it to current `main`. It is not part of the GitHub handoff.
 
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
@@ -47,7 +49,7 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Database schema `app` (users, organizations, memberships, assistant configs, knowledge entries, audit events) with RLS, a NOLOGIN `aisistent_runtime` role, and a restricted `aisistent_app` login that is not a member of the owner role.
   - Tenant-scoped data access (`withUser`, `withOrganization`) with transaction-local context and live membership checks; repositories for configuration (optimistic revisions), knowledge, memberships, and audit events.
   - Migration runner with checksums and an advisory lock; `npm run db:migrate` runs as Render's preDeployCommand.
-  - 20 integration tests against a real PostgreSQL 17 server (`npm test`).
+  - Real PostgreSQL 17 integration tests run through `npm test`; see the latest verification record for the current suite count and coverage.
 - **M3 sign-in (checkpoint 2):**
   - `@auth0/nextjs-auth0` v4 mounted from `proxy.ts` (login, callback, logout, back-channel logout); the client-side access-token endpoint is disabled and no refresh tokens are requested.
   - Stateful sessions: the cookie holds only the SDK's encrypted session id; `app.auth_sessions` stores its SHA-256 hash and an AES-256-GCM payload (key derived from `AUTH0_SECRET`, bound to the id hash). 12 h inactivity, 3 days absolute. The runtime role reaches the table only through SECURITY DEFINER functions.
@@ -66,7 +68,7 @@ The user explicitly deferred production security implementation, pricing, and mo
 - **Team management (checkpoint 4):**
   - Migration `0003_team_management.sql`: `app.invitations` (token stored only as SHA-256; the application cannot read hashes) and SECURITY DEFINER functions that re-check the caller's role: `create_invitation`, `revoke_invitation`, `invitation_preview`, `accept_invitation`, `change_member_role`, `remove_member`, `list_members`, `audit_log`.
   - Invitations: owner only; 7-day links; a new invitation for the same address replaces the open one; existing members cannot be re-invited. Accepting requires the signed-in user's **verified** email to equal the invited address, so a forwarded link is useless to anyone else. Email sending is not connected: the owner copies the link (shown once).
-  - Roles: owner (team and everything), admin (configuration and knowledge), member (read only). The last owner cannot be demoted or removed; owner rows are locked so concurrent changes cannot remove every owner.
+  - Roles: owner (team and everything), admin (configuration and knowledge), member (read only). The last owner cannot be demoted or removed. Checkpoint 5 serializes team mutations on the organization row and rechecks ownership after lock waits, in addition to protecting the last owner.
   - Removal takes effect on the member's next request because every organization request re-checks membership; their sign-in session is not ended, since it may serve other organizations.
   - Pages: `/org/<id>/team/` (members; owners also invite, change roles, remove, and revoke), `/org/<id>/activity/` (owners and admins; last 100 events with actor names), `/invite/<token>/` (sign in, preview, accept). Team changes require MFA when `AUTH_REQUIRE_MFA=true`.
   - Autosave writes at most one `workspace.save` audit entry per person per 15 minutes.

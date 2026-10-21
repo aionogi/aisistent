@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-The user requires Next.js and Node.js. Python is permitted only for a demonstrably necessary isolated pipeline. Code, identifiers, comments, and implementation documentation are English. TypeScript is proposed in the project plan.
+The user requires Next.js and Node.js. Python is permitted only for a demonstrably necessary isolated pipeline. Code, identifiers, comments, and implementation documentation are English. The current application uses TypeScript.
 
 ## Product Purpose
 

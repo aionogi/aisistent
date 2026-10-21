@@ -40,7 +40,9 @@ npm run build
 npm run dev
 ```
 
-The dev server is `http://127.0.0.1:4310` (landing `/`, onboarding `/onboarding/`, workspace `/workspace/`); the build output is `demo/out/`. No environment configuration is needed for the current demo.
+The dev server is `http://127.0.0.1:4310` (landing `/`, onboarding `/onboarding/`, workspace `/workspace/`). The production build is a Node.js application in `demo/.next/`, served by `npm run start`; static export to `demo/out/` was retired in M3. No environment configuration is needed for the public demo. Database-backed operations need the configuration described in `docs/operations/RUNBOOK.md`.
+
+Stop this project's dev server before `npm run test:e2e`; the HTTP suite starts its own Next.js server in the same directory. `npm run dev:local-auth` provides a disposable database and mock identity provider at `http://127.0.0.1:4313/account/` without provider credentials. Never run that mock identity stack in production.
 
 For UI changes, check the affected interactions at desktop and mobile sizes, including horizontal overflow and keyboard access. Record checks actually performed and their limitations. Do not present proposed security gates as passing tests.
 
