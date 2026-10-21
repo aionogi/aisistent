@@ -1,6 +1,17 @@
 # M3 platform options: hosting, identity, database
 
-Status: **decided 2026-10-21 — combination A** (Render Frankfurt + Render Postgres + Auth0 EU + Cloudflare R2 EU), chosen by the user.
+Status: **provisional — combination A** (Render Frankfurt + Render Postgres + Auth0 EU + Cloudflare R2 EU), chosen by the user on 2026-10-21. Later the same day the user said they are not yet sure about Render and Auth0 and asked to continue and revisit the choice. **Open: confirm or switch before opening provider accounts or deploying.**
+
+### What depends on the provider choice
+
+Keep provider-specific code in these places so a switch stays small:
+
+| Provider | Where it is used | Portable part |
+| --- | --- | --- |
+| Render | `render.yaml`; `DATABASE_ADMIN_URL`/`DATABASE_APP_PASSWORD` naming in `demo/lib/db/config.ts` | Any Node.js host running `npm run build`, `npm run db:migrate`, `npm run start` |
+| Render Postgres | Nothing provider-specific | Standard PostgreSQL 17 with roles, RLS, and SECURITY DEFINER functions |
+| Auth0 | `demo/lib/auth/auth0.ts`, the `/auth/*` routes mounted in `demo/proxy.ts`, `AUTH0_*` variables | Any OpenID Connect provider; `lib/auth/account.ts`, the session table, and authorization stay the same |
+| Cloudflare R2 | Not used yet | S3-compatible API |
 Researched: 2026-10-21. Merchant: company based in Serbia.
 
 ## Decision record

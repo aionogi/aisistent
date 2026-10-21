@@ -4,6 +4,8 @@ Updated: 2026-10-21.
 
 ## Current objective
 
+**Open decision:** the platform choice (Render + Auth0 + R2) is provisional; the user wants to revisit it before opening accounts. See "What depends on the provider choice" in [m3-platform-options.md](architecture/m3-platform-options.md).
+
 M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
 M3 checkpoint 1 adds the Node.js deployment configuration and the database tenancy foundation with tested row-level security. Nothing is deployed yet: the user must first open the provider accounts (see "Provider setup" below). M3 checkpoint 2 adds Auth0 sign-in with server-side sessions stored encrypted in PostgreSQL, user provisioning at sign-in, and an account page where a verified user creates an organization. It is tested end to end against a local mock identity provider. Connecting the workspace UI to organization data is the next M3 step.

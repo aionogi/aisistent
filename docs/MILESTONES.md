@@ -52,7 +52,7 @@ The M1 landing dashboard preview was left intact; the workspace reuses its visua
 
 Goal: support real organizations and data through the requested Next.js/Node.js stack.
 
-- [x] Record hosting, managed identity, database, and private storage decisions ([m3-platform-options.md](architecture/m3-platform-options.md): Render Frankfurt, Render Postgres, Auth0 EU, Cloudflare R2 EU).
+- [ ] Record hosting, managed identity, database, and private storage decisions. *(Provisional choice recorded in [m3-platform-options.md](architecture/m3-platform-options.md): Render Frankfurt, Render Postgres, Auth0 EU, Cloudflare R2 EU; the user wants to revisit it.)*
 - [ ] Replace static-only deployment with a suitable Node.js deployment when server features are introduced. *(Configured: `next start`, `render.yaml` for Frankfurt staging, CSP and security headers. Not yet deployed.)*
 - [ ] Implement organizations, memberships, roles, and durable assistant/knowledge/conversation records. *(Schema, RLS, and repositories for organizations, memberships, roles, configuration, knowledge, and audit events exist; conversations and the UI connection remain.)*
 - [ ] Enforce server-side authorization and tenant isolation on each protected operation.
