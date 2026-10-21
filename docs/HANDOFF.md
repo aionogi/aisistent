@@ -6,7 +6,7 @@ Updated: 2026-10-21.
 
 M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
-M3 checkpoint 1 adds the Node.js deployment configuration and the database tenancy foundation with tested row-level security. Nothing is deployed yet: the user must first open the provider accounts (see "Provider setup" below). Authentication, API routes, and connecting the workspace UI to the database are the next M3 steps.
+M3 checkpoint 1 adds the Node.js deployment configuration and the database tenancy foundation with tested row-level security. Nothing is deployed yet: the user must first open the provider accounts (see "Provider setup" below). M3 checkpoint 2 adds Auth0 sign-in with server-side sessions stored encrypted in PostgreSQL, user provisioning at sign-in, and an account page where a verified user creates an organization. It is tested end to end against a local mock identity provider. Connecting the workspace UI to organization data is the next M3 step.
 
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
 - M2 tag: [`milestone-2-app-shell`](https://github.com/aionogi/aisistent/tree/milestone-2-app-shell) at `479188b983699114e0393875592292f109273dbe`, pushed on 2026-10-21 together with `main`. The implementation commit is `fbd4ae8`.
@@ -38,7 +38,14 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Tenant-scoped data access (`withUser`, `withOrganization`) with transaction-local context and live membership checks; repositories for configuration (optimistic revisions), knowledge, memberships, and audit events.
   - Migration runner with checksums and an advisory lock; `npm run db:migrate` runs as Render's preDeployCommand.
   - 20 integration tests against a real PostgreSQL 17 server (`npm test`).
-- There is still no sign-in, no API used by the UI, and no deployed environment. The workspace UI still uses the browser-tab draft.
+- **M3 sign-in (checkpoint 2):**
+  - `@auth0/nextjs-auth0` v4 mounted from `proxy.ts` (login, callback, logout, back-channel logout); the client-side access-token endpoint is disabled and no refresh tokens are requested.
+  - Stateful sessions: the cookie holds only the SDK's encrypted session id; `app.auth_sessions` stores its SHA-256 hash and an AES-256-GCM payload (key derived from `AUTH0_SECRET`, bound to the id hash). 12 h inactivity, 3 days absolute. The runtime role reaches the table only through SECURITY DEFINER functions.
+  - Only `sub`, `name`, `email`, `email_verified`, and `amr` are kept in the session. A verified sign-in calls `provisionUser`; `getCurrentAccount()` resolves the user from the session and database on every request.
+  - `/account/`: signed-out, not-configured, and signed-in states; membership list; organization creation through a Server Action that rechecks identity, email verification, MFA (when `AUTH_REQUIRE_MFA=true`), and the name on the server. MFA step-up uses Auth0's `acr_values` redirect.
+  - `returnTo` is limited to same-origin paths; provider error text is never shown.
+  - `npm run dev:local-auth` runs the signed-in app locally with a temporary database and a mock OpenID Connect provider (`oauth2-mock-server`); `npm run test:e2e` drives the full sign-in round trip.
+- The workspace UI still uses the browser-tab draft; organizations do not yet have their own configuration screens.
 - Production architecture and security requirements in the documents linked below.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
@@ -116,12 +123,31 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/lib/db/migrator.ts`, `demo/scripts/db/migrate.ts` | Migration runner and the deploy command |
 | `demo/lib/db/pool.ts` | Shared pool for the application login, or null without a database |
 | `demo/tests/db/` | PostgreSQL test harness and integration tests |
+| `demo/db/migrations/0002_auth_sessions.sql` | Encrypted session table and its access functions |
+| `demo/lib/auth/auth0.ts` | Auth0 client (or null when not configured), hooks, `safeReturnPath`, MFA settings |
+| `demo/lib/auth/session-store.ts` | PostgreSQL session store with hashing and AES-256-GCM |
+| `demo/lib/auth/account.ts` | `getCurrentAccount()` for Server Components and Actions |
+| `demo/app/(platform)/account/` | Account page and the create-organization Server Action |
+| `demo/components/account/` | Account styles and the organization form |
+| `demo/tests/support/local-auth-stack.ts`, `demo/scripts/dev/local-auth.ts` | Local database + mock identity provider + `next dev` |
+| `demo/tests/e2e/login.test.ts` | End-to-end sign-in, session, and logout tests |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 2 — sign-in (2026-10-21)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript and build | `npm run typecheck` and `npm run build` passed; `/account` renders dynamically behind the proxy |
+| Database tests | `npm test`: 27 of 27 passed, including 7 session-store tests (round trip; hashed id and encrypted payload; inactivity and absolute expiry; expired, tampered, wrong-key, and swapped payloads rejected; update-only-existing; delete; back-channel logout by `sid`/`sub`; no direct table access for the runtime role; purge) |
+| End-to-end | `npm run test:e2e`: 7 of 7 passed through the real SDK, proxy, session store, and database with a mock OpenID Connect provider: signed-out page; sign-in creates the user, one server-side session, and an `HttpOnly`, `SameSite=Lax` cookie; the table contains neither the email nor the cookie value; altered cookies are signed out; logout deletes the session and an old cookie cannot be replayed; without MFA the page asks for step-up; `returnTo` to another site stays on this origin; `/auth/access-token` is disabled |
+| Browser | With `npm run dev:local-auth`: sign-in, a too-short organization name showing an inline error with the value kept, creating "Studio Mila" (listed as Vlasnik), and logout; `document.cookie` was empty while signed in; no console errors; no horizontal overflow at 529 px |
+
+Not verified: a real Auth0 tenant, Universal Login, passkeys or OTP enrollment, back-channel logout from Auth0, production cookies over https, and Render. The dev server briefly reloaded the page in a loop right after startup in the hidden browser pane, then settled; this did not occur in the production build.
 
 ### M3 checkpoint 1 (2026-10-21)
 
@@ -177,7 +203,13 @@ The CI template at `docs/ci/demo-checks.yml.example` repeats dependency installa
 Agents must not create accounts or handle credentials. The user opens these in the company's name, with a company email and card, MFA on, and a second owner where supported:
 
 1. **Render:** create a workspace (Pro for 7-day PITR before real data), connect the GitHub repository, and create a Blueprint from `render.yaml`. Confirm both resources show region Frankfurt. The first deploy runs `npm run db:migrate`; if it fails with a permission error on `CREATE ROLE`, Render's default user lacks `CREATEROLE` and the role setup must be adjusted.
-2. **Auth0:** create a tenant with the **EU** locality. Do not create applications or share secrets yet; the next step defines the exact settings.
+2. **Auth0:** create a tenant with the **EU** locality, then:
+   - Applications → Create Application → **Regular Web Application** (e.g. "aisistent staging").
+   - Allowed Callback URLs: `https://<render-host>/auth/callback`. Allowed Logout URLs: `https://<render-host>/`. Leave Allowed Web Origins empty.
+   - Authentication: keep the Username-Password database connection; email verification emails are on by default. Optional: Google.
+   - Optional now, required before real data: an MFA factor (Auth0 lists passkeys on the Free plan and its "Pro MFA factors" only on paid plans; confirm which factor sets the `mfa` amr value), then set `AUTH_REQUIRE_MFA=true` on Render.
+   - Optional: Back-Channel Logout URI `https://<render-host>/auth/backchannel-logout`.
+   - In Render's dashboard set `APP_BASE_URL` (`https://<render-host>`, no trailing slash), `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_CLIENT_SECRET`. If the Blueprint was created before these were added to `render.yaml`, also add `AUTH0_SECRET` (a random value of at least 32 characters) and `AUTH_REQUIRE_MFA=false`. Never paste these values into chat or commits.
 3. **Cloudflare:** create an account; R2 buckets (EU jurisdiction) are needed only when file uploads start.
 4. Sign each provider's DPA and keep copies; prepare Serbian Commissioner SCCs where a provider may process data outside the EU.
 
@@ -186,9 +218,11 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Next M3 step: Auth0 sign-in with `@auth0/nextjs-auth0` (server-side, `HttpOnly` session; prefer a stateful session store in PostgreSQL for revocation), user provisioning through `provisionUser`, organization creation, and an organization switcher. Read the SDK's current Next.js 16 `proxy.ts` integration first.
-5. Then Route Handlers or Server Actions for configuration and knowledge that call `withOrganization`, validate input with the shared rules in `lib/workspace/validation.ts`, write audit events, and connect the M2 workspace UI to them. Keep the example-data demo separate from real organizations.
+4. Next M3 step: organization workspace routes (for example `/org/[organizationId]/`) whose Server Actions call `withOrganization`, validate input with the shared rules in `lib/workspace/validation.ts` plus `parseDraft`, write audit events, and reuse the M2 forms against `app.assistant_configs` and `app.knowledge_entries`. Keep the example-data demo separate from real organizations.
+5. Then member invitations and role changes (owner only), revoking a removed member's sessions (`app.auth_sessions` by subject), and enforcing `AUTH_REQUIRE_MFA=true` once the tenant has an MFA factor.
 6. Later in M3: R2 private storage with short-lived signed URLs, a backup and restore drill (database and objects), observability, an incident and rollback runbook, and enabling the CI template.
+
+Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict.
 
 Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; styles allow `'unsafe-inline'` in the CSP; the CI template's `npm test` step has never run in GitHub.
 

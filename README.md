@@ -25,7 +25,7 @@ npm run build
 npm run start
 ```
 
-Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 server for the database tests (no Docker needed). The app runs without environment variables or provider accounts; database features activate only when a database is configured. Deployment uses `render.yaml` (Render, Frankfurt).
+Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 server for the database tests (no Docker needed). `npm run dev:local-auth` runs the signed-in app locally with a mock identity provider at http://127.0.0.1:4313/account/, and `npm run test:e2e` tests the sign-in flow end to end. The app runs without environment variables or provider accounts; database features activate only when a database is configured. Deployment uses `render.yaml` (Render, Frankfurt).
 
 ## Project map
 

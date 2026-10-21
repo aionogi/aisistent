@@ -43,5 +43,7 @@ jobs:
         run: npm run typecheck
       - name: Database integration tests (temporary PostgreSQL 17)
         run: npm test
+      - name: End-to-end sign-in tests (mock identity provider)
+        run: npm run test:e2e
       - name: Build
         run: npm run build
