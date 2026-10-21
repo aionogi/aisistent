@@ -20,11 +20,11 @@ after(async () => { await db?.stop(); });
 test("the deploy migration command prepares a working restricted login", async () => {
   const env = { ...process.env, DATABASE_ADMIN_URL: db.adminUrl, DATABASE_APP_PASSWORD: APP_PASSWORD, DATABASE_URL: "" };
   const first = await run(process.execPath, ["scripts/db/migrate.ts"], { cwd: projectDir, env });
-  assert.match(first.stdout, /Migrations applied: 0001_core_tenancy, 0002_auth_sessions/);
+  assert.match(first.stdout, /Migrations applied: 0001_core_tenancy, 0002_auth_sessions, 0003_team_management/);
   assert.match(first.stdout, /Application database login is up to date/);
 
   const second = await run(process.execPath, ["scripts/db/migrate.ts"], { cwd: projectDir, env });
-  assert.match(second.stdout, /Migrations applied: none \(2 already applied\)/);
+  assert.match(second.stdout, /Migrations applied: none \(3 already applied\)/);
 
   const derived = appConnectionString({ DATABASE_ADMIN_URL: db.adminUrl, DATABASE_APP_PASSWORD: APP_PASSWORD });
   assert.ok(derived);

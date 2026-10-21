@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bot, LayoutDashboard, MessageSquare, RotateCcw, UserRound, X, type LucideIcon } from "lucide-react";
+import { BookOpen, Bot, History, LayoutDashboard, MessageSquare, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { completedStepCount, EDITABLE_STEP_COUNT, onboardingStartHref } from "../../lib/workspace/steps";
 import { INDUSTRY_LABELS } from "../../lib/workspace/templates";
@@ -14,12 +14,18 @@ import { DraftLoading, DraftNotices, SaveIndicator } from "./StatusViews";
 import { ROLE_LABELS, useWorkspaceEnvironment, workspacePath } from "./WorkspaceEnvironment";
 import styles from "./shell.module.css";
 
-const navigation: Array<{ page: string; label: string; icon: LucideIcon }> = [
+type NavigationItem = { page: string; label: string; icon: LucideIcon };
+
+const navigation: NavigationItem[] = [
   { page: "", label: "Pregled", icon: LayoutDashboard },
   { page: "conversations", label: "Razgovori", icon: MessageSquare },
   { page: "assistant", label: "Asistent", icon: Bot },
   { page: "knowledge", label: "Baza znanja", icon: BookOpen },
 ];
+
+// Organizations also have a team page, and owners and admins an activity log.
+const teamItem: NavigationItem = { page: "team", label: "Tim", icon: Users };
+const activityItem: NavigationItem = { page: "activity", label: "Aktivnost", icon: History };
 
 const normalize = (path: string) => path.replace(/\/+$/, "") || "/";
 
@@ -33,6 +39,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const displayName = isDemo ? businessName : environment.organizationName ?? businessName;
   const completed = completedStepCount(draft);
   const flashPath = useRef(pathname);
+  const items = isDemo ? navigation
+    : [...navigation, teamItem, ...(environment.role === "owner" || environment.role === "admin" ? [activityItem] : [])];
 
   // A confirmation belongs to the page where it appeared; drop it once the user moves on.
   useEffect(() => {
@@ -63,8 +71,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className={styles.navigation} aria-label="Radni prostor">
-          {navigation.map(({ page, label, icon: Icon }) => {
+        <nav className={`${styles.navigation} ${items.length > 4 ? styles.navigationWide : ""}`} aria-label="Radni prostor">
+          {items.map(({ page, label, icon: Icon }) => {
             const href = workspacePath(environment, page);
             const active = normalize(href) === pathname;
             return (

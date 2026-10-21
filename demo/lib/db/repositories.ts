@@ -154,6 +154,13 @@ export async function saveWorkspace(client: PoolClient, input: WorkspaceSaveInpu
   for (const id of existing.keys()) {
     if (!kept.has(id)) await deleteKnowledge(client, id);
   }
-  await recordAudit(client, { action: "workspace.save", target: `revision ${revision}`, result: "success" });
+  // Autosave runs every few seconds; one audit entry per person per 15 minutes keeps the log readable.
+  const recent = await client.query(
+    `SELECT 1 FROM app.audit_events
+     WHERE organization_id = app.current_organization_id() AND actor_user_id = app.current_user_id()
+       AND action = 'workspace.save' AND created_at > now() - interval '15 minutes'
+     LIMIT 1`,
+  );
+  if (!recent.rowCount) await recordAudit(client, { action: "workspace.save", target: `revision ${revision}`, result: "success" });
   return { revision, idMap };
 }

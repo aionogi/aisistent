@@ -47,13 +47,25 @@ export async function startLocalAuthStack(options: { appPort: number; issuerPort
 
   const issuer = new OAuth2Server();
   await issuer.issuer.keys.generate("RS256");
-  issuer.service.on(Events.BeforeTokenSigning, (token) => {
+  // `/auth/login?login_hint=marko@example.test` signs in as another mock user,
+  // so invitations can be tried with two people.
+  const userForCode = new Map<string, MockUser>();
+  issuer.service.on(Events.BeforeAuthorizeRedirect, (redirect, req) => {
+    const hint = new URL(req.url ?? "/", "http://localhost").searchParams.get("login_hint")?.toLowerCase();
+    const code = redirect.url.searchParams.get("code");
+    if (!code || !hint || hint === user.email || !/^[a-z0-9._-]+@example\.test$/.test(hint)) return;
+    const local = hint.split("@")[0];
+    userForCode.set(code, { sub: `mock|${local}`, email: hint, name: `${local.charAt(0).toUpperCase()}${local.slice(1)} Test`, emailVerified: true, mfa: user.mfa });
+  });
+  issuer.service.on(Events.BeforeTokenSigning, (token, req) => {
+    const code = (req.body as Record<string, unknown> | undefined)?.code;
+    const signedIn = (typeof code === "string" && userForCode.get(code)) || user;
     Object.assign(token.payload, {
-      sub: user.sub,
-      email: user.email,
-      email_verified: user.emailVerified,
-      name: user.name,
-      amr: user.mfa ? ["pwd", "mfa"] : ["pwd"],
+      sub: signedIn.sub,
+      email: signedIn.email,
+      email_verified: signedIn.emailVerified,
+      name: signedIn.name,
+      amr: signedIn.mfa ? ["pwd", "mfa"] : ["pwd"],
       sid: `mock-session-${randomBytes(6).toString("hex")}`,
     });
   });

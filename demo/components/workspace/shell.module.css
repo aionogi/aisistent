@@ -57,6 +57,7 @@
   .resetIcon { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #d5def0; border-radius: 8px; background: #fff; color: var(--ink); }
   .workspaceCard { order: -1; display: none; }
   .navigation { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .navigationWide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .navigation a { flex-direction: column; justify-content: center; gap: 4px; min-height: 52px; padding: 6px 4px; font-size: 11px; text-align: center; line-height: 1.2; }
   .setupCard { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 12px; }
   .setupTitle { grid-column: 1; }
