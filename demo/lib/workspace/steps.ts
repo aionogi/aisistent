@@ -1,5 +1,5 @@
-import type { StepId, WorkspaceDraft } from "./types";
-import { isStepComplete } from "./validation";
+import type { StepId, WorkspaceDraft } from "./types.ts";
+import { isStepComplete } from "./validation.ts";
 
 export type StepDefinition = { id: StepId; label: string; title: string; description: string };
 
@@ -17,8 +17,16 @@ export function isStepId(value: string): value is StepId {
   return (STEP_IDS as string[]).includes(value);
 }
 
-export function onboardingHref(step: StepId): string {
-  return `/onboarding/${step}/`;
+/** Default onboarding root for the demo; organizations use `/org/<id>/onboarding`. */
+export const DEMO_ONBOARDING_BASE = "/onboarding";
+
+export function onboardingHref(step: StepId, base: string = DEMO_ONBOARDING_BASE): string {
+  return `${base}/${step}/`;
+}
+
+/** The onboarding entry page, which resumes at the first incomplete step. */
+export function onboardingStartHref(base: string = DEMO_ONBOARDING_BASE): string {
+  return `${base}/`;
 }
 
 /** The first editable step that still has validation problems, or `review` when all are done. */

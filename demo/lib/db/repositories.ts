@@ -114,3 +114,46 @@ export async function recordAudit(client: PoolClient, event: { action: string; t
     [event.action, event.target ?? null, event.result],
   );
 }
+
+export async function getOrganizationName(client: PoolClient): Promise<string | null> {
+  const { rows } = await client.query<{ name: string }>("SELECT name FROM app.organizations WHERE id = app.current_organization_id()");
+  return rows[0]?.name ?? null;
+}
+
+export type WorkspaceSaveInput = {
+  config: Record<string, unknown>;
+  knowledge: Array<{ id: string; question: string; answer: string }>;
+  /** The configuration revision the editor last loaded or saved (0 before the first save). */
+  expectedRevision: number;
+};
+
+/**
+ * Saves the editor's whole workspace in the current organization's transaction:
+ * the configuration (with optimistic revision check) and the knowledge list.
+ * Knowledge entries are matched by id; ids that are not this organization's
+ * rows are inserted as new entries, and rows missing from the list are deleted.
+ * Returns the new revision and the server ids assigned to new entries.
+ */
+export async function saveWorkspace(client: PoolClient, input: WorkspaceSaveInput): Promise<{ revision: number; idMap: Record<string, string> }> {
+  const revision = await saveAssistantConfig(client, input.config, input.expectedRevision);
+  const existing = new Map((await listKnowledge(client)).map((entry) => [entry.id, entry]));
+  const kept = new Set<string>();
+  const idMap: Record<string, string> = {};
+
+  for (const entry of input.knowledge) {
+    const current = existing.get(entry.id);
+    if (current && !kept.has(entry.id)) {
+      if (current.question !== entry.question.trim() || current.answer !== entry.answer.trim()) await updateKnowledge(client, entry.id, entry);
+      kept.add(entry.id);
+    } else {
+      const id = await addKnowledge(client, entry);
+      idMap[entry.id] = id;
+      kept.add(id);
+    }
+  }
+  for (const id of existing.keys()) {
+    if (!kept.has(id)) await deleteKnowledge(client, id);
+  }
+  await recordAudit(client, { action: "workspace.save", target: `revision ${revision}`, result: "success" });
+  return { revision, idMap };
+}

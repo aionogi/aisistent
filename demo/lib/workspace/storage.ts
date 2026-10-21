@@ -1,5 +1,5 @@
-import { DAY_IDS, HANDOFF_LABELS, TONE_LABELS, UNKNOWN_ANSWER_LABELS, INDUSTRY_LABELS } from "./templates";
-import type { WorkspaceDraft } from "./types";
+import { DAY_IDS, HANDOFF_LABELS, TONE_LABELS, UNKNOWN_ANSWER_LABELS, INDUSTRY_LABELS } from "./templates.ts";
+import type { WorkspaceDraft } from "./types.ts";
 
 /**
  * Temporary draft storage for the M2 prototype.

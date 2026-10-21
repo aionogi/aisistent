@@ -9,12 +9,14 @@ import ConfirmDialog from "../ConfirmDialog";
 import { useDraft } from "../DraftProvider";
 import { TextField } from "../FormControls";
 import { EmptyState, PageHeader } from "../PageParts";
+import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
 import styles from "../pages.module.css";
 
 type Editor = { mode: "add" } | { mode: "edit"; id: string };
 
 export default function KnowledgeView() {
-  const { draft, updateDraft } = useDraft();
+  const { draft, updateDraft, readOnly } = useDraft();
+  const isDemo = useWorkspaceEnvironment().mode === "demo";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [question, setQuestion] = useState("");
@@ -56,10 +58,10 @@ export default function KnowledgeView() {
     const value = { question: question.trim(), answer: answer.trim() };
     if (editor.mode === "add") {
       updateDraft((current) => ({ ...current, knowledge: [...current.knowledge, { id: createId("knowledge"), ...value }] }));
-      setStatus("Odgovor je dodat u bazu znanja ovog nacrta.");
+      setStatus(isDemo ? "Odgovor je dodat u bazu znanja ovog nacrta." : "Odgovor je dodat u bazu znanja.");
     } else {
       updateDraft((current) => ({ ...current, knowledge: current.knowledge.map((entry) => entry.id === editor.id ? { ...entry, ...value } : entry) }));
-      setStatus("Izmena je sačuvana u nacrtu.");
+      setStatus(isDemo ? "Izmena je sačuvana u nacrtu." : "Izmena je primenjena.");
     }
     closeEditor();
   }
@@ -87,8 +89,9 @@ export default function KnowledgeView() {
     <>
       <PageHeader
         title="Baza znanja"
-        description="Česta pitanja i odgovori koje asistent koristi u primerima razgovora. Čuvaju se samo u ovom nacrtu."
-        actions={<button ref={addButtonRef} type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })} disabled={editor?.mode === "add"}><Plus size={15} aria-hidden="true" />Dodaj odgovor</button>}
+        badge={isDemo ? "Primer podataka" : "Podaci firme"}
+        description={isDemo ? "Česta pitanja i odgovori koje asistent koristi u primerima razgovora. Čuvaju se samo u ovom nacrtu." : "Česta pitanja i odgovori vaše firme. Izmene se čuvaju automatski."}
+        actions={readOnly ? undefined : <button ref={addButtonRef} type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })} disabled={editor?.mode === "add"}><Plus size={15} aria-hidden="true" />Dodaj odgovor</button>}
       />
       <p className={styles.formStatus} role="status">{status}</p>
 
@@ -96,7 +99,7 @@ export default function KnowledgeView() {
 
       {draft.knowledge.length === 0 ? (
         !editor && (
-          <EmptyState icon={BookOpen} title="Baza znanja je prazna" actions={<>
+          <EmptyState icon={BookOpen} title="Baza znanja je prazna" actions={readOnly ? undefined : <>
             <button type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })}><Plus size={15} aria-hidden="true" />Dodaj prvi odgovor</button>
             {templateAvailable && <button type="button" className={styles.secondaryAction} onClick={restoreExamples}>Vrati primere za delatnost</button>}
           </>}>
@@ -129,7 +132,7 @@ export default function KnowledgeView() {
                         <strong>{entry.question}</strong>
                         <p>{entry.answer}</p>
                       </div>
-                      <div className={styles.itemActions}>
+                      <div className={styles.itemActions} hidden={readOnly}>
                         <button type="button" className={styles.iconAction} onClick={() => openEditor({ mode: "edit", id: entry.id })} aria-label={`Izmeni: ${entry.question}`}><PencilLine size={16} aria-hidden="true" /></button>
                         <button type="button" className={styles.iconAction} onClick={() => setPendingDelete(entry)} aria-label={`Obriši: ${entry.question}`}><Trash2 size={16} aria-hidden="true" /></button>
                       </div>
@@ -154,7 +157,7 @@ export default function KnowledgeView() {
           window.setTimeout(() => addButtonRef.current?.focus(), 0);
         }}
       >
-        <p>„{pendingDelete?.question}“ biće uklonjen iz baze znanja ovog nacrta.</p>
+        <p>„{pendingDelete?.question}“ biće uklonjen iz baze znanja {isDemo ? " ovog nacrta" : ""}.</p>
       </ConfirmDialog>
     </>
   );

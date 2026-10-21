@@ -1,6 +1,6 @@
-import { describeHours, handoffExamples, unknownAnswerReply } from "./format";
-import { HANDOFF_LABELS } from "./templates";
-import type { WorkspaceDraft } from "./types";
+import { describeHours, handoffExamples, unknownAnswerReply } from "./format.ts";
+import { HANDOFF_LABELS } from "./templates.ts";
+import type { WorkspaceDraft } from "./types.ts";
 
 export type ConversationStatus = "resolved" | "team";
 

@@ -22,6 +22,7 @@ export async function createOrganizationAction(_previous: CreateOrganizationStat
   if (mfaRequired() && !account.mfa) return { error: "Za pravljenje firme potrebna je prijava sa dvofaktorskom potvrdom.", name };
   if (name.length < 2 || name.length > 60) return { error: "Naziv firme mora imati od 2 do 60 znakova.", name };
 
-  await createOrganization(pool, account.userId, name);
-  redirect("/account/?status=created");
+  const organizationId = await createOrganization(pool, account.userId, name);
+  // Start guided setup for the new organization right away.
+  redirect(`/org/${organizationId}/onboarding/`);
 }

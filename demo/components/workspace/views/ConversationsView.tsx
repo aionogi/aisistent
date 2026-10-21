@@ -5,7 +5,9 @@ import { ArrowRight, MessageSquare, MessagesSquare, Phone, Search, SearchX } fro
 import { useState } from "react";
 import { buildExampleConversations, type ConversationStatus } from "../../../lib/workspace/conversations";
 import { useDraft } from "../DraftProvider";
+import { onboardingStartHref } from "../../../lib/workspace/steps";
 import { EmptyState, PageHeader } from "../PageParts";
+import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
 import styles from "../pages.module.css";
 
 type Filter = "all" | ConversationStatus;
@@ -17,6 +19,7 @@ const filters: Array<{ id: Filter; label: string }> = [
 ];
 
 export default function ConversationsView() {
+  const environment = useWorkspaceEnvironment();
   const { draft } = useDraft();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -26,7 +29,7 @@ export default function ConversationsView() {
     return (
       <>
         <PageHeader title="Razgovori" />
-        <EmptyState icon={MessagesSquare} title="Još nema primera razgovora" actions={<Link href="/onboarding/" className={styles.primaryLink}>Podesi asistenta<ArrowRight size={16} aria-hidden="true" /></Link>}>
+        <EmptyState icon={MessagesSquare} title="Još nema primera razgovora" actions={<Link href={onboardingStartHref(environment.onboardingBasePath)} className={styles.primaryLink}>Podesi asistenta<ArrowRight size={16} aria-hidden="true" /></Link>}>
           Primeri razgovora se sastavljaju iz vaših podešavanja. Završite podešavanje da biste videli kako bi asistent odgovarao vašim klijentima.
         </EmptyState>
       </>

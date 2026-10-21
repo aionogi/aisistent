@@ -1,5 +1,5 @@
-import { DAY_IDS, DAY_LABELS } from "./templates";
-import type { StepId, WorkspaceDraft } from "./types";
+import { DAY_IDS, DAY_LABELS } from "./templates.ts";
+import type { StepId, WorkspaceDraft } from "./types.ts";
 
 /** Field errors keyed by a stable field path, e.g. `business.name` or `hours.mon`. */
 export type FieldErrors = Record<string, string>;

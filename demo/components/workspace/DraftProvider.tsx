@@ -5,13 +5,26 @@ import { clearDraft, loadDraft, saveDraft } from "../../lib/workspace/storage";
 import { createEmptyDraft } from "../../lib/workspace/templates";
 import type { WorkspaceDraft } from "../../lib/workspace/types";
 
-/** `session`: kept in this tab's sessionStorage. `memory`: storage is blocked, so a reload loses the draft. */
-export type StorageMode = "session" | "memory";
+/**
+ * `session`: kept in this tab's sessionStorage. `memory`: storage is blocked, so a reload loses the draft.
+ * `server`: an organization's data, saved through the server (see OrganizationDraftProvider).
+ */
+export type StorageMode = "session" | "memory" | "server";
 export type LoadNotice = "discarded" | null;
 
-type DraftContextValue = {
+/** Server save progress; the demo stays `idle`. */
+export type SaveState = {
+  status: "idle" | "saving" | "saved" | "error" | "conflict" | "forbidden" | "signed-out" | "invalid";
+  savedAt?: string | null;
+  message?: string;
+};
+
+export type DraftContextValue = {
   draft: WorkspaceDraft;
   ready: boolean;
+  /** Edits are ignored, for example for organization members without edit rights. */
+  readOnly: boolean;
+  saveState: SaveState;
   storageMode: StorageMode;
   loadNotice: LoadNotice;
   flash: string | null;
@@ -22,10 +35,13 @@ type DraftContextValue = {
   resetDraft: () => void;
 };
 
-const DraftContext = createContext<DraftContextValue | null>(null);
+export const DraftContext = createContext<DraftContextValue | null>(null);
 
-const stamp = (draft: WorkspaceDraft): WorkspaceDraft => ({ ...draft, updatedAt: new Date().toISOString() });
+export const stamp = (draft: WorkspaceDraft): WorkspaceDraft => ({ ...draft, updatedAt: new Date().toISOString() });
 
+const IDLE: SaveState = { status: "idle" };
+
+/** Demo workspace: example data kept only in this browser tab. */
 export function DraftProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState<WorkspaceDraft>(createEmptyDraft);
   const [ready, setReady] = useState(false);
@@ -65,6 +81,8 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   const value = useMemo<DraftContextValue>(() => ({
     draft,
     ready,
+    readOnly: false,
+    saveState: IDLE,
     storageMode,
     loadNotice,
     flash,
@@ -80,6 +98,6 @@ export function DraftProvider({ children }: { children: ReactNode }) {
 
 export function useDraft(): DraftContextValue {
   const context = useContext(DraftContext);
-  if (!context) throw new Error("useDraft must be used inside DraftProvider.");
+  if (!context) throw new Error("useDraft must be used inside a draft provider.");
   return context;
 }

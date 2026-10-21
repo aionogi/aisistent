@@ -1,6 +1,7 @@
 "use client";
 
-import { LoaderCircle } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
+import { formatUpdatedAt } from "../../lib/workspace/format";
 import { useDraft } from "./DraftProvider";
 import { Notice } from "./FormControls";
 import styles from "./pages.module.css";
@@ -17,9 +18,37 @@ export function DraftLoading({ label = "Učitavanje nacrta…" }: { label?: stri
 
 /** Storage problems that change what the user can expect from the draft. */
 export function DraftNotices() {
-  const { storageMode, loadNotice, dismissLoadNotice } = useDraft();
+  const { storageMode, loadNotice, dismissLoadNotice, saveState, readOnly } = useDraft();
   return (
     <>
+      {readOnly && (
+        <Notice tone="info" title="Samo pregled">
+          Kao član firme možete da pregledate podešavanje. Izmene prave vlasnik i administratori.
+        </Notice>
+      )}
+      {saveState.status === "conflict" && (
+        <Notice tone="warning" title="Neko je u međuvremenu izmenio podešavanje" action={<button type="button" onClick={() => window.location.reload()}>Osveži</button>}>
+          Vaše poslednje izmene nisu sačuvane, da ne bi zamenile tuđe. Osvežite stranicu da biste videli trenutno stanje.
+        </Notice>
+      )}
+      {saveState.status === "signed-out" && (
+        <Notice tone="warning" title="Sesija je istekla" action={<a href="/account/">Prijava</a>}>
+          Prijavite se ponovo. Izmene posle isteka sesije nisu sačuvane.
+        </Notice>
+      )}
+      {saveState.status === "forbidden" && (
+        <Notice tone="warning" title="Nemate pravo izmene">
+          Izmene nisu sačuvane. Možda vam je promenjena uloga ili ste uklonjeni iz firme.
+        </Notice>
+      )}
+      {saveState.status === "invalid" && (
+        <Notice tone="warning" title="Izmena nije sačuvana">{saveState.message ?? "Proverite unete podatke."}</Notice>
+      )}
+      {saveState.status === "error" && (
+        <Notice tone="warning" title="Čuvanje nije uspelo">
+          Proverite vezu. Pokušaćemo ponovo pri sledećoj izmeni.
+        </Notice>
+      )}
       {storageMode === "memory" && (
         <Notice tone="warning" title="Nacrt se ne može sačuvati u ovoj kartici">
           Pregledač blokira privremeno skladište. Izmene ostaju dok ne osvežite ili zatvorite stranicu.
@@ -31,5 +60,21 @@ export function DraftNotices() {
         </Notice>
       )}
     </>
+  );
+}
+
+/** Save progress for organization data; renders nothing in the demo. */
+export function SaveIndicator({ className }: { className?: string }) {
+  const { storageMode, saveState } = useDraft();
+  if (storageMode !== "server") return null;
+  const failed = ["error", "conflict", "forbidden", "signed-out", "invalid"].includes(saveState.status);
+  const label = saveState.status === "saving" ? "Čuvanje…"
+    : failed ? "Nije sačuvano"
+      : saveState.savedAt ? formatUpdatedAt(saveState.savedAt).replace("Poslednja izmena", "Sačuvano") : "Sve je sačuvano";
+  const Icon = saveState.status === "saving" ? LoaderCircle : failed ? CircleAlert : CircleCheck;
+  return (
+    <span className={`${styles.saveIndicator} ${failed ? styles.saveFailed : ""} ${className ?? ""}`} role="status">
+      <Icon size={14} className={saveState.status === "saving" ? styles.spinner : undefined} aria-hidden="true" />{label}
+    </span>
   );
 }

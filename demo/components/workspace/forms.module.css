@@ -120,8 +120,8 @@
 .noticeBody strong { font-size: 13px; }
 .noticeBody p { margin: 0; line-height: 1.6; }
 .noticeAction { flex-shrink: 0; align-self: center; }
-.noticeAction button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; min-width: 36px; justify-content: center; padding: 6px 10px; border: 1px solid #d5def0; border-radius: 6px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 700; }
-.noticeAction button:hover { background: #f3f6fd; }
+.noticeAction button, .noticeAction a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; min-width: 36px; justify-content: center; padding: 6px 10px; border: 1px solid #d5def0; border-radius: 6px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 700; }
+.noticeAction button:hover, .noticeAction a:hover { background: #f3f6fd; }
 .notice-info { background: #f3f7ff; border-color: #d6e2fb; }
 .notice-info > svg { color: var(--blue); }
 .notice-success { background: var(--positive-surface); border-color: #cfe6d7; }

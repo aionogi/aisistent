@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { CircleAlert, CircleCheck, LogIn, LogOut, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, CircleAlert, CircleCheck, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import Brand from "../../../components/Brand";
 import CreateOrganizationForm from "../../../components/account/CreateOrganizationForm";
 import styles from "../../../components/account/account.module.css";
@@ -96,11 +97,16 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
           : (
             <ul className={styles.organizations}>
               {memberships.map((membership) => (
-                <li key={membership.organizationId}><strong>{membership.organizationName}</strong><span className={styles.role}>{ROLE_LABELS[membership.role]}</span></li>
+                <li key={membership.organizationId}>
+                  <Link href={`/org/${membership.organizationId}/`} className={styles.organizationLink}>
+                    <strong>{membership.organizationName}</strong>
+                    <span className={styles.role}>{ROLE_LABELS[membership.role]}<ChevronRight size={16} aria-hidden="true" /></span>
+                  </Link>
+                </li>
               ))}
             </ul>
           )}
-        <p className={styles.note}>Podešavanje asistenta za firmu povezuje se u sledećem koraku. Do tada demo radni prostor koristi primere iz pregledača.</p>
+        <p className={styles.note}>Otvorite firmu da biste podesili asistenta i bazu znanja. Podaci se čuvaju za firmu; demo radni prostor i dalje koristi samo primere iz pregledača.</p>
       </section>
 
       <section className={styles.card} aria-labelledby="create-title">

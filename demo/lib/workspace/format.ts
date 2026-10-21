@@ -1,5 +1,5 @@
-import { DAY_IDS, DAY_LABELS, HANDOFF_LABELS, UNKNOWN_ANSWER_LABELS } from "./templates";
-import type { DayHours, DayId, HandoffTopic, WorkspaceDraft } from "./types";
+import { DAY_IDS, DAY_LABELS, HANDOFF_LABELS, UNKNOWN_ANSWER_LABELS } from "./templates.ts";
+import type { DayHours, DayId, HandoffTopic, WorkspaceDraft } from "./types.ts";
 
 type HoursGroup = { days: DayId[]; hours: DayHours };
 

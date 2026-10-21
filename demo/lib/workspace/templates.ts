@@ -8,7 +8,7 @@ import type {
   ServiceItem,
   UnknownAnswerAction,
   WorkspaceDraft,
-} from "./types";
+} from "./types.ts";
 
 export const DAY_IDS: DayId[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 

@@ -23,10 +23,13 @@
 .chipWarn { background: var(--pending-surface); color: #84561b; }
 
 .organizations { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.organizations li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.organizations li { border-bottom: 1px solid var(--line); }
+.organizationLink { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 14px 16px; color: var(--ink); }
+.organizationLink:hover { background: #f5f7fc; }
+.organizationLink:focus-visible { outline: 3px solid #93b5ff; outline-offset: -3px; }
 .organizations li:last-child { border-bottom: 0; }
 .organizations strong { font-size: 14px; overflow-wrap: anywhere; }
-.role { font-size: 12px; font-weight: 700; color: var(--secondary-text); white-space: nowrap; }
+.role { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--secondary-text); white-space: nowrap; }
 .empty { color: var(--secondary-text); font-size: 13px; }
 .note { font-size: 12px; line-height: 1.6; color: var(--secondary-text); }
 .submit { justify-self: start; }

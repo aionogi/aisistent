@@ -9,6 +9,7 @@ import { isStepComplete } from "../../../lib/workspace/validation";
 import Brand from "../../Brand";
 import { useDraft } from "../DraftProvider";
 import { DraftNotices } from "../StatusViews";
+import { useWorkspaceEnvironment, workspacePath } from "../WorkspaceEnvironment";
 import styles from "./onboarding.module.css";
 
 export default function OnboardingFrame({ children }: { children: ReactNode }) {
@@ -16,6 +17,8 @@ export default function OnboardingFrame({ children }: { children: ReactNode }) {
   const current = segment && isStepId(segment) ? segment : null;
   const currentIndex = current ? STEPS.findIndex((step) => step.id === current) : -1;
   const { draft, ready } = useDraft();
+  const environment = useWorkspaceEnvironment();
+  const isDemo = environment.mode === "demo";
 
   return (
     <div className={styles.frame}>
@@ -26,7 +29,7 @@ export default function OnboardingFrame({ children }: { children: ReactNode }) {
           <strong>Podešavanje asistenta</strong>
           <span className={styles.exampleBadge}><span aria-hidden="true" />Demo · primer podataka</span>
         </div>
-        <Link href="/workspace/" className={styles.exitLink}><LayoutDashboard size={16} aria-hidden="true" /><span>Radni prostor</span></Link>
+        <Link href={workspacePath(environment)} className={styles.exitLink}><LayoutDashboard size={16} aria-hidden="true" /><span>Radni prostor</span></Link>
       </header>
 
       <nav className={styles.stepper} aria-label="Koraci podešavanja">
@@ -47,7 +50,7 @@ export default function OnboardingFrame({ children }: { children: ReactNode }) {
               <li key={step.id} className={`${styles.step} ${isCurrent ? styles.currentStep : ""} ${done ? styles.doneStep : ""}`}>
                 {locked && !isCurrent
                   ? <span className={styles.stepLink} aria-disabled="true">{content}<span className="visually-hidden"> (dostupno posle prethodnih koraka)</span></span>
-                  : <Link href={onboardingHref(step.id)} className={styles.stepLink} aria-current={isCurrent ? "step" : undefined}>{content}</Link>}
+                  : <Link href={onboardingHref(step.id, environment.onboardingBasePath)} className={styles.stepLink} aria-current={isCurrent ? "step" : undefined}>{content}</Link>}
               </li>
             );
           })}
@@ -60,7 +63,9 @@ export default function OnboardingFrame({ children }: { children: ReactNode }) {
       </main>
 
       <footer className={styles.footer}>
-        Demo bez prijave. Podaci su primeri i čuvaju se samo u ovoj kartici pregledača, dok je ne zatvorite. Ništa se ne šalje na server.
+        {isDemo
+          ? "Demo bez prijave. Podaci su primeri i čuvaju se samo u ovoj kartici pregledača, dok je ne zatvorite. Ništa se ne šalje na server."
+          : `Podešavanje firme ${environment.organizationName ?? ""}. Izmene se automatski čuvaju; asistent nije povezan sa telefonom.`}
       </footer>
     </div>
   );

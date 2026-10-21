@@ -34,6 +34,10 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 
+/* Server save status (organization workspace) */
+.saveIndicator { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--positive); white-space: nowrap; }
+.saveFailed { color: #84561b; }
+
 /* Empty state */
 .emptyState { display: grid; justify-items: center; gap: 10px; padding: 44px 24px; border: 1px dashed #d3dbe8; border-radius: 14px; background: #fcfdff; text-align: center; }
 .emptyIcon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 12px; background: var(--selected); color: var(--blue); margin-bottom: 4px; }
@@ -193,6 +197,7 @@
 .knowledgeText strong { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .knowledgeText p { font-size: 13px; line-height: 1.65; color: var(--muted); overflow-wrap: anywhere; }
 .itemActions { display: flex; gap: 4px; }
+.itemActions[hidden] { display: none; }
 .iconAction { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); }
 .iconAction:hover { background: var(--surface); border-color: var(--line); color: var(--ink); }
 

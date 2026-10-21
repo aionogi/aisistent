@@ -10,7 +10,9 @@ import AssistantPreview from "../AssistantPreview";
 import ConfigSummary from "../ConfigSummary";
 import { useDraft } from "../DraftProvider";
 import { Notice } from "../FormControls";
+import { onboardingStartHref } from "../../../lib/workspace/steps";
 import { PageHeader } from "../PageParts";
+import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
 import AssistantForm from "../sections/AssistantForm";
 import BusinessForm from "../sections/BusinessForm";
 import HoursForm from "../sections/HoursForm";
@@ -38,6 +40,7 @@ function tabErrors(tab: TabId, errors: { industry: FieldErrors; business: FieldE
 /** Edits the same draft as onboarding. Changes apply immediately and validation is always visible. */
 export default function AssistantSettingsView() {
   const { draft } = useDraft();
+  const environment = useWorkspaceEnvironment();
   const [active, setActive] = useState<TabId>("business");
   const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({ business: null, hours: null, behavior: null, review: null });
   const errors = { industry: validateIndustry(draft), business: validateBusiness(draft), hours: validateHours(draft), assistant: validateAssistant(draft) };
@@ -60,10 +63,14 @@ export default function AssistantSettingsView() {
 
   return (
     <>
-      <PageHeader title="Podešavanje asistenta" description="Izmene se odmah primenjuju na nacrt u ovoj kartici i na primere razgovora." />
+      <PageHeader
+        title="Podešavanje asistenta"
+        badge={environment.mode === "demo" ? "Primer podataka" : "Podaci firme"}
+        description={environment.mode === "demo" ? "Izmene se odmah primenjuju na nacrt u ovoj kartici i na primere razgovora." : "Izmene se automatski čuvaju za vašu firmu i odmah se vide u primerima razgovora."}
+      />
 
       {!draft.onboardingCompleted && (
-        <Notice tone="info" title="Početno podešavanje nije završeno" action={<Link href="/onboarding/" className={styles.noticeLink}>Nastavi korak po korak</Link>}>
+        <Notice tone="info" title="Početno podešavanje nije završeno" action={<Link href={onboardingStartHref(environment.onboardingBasePath)} className={styles.noticeLink}>Nastavi korak po korak</Link>}>
           Podatke možete uređivati i ovde. Vođeno podešavanje vas vodi redom do završnog pregleda.
         </Notice>
       )}

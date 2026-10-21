@@ -16,10 +16,14 @@ import BusinessForm from "../sections/BusinessForm";
 import HoursForm from "../sections/HoursForm";
 import IndustryPicker from "../sections/IndustryPicker";
 import { DraftLoading } from "../StatusViews";
+import { useWorkspaceEnvironment, workspacePath } from "../WorkspaceEnvironment";
 import styles from "./onboarding.module.css";
 
 export default function OnboardingStep({ step }: { step: StepId }) {
   const { draft, ready, updateDraft, setFlash } = useDraft();
+  const environment = useWorkspaceEnvironment();
+  const isDemo = environment.mode === "demo";
+  const stepHref = (id: StepId) => onboardingHref(id, environment.onboardingBasePath);
   const router = useRouter();
   // Each blocked "next" attempt bumps this, which reveals errors and moves focus to the summary.
   const [attempts, setAttempts] = useState(0);
@@ -48,7 +52,7 @@ export default function OnboardingStep({ step }: { step: StepId }) {
     return (
       <section className={styles.card} aria-labelledby="step-title">
         <h1 id="step-title" ref={headingRef} tabIndex={-1} className={styles.stepTitle}>{definition.title}</h1>
-        <Notice tone="warning" title="Ovaj korak još nije dostupan" action={<Link href={onboardingHref(blocker.id)} className={styles.noticeLink}>Idi na korak „{blocker.label}“</Link>}>
+        <Notice tone="warning" title="Ovaj korak još nije dostupan" action={<Link href={stepHref(blocker.id)} className={styles.noticeLink}>Idi na korak „{blocker.label}“</Link>}>
           Prvo popunite korak „{blocker.label}“. Koraci se otključavaju redom, da bi pregled na kraju bio potpun.
         </Notice>
       </section>
@@ -62,11 +66,13 @@ export default function OnboardingStep({ step }: { step: StepId }) {
     }
     if (step === "review") {
       updateDraft((current) => ({ ...current, onboardingCompleted: true }));
-      setFlash("Podešavanje je završeno. Konfiguracija postoji samo u ovom demo nacrtu; asistent nije povezan sa telefonom niti aktiviran.");
-      router.push("/workspace/");
+      setFlash(isDemo
+        ? "Podešavanje je završeno. Konfiguracija postoji samo u ovom demo nacrtu; asistent nije povezan sa telefonom niti aktiviran."
+        : "Podešavanje je završeno i sačuvano za vašu firmu. Asistent još nije povezan sa telefonom.");
+      router.push(workspacePath(environment));
       return;
     }
-    router.push(onboardingHref(next.id));
+    router.push(stepHref(next.id));
   }
 
   const showErrors = attempts > 0;
@@ -97,7 +103,7 @@ export default function OnboardingStep({ step }: { step: StepId }) {
         {step === "review" && (
           <div className={styles.reviewLayout}>
             <div className={styles.reviewMain}>
-              <ConfigSummary editHref={onboardingHref} />
+              <ConfigSummary editHref={stepHref} />
               <div className={styles.knowledgeNote}>
                 <BookOpen size={17} aria-hidden="true" />
                 <p>
@@ -112,8 +118,8 @@ export default function OnboardingStep({ step }: { step: StepId }) {
 
         <div className={styles.actions}>
           {previous
-            ? <Link href={onboardingHref(previous.id)} className={styles.backButton}><ArrowLeft size={16} aria-hidden="true" />Nazad</Link>
-            : <Link href="/workspace/" className={styles.backButton}><ArrowLeft size={16} aria-hidden="true" />Radni prostor</Link>}
+            ? <Link href={stepHref(previous.id)} className={styles.backButton}><ArrowLeft size={16} aria-hidden="true" />Nazad</Link>
+            : <Link href={workspacePath(environment)} className={styles.backButton}><ArrowLeft size={16} aria-hidden="true" />Radni prostor</Link>}
           <button type="submit" className={styles.nextButton}>
             {step === "review"
               ? <>{draft.onboardingCompleted ? "Sačuvaj i otvori radni prostor" : "Završi podešavanje"}<Check size={16} aria-hidden="true" /></>
