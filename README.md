@@ -20,10 +20,12 @@ Open [http://127.0.0.1:4310](http://127.0.0.1:4310), or go straight to [/onboard
 
 ```sh
 npm run typecheck
+npm test
 npm run build
+npm run start
 ```
 
-Run these commands from `demo/`. The production build exports the static site to `demo/out/`. No environment variables or provider accounts are needed for this demo.
+Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 server for the database tests (no Docker needed). The app runs without environment variables or provider accounts; database features activate only when a database is configured. Deployment uses `render.yaml` (Render, Frankfurt).
 
 ## Project map
 
@@ -47,7 +49,7 @@ Run these commands from `demo/`. The production build exports the static site to
 
 1. **M1 — Interactive website demo:** complete; pushed as `milestone-1-interactive-demo`.
 2. **M2 — App shell and onboarding UI:** complete, using clearly labeled example data; tagged `milestone-2-app-shell`.
-3. **M3 — Persistent platform and production security:** next; Next.js/Node.js services, identity, tenant boundaries, and operations, after hosting/identity/database decisions.
+3. **M3 — Persistent platform and production security:** in progress on Render (Frankfurt), Auth0 (EU), and Cloudflare R2 (EU); database tenancy foundation with tested row-level security is in place.
 4. **M4 — Live AI and telephony:** controlled provider integrations after the platform safeguards.
 5. **M5 — Pricing and subscriptions:** approved recurring-payment integration for the Serbian merchant after security readiness.
 

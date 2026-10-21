@@ -6,6 +6,8 @@ Updated: 2026-10-21.
 
 M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
+M3 checkpoint 1 adds the Node.js deployment configuration and the database tenancy foundation with tested row-level security. Nothing is deployed yet: the user must first open the provider accounts (see "Provider setup" below). Authentication, API routes, and connecting the workspace UI to the database are the next M3 steps.
+
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
 - M2 tag: [`milestone-2-app-shell`](https://github.com/aionogi/aisistent/tree/milestone-2-app-shell) at `479188b983699114e0393875592292f109273dbe`, pushed on 2026-10-21 together with `main`. The implementation commit is `fbd4ae8`.
 - Private demo: [aisistent](https://aisistent-demo.cheery-pin-9983.chatgpt.site), owner-only access. It was published from M1 and has **not** been republished with M2; the M2 screens are available by running the source locally.
@@ -28,7 +30,15 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Assistant: tabbed editor (business, hours, behavior, review) reusing the onboarding forms, with live validation, problem counts per tab, and the reply preview.
   - Knowledge: add, edit, delete (with confirmation), search, and restore industry examples.
   - Reset: "Obriši nacrt" clears the draft after a native modal confirmation.
-- Static export configuration. There is no backend API or database.
+- **M3 foundation:**
+  - Node.js server deployment (`next start`) instead of static export; `render.yaml` defines a Frankfurt staging web service and a PostgreSQL 17 database with no external access.
+  - `proxy.ts` sets a per-request nonce Content-Security-Policy; `next.config.ts` adds static security headers (HSTS in production, nosniff, frame denial, referrer and permissions policies). Pages render dynamically so scripts carry the nonce.
+  - `/api/health/` liveness endpoint for Render.
+  - Database schema `app` (users, organizations, memberships, assistant configs, knowledge entries, audit events) with RLS, a NOLOGIN `aisistent_runtime` role, and a restricted `aisistent_app` login that is not a member of the owner role.
+  - Tenant-scoped data access (`withUser`, `withOrganization`) with transaction-local context and live membership checks; repositories for configuration (optimistic revisions), knowledge, memberships, and audit events.
+  - Migration runner with checksums and an advisory lock; `npm run db:migrate` runs as Render's preDeployCommand.
+  - 20 integration tests against a real PostgreSQL 17 server (`npm test`).
+- There is still no sign-in, no API used by the UI, and no deployed environment. The workspace UI still uses the browser-tab draft.
 - Production architecture and security requirements in the documents linked below.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
@@ -48,13 +58,13 @@ One `WorkspaceDraft` object (`demo/lib/workspace/types.ts`) holds the whole exam
 - The workspace shows "Telefonska linija: Nije povezana"; no integration exists.
 - There is no authentication, persistent organization state, pricing, checkout, billing, or subscription enforcement. The workspace is open to anyone who loads the page and contains only browser-local example data.
 - The M1 landing dashboard preview (`DashboardPreview.tsx`) keeps its own fixtures and temporary knowledge editor; it is independent of the M2 draft.
-- `demo/next.config.ts` uses `output: "export"`. Server APIs and production sessions will require a deployment/configuration decision in M3.
+- The app now needs a Node.js server; `npm run build` no longer produces `demo/out/`, so the private Sites static demo cannot be refreshed from this source as before. `demo/.openai/hosting.json` describes that retired static path.
 - The metadata requests no indexing. Preview metadata and production indexing need an explicit launch decision later.
 - The demo is not evidence that the proposed security architecture has been implemented or audited.
 
 ## Start locally
 
-Use Node.js 22 LTS or newer; the current work was developed with Node.js 24. Run from the repository root:
+Use Node.js 22.18 or newer (the database scripts and tests run TypeScript directly through Node's type stripping); the current work was developed with Node.js 24. Run from the repository root:
 
 ```sh
 cd demo
@@ -68,10 +78,14 @@ Run validation from `demo/`:
 
 ```sh
 npm run typecheck
+npm test
 npm run build
+npm run start
 ```
 
-`npm run build` writes the static export to `demo/out/` (14 static routes in M2). No provider keys or `.env` file are necessary. Use `package-lock.json` through `npm ci` to reproduce the dependency versions.
+`npm test` starts a temporary PostgreSQL 17 server from the binaries installed with the `embedded-postgres` dev dependency (no Docker needed), runs the migrations as a Render-like non-superuser owner, and tests tenant isolation through the restricted application login. On Windows the binaries are copied to a short path under the temp folder, because Windows cannot load their DLLs from very long directories. Set `PG_BIN_DIR` to use other PostgreSQL 17 binaries.
+
+The app runs without any database or `.env`; database code activates only when `DATABASE_URL` (local) or `DATABASE_ADMIN_URL` plus `DATABASE_APP_PASSWORD` (Render) are set. `npm run start` serves the production build on `PORT` (default 3000). Use `package-lock.json` through `npm ci` to reproduce the dependency versions.
 
 ## Source guide
 
@@ -92,12 +106,37 @@ npm run build
 | `demo/components/workspace/views/` | Overview, conversations, assistant settings, knowledge pages |
 | `demo/components/workspace/*.module.css` | `forms`, `shell`, `pages`, and `onboarding` styles |
 | `demo/lib/workspace/` | Types, industry templates, validation, storage, steps, formatting, example conversations |
-| `demo/next.config.ts` | Static export settings |
+| `demo/next.config.ts` | Static security headers and routing options |
+| `demo/proxy.ts` | Per-request nonce Content-Security-Policy |
+| `demo/app/api/health/route.ts` | Liveness endpoint for Render |
+| `demo/db/migrations/` | Ordered SQL migrations; never edit an applied file, add a new one |
+| `demo/lib/db/config.ts` | Role names and connection-string derivation (restricted runtime vs. owner) |
+| `demo/lib/db/context.ts` | `withUser` / `withOrganization` transactions with RLS context |
+| `demo/lib/db/repositories.ts` | Tenant-scoped data access |
+| `demo/lib/db/migrator.ts`, `demo/scripts/db/migrate.ts` | Migration runner and the deploy command |
+| `demo/lib/db/pool.ts` | Shared pool for the application login, or null without a database |
+| `demo/tests/db/` | PostgreSQL test harness and integration tests |
+| `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 1 (2026-10-21)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript and build | `npm run typecheck` and `npm run build` passed; all pages render dynamically behind the CSP proxy; `/api/health` is a dynamic route |
+| Database tests | `npm test`: 20 of 20 passed against PostgreSQL 17.10, with migrations run by a non-superuser `CREATEROLE` owner like Render's default user |
+| Roles | The app login is not superuser, lacks BYPASSRLS, is not a member of the owner, cannot `SET ROLE` to it, cannot disable RLS, and cannot write memberships directly |
+| Tenant isolation | No rows without context; non-members cannot open another organization; a forged `app.organization_id` still hides and protects other tenants' rows; inserts into another tenant fail RLS; updates and deletes affect 0 rows |
+| Roles in an organization | Members read but cannot change configuration or knowledge and cannot read the audit log; audit events cannot name another actor; a removed member is refused on the next request |
+| Writes | Optimistic configuration revisions reject stale saves; transaction-local context does not leak between pooled transactions; malformed ids are rejected before SQL |
+| Deploy command | `node scripts/db/migrate.ts` with Render-style environment applies migrations, is idempotent, and creates a working `aisistent_app` login reachable through the derived connection string |
+| Production server | `next start` locally: CSP nonce on every page script (15 of 15), security headers present, health returns `{"status":"ok"}` with `no-store`; landing playback, workspace example loading, and conversations work with no console errors |
+
+Not yet verified: any Render deployment (no account exists yet), whether Render's default user has `CREATEROLE` (needed by migration 0001), Auth0, R2, backups and restore, and HTTP-level authorization (no API routes yet).
 
 ### M2 (2026-10-21)
 
@@ -133,16 +172,27 @@ Limitations: no automated end-to-end or accessibility test suite exists; no scre
 
 The CI template at `docs/ci/demo-checks.yml.example` repeats dependency installation, TypeScript checks, and the production build. It is not enabled: the existing GitHub credential can push source but lacks the `workflow` scope. Local checks passed; no GitHub Actions run is claimed.
 
+## Provider setup (user actions)
+
+Agents must not create accounts or handle credentials. The user opens these in the company's name, with a company email and card, MFA on, and a second owner where supported:
+
+1. **Render:** create a workspace (Pro for 7-day PITR before real data), connect the GitHub repository, and create a Blueprint from `render.yaml`. Confirm both resources show region Frankfurt. The first deploy runs `npm run db:migrate`; if it fails with a permission error on `CREATE ROLE`, Render's default user lacks `CREATEROLE` and the role setup must be adjusted.
+2. **Auth0:** create a tenant with the **EU** locality. Do not create applications or share secrets yet; the next step defines the exact settings.
+3. **Cloudflare:** create an account; R2 buckets (EU jurisdiction) are needed only when file uploads start.
+4. Sign each provider's DPA and keep copies; prepare Serbian Commissioner SCCs where a provider may process data outside the EU.
+
 ## Next agent's first steps
 
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
-2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, and `docs/architecture/security-and-billing.md`.
-3. Install locked dependencies and run the checks above. Read the relevant installed Next.js guide before framework changes.
-4. The M3 platform is decided (see [m3-platform-options.md](architecture/m3-platform-options.md)). Provider accounts must be opened by the user; agents must not create accounts or handle credentials.
-5. M3 work: replace `output: "export"` with a Node.js deployment, move the `WorkspaceDraft` shape to server-validated persisted records per organization, and keep the M2 UI as the client of those APIs.
-6. Keep the M2 demo path available (or clearly separated) until real accounts exist, so example data never mixes with customer data.
+2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
+3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
+4. Next M3 step: Auth0 sign-in with `@auth0/nextjs-auth0` (server-side, `HttpOnly` session; prefer a stateful session store in PostgreSQL for revocation), user provisioning through `provisionUser`, organization creation, and an organization switcher. Read the SDK's current Next.js 16 `proxy.ts` integration first.
+5. Then Route Handlers or Server Actions for configuration and knowledge that call `withOrganization`, validate input with the shared rules in `lib/workspace/validation.ts`, write audit events, and connect the M2 workspace UI to them. Keep the example-data demo separate from real organizations.
+6. Later in M3: R2 private storage with short-lived signed URLs, a backup and restore drill (database and objects), observability, an incident and rollback runbook, and enabling the CI template.
 
-Do not add real authentication, payment collection, or live provider calls merely to make the UI appear complete. Those belong to their milestones and require the corresponding controls.
+Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; styles allow `'unsafe-inline'` in the CSP; the CI template's `npm test` step has never run in GitHub.
+
+Do not add real payment collection or live provider calls merely to make the UI appear complete. Those belong to their milestones and require the corresponding controls.
 
 ## GitHub handoff
 
@@ -154,7 +204,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, and `docs/architecture/security-and-billing.md`. M1 and M2 are complete. Prepare M3 by presenting hosting, identity, and database options for a Serbian merchant with current provider verification, and ask the user to choose before implementing. Preserve the M2 onboarding and workspace UI. Do not start real AI calls, telephony, pricing, or payments. Finish each checkpoint with checks, an updated handoff, a commit, and a push. If context is nearly exhausted, record a coherent partial checkpoint honestly rather than marking incomplete acceptance criteria complete.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`. M1 and M2 are complete; M3 is in progress on Render + Auth0 (EU) + Cloudflare R2 (EU) with the database tenancy foundation in place. Continue with the next M3 step in this handoff. Preserve the M2 onboarding and workspace UI. Do not start real AI calls, telephony, pricing, or payments. Finish each checkpoint with checks, an updated handoff, a commit, and a push. If context is nearly exhausted, record a coherent partial checkpoint honestly rather than marking incomplete acceptance criteria complete.
 
 ## Open decisions for later phases
 

@@ -41,5 +41,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Check TypeScript
         run: npm run typecheck
-      - name: Build static demo
+      - name: Database integration tests (temporary PostgreSQL 17)
+        run: npm test
+      - name: Build
         run: npm run build
