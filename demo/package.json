@@ -11,10 +11,13 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --test \"tests/**/*.test.ts\"",
-    "db:migrate": "node scripts/db/migrate.ts"
+    "test": "node --test \"tests/db/**/*.test.ts\"",
+    "db:migrate": "node scripts/db/migrate.ts",
+    "dev:local-auth": "node scripts/dev/local-auth.ts",
+    "test:e2e": "node --test \"tests/e2e/**/*.test.ts\""
   },
   "dependencies": {
+    "@auth0/nextjs-auth0": "^4.32.1",
     "@fontsource-variable/manrope": "^5.2.8",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
@@ -28,6 +31,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "embedded-postgres": "17.10.0-beta.17",
+    "oauth2-mock-server": "^9.3.0",
     "typescript": "^5.9.0"
   }
 }

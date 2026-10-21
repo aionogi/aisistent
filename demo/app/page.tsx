@@ -191,7 +191,7 @@ export default function Home() {
 
       <footer className="site-footer container">
         <div><a href="#" aria-label="aisistent početna"><Brand /></a><p>Za posao koji ne staje kada telefon zazvoni.</p></div>
-        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><Link href="/workspace/">Radni prostor</Link><a href="#questions">Pitanja</a></nav>
+        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><Link href="/workspace/">Radni prostor</Link><a href="#questions">Pitanja</a><a href="/account/">Prijava</a></nav>
         <div className="footer-bottom"><span>© {new Date().getFullYear()} aisistent</span><span>Interaktivni prototip · Bez stvarnih poziva i naplate</span><a href="#main">Na vrh <ArrowDown size={13} /></a></div>
       </footer>
     </>

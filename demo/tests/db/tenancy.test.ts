@@ -77,7 +77,7 @@ describe("database roles", () => {
   test("running migrations again applies nothing", async () => {
     const result = await migrate(db.admin, MIGRATIONS_DIR);
     assert.deepEqual(result.applied, []);
-    assert.deepEqual(result.skipped, ["0001_core_tenancy"]);
+    assert.deepEqual(result.skipped, ["0001_core_tenancy", "0002_auth_sessions"]);
   });
 });
 

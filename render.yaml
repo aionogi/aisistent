@@ -29,6 +29,22 @@ services:
           property: connectionString
       - key: DATABASE_APP_PASSWORD
         generateValue: true
+      # Sign-in (Auth0, EU tenant). Enter these in the dashboard; never commit them.
+      # APP_BASE_URL is this service's public https URL, without a trailing slash.
+      - key: APP_BASE_URL
+        sync: false
+      - key: AUTH0_DOMAIN
+        sync: false
+      - key: AUTH0_CLIENT_ID
+        sync: false
+      - key: AUTH0_CLIENT_SECRET
+        sync: false
+      # Encrypts session cookies and the stored session payloads.
+      - key: AUTH0_SECRET
+        generateValue: true
+      # Must be "true" before real customer data; requires an MFA factor in the tenant.
+      - key: AUTH_REQUIRE_MFA
+        value: "false"
 
 databases:
   - name: aisistent-staging-db
