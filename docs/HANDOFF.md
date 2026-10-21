@@ -8,7 +8,9 @@ Updated: 2026-10-21.
 
 M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
-M3 checkpoint 1 adds the Node.js deployment configuration and the database tenancy foundation with tested row-level security. Nothing is deployed yet: the user must first open the provider accounts (see "Provider setup" below). M3 checkpoint 2 adds Auth0 sign-in with server-side sessions stored encrypted in PostgreSQL, user provisioning at sign-in, and an account page where a verified user creates an organization. It is tested end to end against a local mock identity provider. Connecting the workspace UI to organization data is the next M3 step.
+M3 checkpoint 1 adds the Node.js deployment configuration and the database tenancy foundation with tested row-level security. Nothing is deployed yet: the user must first open the provider accounts (see "Provider setup" below). M3 checkpoint 2 adds Auth0 sign-in with server-side sessions stored encrypted in PostgreSQL, user provisioning at sign-in, and an account page where a verified user creates an organization. It is tested end to end against a local mock identity provider.
+
+M3 checkpoint 3 connects the M2 workspace screens to organization data: `/org/<id>/` reuses the same onboarding and workspace components, loads the configuration and knowledge from PostgreSQL for verified members, and saves edits automatically through a Server Action with optimistic revisions. The demo at `/workspace/` is unchanged.
 
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
 - M2 tag: [`milestone-2-app-shell`](https://github.com/aionogi/aisistent/tree/milestone-2-app-shell) at `479188b983699114e0393875592292f109273dbe`, pushed on 2026-10-21 together with `main`. The implementation commit is `fbd4ae8`.
@@ -47,7 +49,14 @@ The user explicitly deferred production security implementation, pricing, and mo
   - `/account/`: signed-out, not-configured, and signed-in states; membership list; organization creation through a Server Action that rechecks identity, email verification, MFA (when `AUTH_REQUIRE_MFA=true`), and the name on the server. MFA step-up uses Auth0's `acr_values` redirect.
   - `returnTo` is limited to same-origin paths; provider error text is never shown.
   - `npm run dev:local-auth` runs the signed-in app locally with a temporary database and a mock OpenID Connect provider (`oauth2-mock-server`); `npm run test:e2e` drives the full sign-in round trip.
-- The workspace UI still uses the browser-tab draft; organizations do not yet have their own configuration screens.
+- **Organization workspace (checkpoint 3):**
+  - Routes under `app/(platform)/org/[organizationId]/`: overview, conversations, assistant, knowledge, and onboarding with the same components as the demo. The layout verifies the session and membership on the server; unknown ids and non-members get the same 404.
+  - `WorkspaceEnvironment` tells shared components whether they run in the demo (`/workspace`, browser-tab draft) or for an organization (`/org/<id>`, server data), and supplies paths, organization name, and role.
+  - `OrganizationDraftProvider` implements the same draft context as the demo provider: edits apply immediately and are saved 0.7 s later, one request at a time; new knowledge entries receive server ids from the response; a revision conflict, lost session, or lost permission stops saving and shows a notice; leaving with unsaved changes triggers the browser warning.
+  - `saveWorkspaceAction` re-reads the signed-in user, re-parses the draft (`parseDraft`), checks size limits (`checkDraftLimits`), requires owner or admin, and calls `saveWorkspace`, which stores the configuration with a revision check, reconciles knowledge rows by id (foreign ids become new rows), and writes a `workspace.save` audit event.
+  - Members (role `member`) see a read-only workspace; onboarding redirects them to the overview.
+  - Creating an organization on `/account/` now opens its onboarding; the account page links to each organization.
+- Conversations and statistics in the organization workspace are still examples built from the configuration; no calls or messages exist.
 - Production architecture and security requirements in the documents linked below.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
@@ -133,12 +142,27 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/components/account/` | Account styles and the organization form |
 | `demo/tests/support/local-auth-stack.ts`, `demo/scripts/dev/local-auth.ts` | Local database + mock identity provider + `next dev` |
 | `demo/tests/e2e/login.test.ts` | End-to-end sign-in, session, and logout tests |
+| `demo/app/(platform)/org/[organizationId]/` | Organization layout (load + membership check), save Server Action, workspace and onboarding pages |
+| `demo/components/workspace/WorkspaceEnvironment.tsx` | Demo vs organization paths, name, and role for shared components |
+| `demo/components/workspace/OrganizationDraftProvider.tsx` | Server-backed draft context with debounced, serialized saves |
+| `demo/lib/workspace/persistence.ts` | Draft ↔ stored configuration, size limits, save result type |
+| `demo/tests/unit/` | Pure-function tests (`npm test` runs these with the database tests) |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 3 — organization workspace (2026-10-21)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript and build | `npm run typecheck` and `npm run build` passed; `/org/[organizationId]` routes render dynamically |
+| Tests | `npm test`: 36 of 36 (4 new unit tests for stored-config round trip, shape rejection, and limits; 5 new database tests: first save assigns server ids and writes an audit event, later saves update/delete/add by id, stale revision rejected with no changes, members cannot save, another organization's knowledge ids become new rows and the original is untouched). `npm run test:e2e`: 7 of 7 still pass |
+| Browser (local sign-in stack) | Sign-in → create "Salon Ana" → redirected to its onboarding → salon template, name edit, review, finish → overview shows "Salon Ana · Vlasnik" and "Sačuvano"; adding a knowledge entry and reloading the page keeps all four entries and nothing is in sessionStorage; unknown and malformed organization ids return 404 without leaking names; two tabs: tab B's save persists, tab A's stale save shows the conflict notice and does not overwrite; the demo `/workspace/` still uses sessionStorage, keeps its reset and example buttons, and links to `/workspace/...`; no horizontal overflow at 390 px with the compact save status visible |
+
+Not verified: a member's read-only view in the browser (no invitations yet, covered only by database tests), very slow networks, and simultaneous edits of the same knowledge entry beyond the revision check.
 
 ### M3 checkpoint 2 — sign-in (2026-10-21)
 
@@ -220,8 +244,8 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Next M3 step: organization workspace routes (for example `/org/[organizationId]/`) whose Server Actions call `withOrganization`, validate input with the shared rules in `lib/workspace/validation.ts` plus `parseDraft`, write audit events, and reuse the M2 forms against `app.assistant_configs` and `app.knowledge_entries`. Keep the example-data demo separate from real organizations.
-5. Then member invitations and role changes (owner only), revoking a removed member's sessions (`app.auth_sessions` by subject), and enforcing `AUTH_REQUIRE_MFA=true` once the tenant has an MFA factor.
+4. Next M3 step: member invitations and role changes (owner only), revoking a removed member's sessions (`app.auth_sessions` by subject), an audit log view for owners, and enforcing `AUTH_REQUIRE_MFA=true` once the tenant has an MFA factor.
+5. Then operational items: backup and restore drill, observability, rate limits on sign-in-adjacent routes, and the CI template.
 6. Later in M3: R2 private storage with short-lived signed URLs, a backup and restore drill (database and objects), observability, an incident and rollback runbook, and enabling the CI template.
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict.

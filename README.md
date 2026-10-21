@@ -36,7 +36,9 @@ Run these commands from `demo/`. `npm test` starts a temporary PostgreSQL 17 ser
 | `demo/components/DashboardPreview.tsx` | Landing-page dashboard preview with temporary knowledge entries |
 | `demo/app/(product)/` | Onboarding and workspace routes sharing one browser-tab draft |
 | `demo/components/workspace/` | App shell, onboarding steps, setup forms, and workspace pages |
-| `demo/lib/workspace/` | Draft types, industry templates, validation, storage, and example conversations |
+| `demo/lib/workspace/` | Draft types, industry templates, validation, storage, persistence, and example conversations |
+| `demo/app/(platform)/` | Signed-in area: account page and organization workspaces (`/org/<id>/`) |
+| `demo/lib/db/`, `demo/lib/auth/` | PostgreSQL tenancy and sign-in (provider-specific code is listed in `docs/architecture/m3-platform-options.md`) |
 | [PRODUCT.md](PRODUCT.md) | Confirmed requirements and current scope |
 | [docs/MILESTONES.md](docs/MILESTONES.md) | Delivery checkpoints, dependencies, and acceptance criteria |
 | [docs/HANDOFF.md](docs/HANDOFF.md) | Current state, verification evidence, and next-agent starting point |
