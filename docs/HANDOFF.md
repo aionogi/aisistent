@@ -12,6 +12,8 @@ M3 checkpoint 1 adds the Node.js deployment configuration and the database tenan
 
 M3 checkpoint 3 connects the M2 workspace screens to organization data: `/org/<id>/` reuses the same onboarding and workspace components, loads the configuration and knowledge from PostgreSQL for verified members, and saves edits automatically through a Server Action with optimistic revisions. The demo at `/workspace/` is unchanged.
 
+M3 checkpoint 4 adds team management: owners invite people by link, change roles, and remove members; owners and admins read the organization's activity log.
+
 - M1 tag: [`milestone-1-interactive-demo`](https://github.com/aionogi/aisistent/tree/milestone-1-interactive-demo) at `0517b631fc31d7b579cc089a40eb9d404f70e72f`.
 - M2 tag: [`milestone-2-app-shell`](https://github.com/aionogi/aisistent/tree/milestone-2-app-shell) at `479188b983699114e0393875592292f109273dbe`, pushed on 2026-10-21 together with `main`. The implementation commit is `fbd4ae8`.
 - Private demo: [aisistent](https://aisistent-demo.cheery-pin-9983.chatgpt.site), owner-only access. It was published from M1 and has **not** been republished with M2; the M2 screens are available by running the source locally.
@@ -57,6 +59,14 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Members (role `member`) see a read-only workspace; onboarding redirects them to the overview.
   - Creating an organization on `/account/` now opens its onboarding; the account page links to each organization.
 - Conversations and statistics in the organization workspace are still examples built from the configuration; no calls or messages exist.
+- **Team management (checkpoint 4):**
+  - Migration `0003_team_management.sql`: `app.invitations` (token stored only as SHA-256; the application cannot read hashes) and SECURITY DEFINER functions that re-check the caller's role: `create_invitation`, `revoke_invitation`, `invitation_preview`, `accept_invitation`, `change_member_role`, `remove_member`, `list_members`, `audit_log`.
+  - Invitations: owner only; 7-day links; a new invitation for the same address replaces the open one; existing members cannot be re-invited. Accepting requires the signed-in user's **verified** email to equal the invited address, so a forwarded link is useless to anyone else. Email sending is not connected: the owner copies the link (shown once).
+  - Roles: owner (team and everything), admin (configuration and knowledge), member (read only). The last owner cannot be demoted or removed; owner rows are locked so concurrent changes cannot remove every owner.
+  - Removal takes effect on the member's next request because every organization request re-checks membership; their sign-in session is not ended, since it may serve other organizations.
+  - Pages: `/org/<id>/team/` (members; owners also invite, change roles, remove, and revoke), `/org/<id>/activity/` (owners and admins; last 100 events with actor names), `/invite/<token>/` (sign in, preview, accept). Team changes require MFA when `AUTH_REQUIRE_MFA=true`.
+  - Autosave writes at most one `workspace.save` audit entry per person per 15 minutes.
+  - `npm run dev:local-auth` accepts `/auth/login?login_hint=<name>@example.test` to sign in as another mock user.
 - Production architecture and security requirements in the documents linked below.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
@@ -147,12 +157,28 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/components/workspace/OrganizationDraftProvider.tsx` | Server-backed draft context with debounced, serialized saves |
 | `demo/lib/workspace/persistence.ts` | Draft ↔ stored configuration, size limits, save result type |
 | `demo/tests/unit/` | Pure-function tests (`npm test` runs these with the database tests) |
+| `demo/db/migrations/0003_team_management.sql` | Invitations, roles, removal, member list, audit log view |
+| `demo/lib/db/team.ts` | Team operations and `TeamError` codes |
+| `demo/app/(platform)/org/[organizationId]/(shell)/team/`, `.../activity/` | Team page with Server Actions; activity log |
+| `demo/app/(platform)/invite/[token]/` | Invitation preview and acceptance |
+| `demo/components/workspace/team/` | Team view and styles |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 4 — team management (2026-10-21)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript, build | Passed; `/invite/[token]`, `/org/[organizationId]/team`, `/org/[organizationId]/activity` render dynamically |
+| Tests | `npm test`: 51 of 51 (15 new team tests: hashed tokens not readable by the app; preview; wrong or unverified email cannot accept; accepting once, idempotent for the same user, rejected for others; no re-invite of members; revoked and expired links rejected; a new invitation replaces the open one; only owners invite, revoke, change roles, or remove, including against other organizations; last-owner protection; removal ends access; invalid roles; audit log contents and member denial). `npm run test:e2e`: 7 of 7 |
+| Browser, two to four mock users | Ana creates "Salon Ana", invites Marko (admin) and Petar (member); signed out, the invite page reveals nothing; Jelena with Marko's link sees "Prijavljeni ste drugim nalogom" and no accept button; Marko accepts and sees Tim (read-only) and Aktivnost; Ana demotes Marko, is refused when demoting herself as the last owner (message shown, select reverts), removes Marko; the activity log lists the changes with names; Marko then gets 404 and no organization on `/account/`; Mila (member) sees "Samo pregled", no Aktivnost, no knowledge editing, and onboarding redirects to the overview; at 390 px the six-item navigation uses three columns without overflow |
+| Bug found and fixed | The invitation page set `referrer: no-referrer`, which makes browsers send `Origin: null` on a no-JavaScript form POST; Next.js then rejected the Server Action ("Invalid Server Actions request"). Reproduced with a native `form.submit()`, removed the meta, and the same native submit then joined the organization |
+
+Not verified: real email delivery (not built), invitation links over https on a deployed host, and MFA-gated team changes with a real tenant.
 
 ### M3 checkpoint 3 — organization workspace (2026-10-21)
 
@@ -244,8 +270,8 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Next M3 step: member invitations and role changes (owner only), revoking a removed member's sessions (`app.auth_sessions` by subject), an audit log view for owners, and enforcing `AUTH_REQUIRE_MFA=true` once the tenant has an MFA factor.
-5. Then operational items: backup and restore drill, observability, rate limits on sign-in-adjacent routes, and the CI template.
+4. Next M3 step: operational safeguards that do not need provider accounts: rate limits for Server Actions and `/auth/*` (per IP and per user, stored in PostgreSQL), structured server logs without personal data or tokens, a scheduled purge of expired sessions and invitations, and a written backup/restore and incident/rollback runbook.
+5. Needs accounts or decisions: confirm the platform, then deploy staging, run a restore drill, choose an email provider for invitations, enable `AUTH_REQUIRE_MFA=true`, and enable the CI template.
 6. Later in M3: R2 private storage with short-lived signed URLs, a backup and restore drill (database and objects), observability, an incident and rollback runbook, and enabling the CI template.
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict.
