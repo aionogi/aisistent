@@ -20,6 +20,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import AssistantChannels from "../components/AssistantChannels";
 import Brand from "../components/Brand";
 import ConversationDemo from "../components/ConversationDemo";
 import DashboardPreview from "../components/DashboardPreview";
@@ -143,6 +144,8 @@ export default function Home() {
           </div>
           <div className="section-footnote"><Sparkles size={14} /> Ovde možete istražiti primer tog iskustva. Povezivanje vašeg posla dolazi u sledećoj fazi.</div>
         </section>
+
+        <AssistantChannels />
 
         <div className="demo-section-wrap"><ConversationDemo /></div>
 
