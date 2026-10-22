@@ -8,6 +8,8 @@ Install dependencies with `npm ci`, then run `npm run dev`. Local address: `http
 
 `npm run typecheck` checks TypeScript. `npm run build` produces the Node.js application in `.next/`; `npm run start` serves it. Static export is no longer configured. `npm test` runs unit/database tests and `npm run test:e2e` runs a disposable local identity/database/server stack. Stop any development server for this project before running the HTTP suite.
 
+`npm run test:recovery` rehearses a logical backup/restore with synthetic data in two temporary databases. It additionally requires PostgreSQL 17 `pg_dump` and `pg_restore` on `PATH` or in `PG_CLIENT_BIN_DIR`; see the [runbook](../docs/operations/RUNBOOK.md#repeatable-local-rehearsal). It never uses an application database URL.
+
 ## Demo behavior
 
 - Landing page (`/`): four industry-specific text conversation simulations with pause, resume, and replay; a dashboard preview with a local-only FAQ editor (entries reset when switching away from its tab or reloading); mobile navigation and expandable FAQ answers.

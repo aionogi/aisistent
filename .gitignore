@@ -37,6 +37,10 @@ Thumbs.db
 *.log
 logs/
 
+# Database recovery artifacts (never commit data snapshots)
+*.dump
+*.backup
+
 # Antigravity / AI tools
 .gemini/
 

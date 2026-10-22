@@ -15,7 +15,8 @@
     "db:migrate": "node scripts/db/migrate.ts",
     "ops:cleanup": "node scripts/operations/cleanup.ts",
     "dev:local-auth": "node scripts/dev/local-auth.ts",
-    "test:e2e": "node --test \"tests/e2e/**/*.test.ts\""
+    "test:e2e": "node --test \"tests/e2e/**/*.test.ts\"",
+    "test:recovery": "node --test \"tests/recovery/**/*.test.ts\""
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.32.1",

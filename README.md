@@ -35,6 +35,8 @@ npm run start
 
 Run these commands from `demo/`. `npm test` starts temporary PostgreSQL 17 databases (no Docker needed). `npm run dev:local-auth` runs the signed-in app with a mock identity provider at http://127.0.0.1:4313/account/, and `npm run test:e2e` tests sign-in, MFA and request limits through HTTP. Stop this project's development server first. The public demo runs without environment variables or provider accounts. Database-backed operations additionally require `RATE_LIMIT_SECRET`; the local mock stack generates one. `render.yaml` is a provisional deployment template; hosting and identity remain undecided.
 
+The separate `npm run test:recovery` command rehearses synthetic database recovery. It needs PostgreSQL 17 client tools; setup and boundaries are in the [runbook](docs/operations/RUNBOOK.md#repeatable-local-rehearsal).
+
 ## Project map
 
 | Path | Purpose |
@@ -61,7 +63,7 @@ Run these commands from `demo/`. `npm test` starts temporary PostgreSQL 17 datab
 
 1. **M1 — Interactive website demo:** complete; pushed as `milestone-1-interactive-demo`.
 2. **M2 — App shell and onboarding UI:** complete, using clearly labeled example data; tagged `milestone-2-app-shell`.
-3. **M3 — Persistent platform and production security:** in progress; tenancy, sign-in, organization/team management and operational safeguards implemented locally. Provider choice, deployment, scheduled jobs and recovery evidence remain open.
+3. **M3 — Persistent platform and production security:** in progress; tenancy, sign-in, organization/team management, operational safeguards and synthetic logical recovery verified locally. Provider choice, deployment, scheduled jobs and production recovery evidence remain open.
 4. **M4 — Live AI and telephony:** controlled provider integrations after the platform safeguards.
 5. **M5 — Pricing and subscriptions:** approved recurring-payment integration for the Serbian merchant after security readiness.
 

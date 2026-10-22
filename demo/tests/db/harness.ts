@@ -87,7 +87,8 @@ async function waitForServer(config: pg.ClientConfig, server: ChildProcess): Pro
  * a non-superuser owner with CREATEROLE owns the database. Unless disabled,
  * migrations then run as that owner and the application connects as aisistent_app.
  */
-export async function startTestDatabase(options: { migrate?: boolean } = {}): Promise<TestDatabase> {
+export async function startTestDatabase(options: { migrate?: boolean; appPassword?: string } = {}): Promise<TestDatabase> {
+  const appPassword = options.appPassword ?? APP_PASSWORD;
   const binaries = await resolveBinaries();
   const workDir = await mkdtemp(path.join(os.tmpdir(), "aisistent-pgdata-"));
   const dataDir = path.join(workDir, "data");
@@ -112,10 +113,10 @@ export async function startTestDatabase(options: { migrate?: boolean } = {}): Pr
   await admin.connect();
   if (options.migrate !== false) {
     await migrate(admin, MIGRATIONS_DIR);
-    await ensureAppLogin(admin, APP_PASSWORD);
+    await ensureAppLogin(admin, appPassword);
   }
 
-  const appUrl = `postgresql://${APP_LOGIN_ROLE}:${APP_PASSWORD}@127.0.0.1:${port}/aisistent_test`;
+  const appUrl = `postgresql://${APP_LOGIN_ROLE}:${encodeURIComponent(appPassword)}@127.0.0.1:${port}/aisistent_test`;
   const appPool = new pg.Pool({ connectionString: appUrl, max: 4 });
 
   return {

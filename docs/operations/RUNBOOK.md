@@ -1,6 +1,6 @@
 # M3 operations runbook
 
-Status: implemented local safeguards; no production deployment, scheduler, alert destination, or restore drill has been configured. Hosting and identity remain provisional. This document is an executable checklist for the eventual staging operator, not evidence of production readiness.
+Status: implemented local safeguards and a passing synthetic logical restore rehearsal. No production deployment, scheduler, alert destination, managed backup or deployed restore drill has been configured. Hosting and identity remain provisional. This document is an executable checklist for the eventual staging operator, not evidence of production readiness.
 
 ## Release and configuration
 
@@ -72,6 +72,31 @@ Verify alerts reach an operator. Record the test timestamp and recipient in the 
 
 Choose and record recovery point/time objectives, backup frequency, retention, encryption and access ownership before real data. Managed point-in-time recovery and an independently accessible encrypted backup are deployment decisions still pending. A database backup does not include future object-storage files.
 
+### Repeatable local rehearsal
+
+From `demo/`, run `npm run test:recovery`. It uses two disposable PostgreSQL 17 clusters, a generated synthetic dataset and a temporary custom-format archive. It accepts no source/target connection arguments and does not read application database URLs or `.env` files. The archive and clusters are removed by test teardown, including after assertion failures. Abruptly terminating Node or the machine can leave temporary files; this is never a production backup command.
+
+Prerequisite: install PostgreSQL **17** client tools (`pg_dump` and `pg_restore`). The existing `embedded-postgres` dependency supplies the server, but its Windows package does not include these tools. Put them on `PATH`, or set `PG_CLIENT_BIN_DIR` to the absolute directory containing both tools; `PG_BIN_DIR` is also supported when a complete PostgreSQL installation is used. Missing/wrong-major tools fail explicitly rather than skipping the test. Do not commit executables or archives. Official [Windows packages](https://www.postgresql.org/download/windows/) include the EDB portable archive; there is no automatic download in the test.
+
+PowerShell example with a locally installed client directory:
+
+```powershell
+$env:PG_CLIENT_BIN_DIR = 'C:\Program Files\PostgreSQL\17\bin'
+npm run test:recovery
+```
+
+The rehearsal runs the real `pg_dump --format=custom` / `pg_restore --no-owner --exit-on-error --single-transaction` tools as a non-superuser owner, preserving ACLs. It creates fresh runtime/login roles on the empty target, with a different application password. The assertions cover:
+
+- Every application table plus migration history: row counts and SHA-256 digests match before cleanup or migrations can repair anything.
+- Migration source checksums, ownership, effective ACLs (including PostgreSQL's equivalent default ACL representation), RLS policies, function definitions, constraints and indexes survive restoration.
+- The old database password fails; the app role cannot assume ownership, disable RLS, or directly read session/rate-limit storage. Missing context, forged organization context and pre-snapshot removed membership cannot access tenant data.
+- A session and invitation revoked **after** the snapshot are initially live again in the raw restore. Explicit deletion of restored sessions/invitations prevents reuse, including with the old session encryption key. Expiry cleanup alone would not do this.
+- Fresh session storage, configuration/knowledge saves and audit-sequence advancement work after recovery. Full OIDC sign-in on the restored target is a separate staging check.
+
+The test prints only versions, snapshot time, archive checksum, table counts and elapsed times. It intentionally demonstrates that a post-snapshot configuration edit is lost. This small local dataset does not establish production recovery time/point objectives, backup encryption/retention, provider PITR, cross-platform portability or object-file recovery. See [the verification record](../HANDOFF.md#verification-record) for actual results. It is separate from `npm test`; a future CI job must provision PostgreSQL 17 clients before running it.
+
+### Managed-environment drill
+
 For a PostgreSQL logical backup, use a protected PostgreSQL service/passfile configuration for a backup identity with access to the full database. Never place passwords in commands, chat or committed files. Example commands using configured service names:
 
 ```sh
@@ -93,7 +118,7 @@ For each drill:
 
 4. Check `schema_migrations` checksums against the matching source release before applying later migrations. Verify tables, indexes, functions, RLS policies and grants. `aisistent_app` must be non-owner and unable to bypass RLS or assume the owner role.
 5. Remove restored login sessions and invitations in the isolated target before enabling traffic, and generate fresh application/identity secrets. Restoring old sessions could revive a session revoked after the backup. Use test identities and synthetic organization records for the drill.
-6. Connect a separate test app to the restored target. Verify two organizations cannot cross-read/write, removed members remain denied, configuration and knowledge agree with the snapshot, and fresh sign-in plus save works. Record row counts/checksums without copying customer content into logs.
+6. Reconcile membership removals, role changes and identity revocations made **after** the snapshot against an authoritative source outside that backup before reopening traffic. Session/invitation invalidation does not reconcile restored membership rights. Then connect a separate test app to the restored target. Verify two organizations cannot cross-read/write, removed members remain denied, configuration and knowledge agree with the snapshot, and fresh sign-in plus save works. Record row counts/checksums without copying customer content into logs.
 7. Once files exist, separately restore an object snapshot and reconcile authorized object references and actual file bytes. This is not implemented yet.
 8. Record finish time, observed data loss, recovery duration, failures and accountable owner. Destroy the isolated environment through the approved provider procedure after retaining sanitized evidence. Only then mark the drill passed.
 

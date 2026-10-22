@@ -1,6 +1,6 @@
 # Development handoff
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 
 ## Current objective
 
@@ -14,9 +14,11 @@ M3 checkpoint 3 connects the M2 workspace screens to organization data: `/org/<i
 
 M3 checkpoint 4 adds team management: owners invite people by link, change roles, and remove members; owners and admins read the organization's activity log.
 
-M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concurrency defects, and adds provider-neutral operational safeguards. M3 remains incomplete; there is no deployed production environment, active cleanup schedule, configured alert sink, restore-drill evidence, or approved hosting choice. See [operations/RUNBOOK.md](operations/RUNBOOK.md).
+M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concurrency defects, and adds provider-neutral operational safeguards. M3 remains incomplete; there is no deployed production environment, active cleanup schedule, configured alert sink, managed restore-drill evidence, or approved hosting choice. See [operations/RUNBOOK.md](operations/RUNBOOK.md).
 
-Implementation checkpoint: [`9e813b3`](https://github.com/aionogi/aisistent/commit/9e813b3685413b4ce72558ab442c1876693b535c), pushed to `main`. A subsequent documentation-only cleanup corrects the retired static-build instructions, distinguishes demo/mock/production startup, and refreshes current-state descriptions. Verified against `package.json`, `next.config.ts`, the local-auth launcher and migrations; `git diff --check` passed. No application code changed and the test/build suites were not rerun for that documentation cleanup. The next implementation task and open M3 gates below are unchanged.
+**Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
+
+Earlier checkpoint 5: [`9e813b3`](https://github.com/aionogi/aisistent/commit/9e813b3685413b4ce72558ab442c1876693b535c), pushed to `main`. Subsequent startup-documentation cleanup and invitation HTTP authorization coverage are recorded below. Checkpoint 6 supersedes the earlier next-task recommendation; use the current next-agent steps.
 
 The earlier uncommitted local M2 draft was preserved in a local Git stash named `preserve pre-Claude local M2 draft before ec549e3 sync` before fast-forwarding to Claude's work. It is obsolete relative to the shipped M2 implementation; do not apply it to current `main`. It is not part of the GitHub handoff.
 
@@ -160,6 +162,7 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/lib/db/migrator.ts`, `demo/scripts/db/migrate.ts` | Migration runner and the deploy command |
 | `demo/lib/db/pool.ts` | Shared pool for the application login, or null without a database |
 | `demo/tests/db/` | PostgreSQL test harness and integration tests |
+| `demo/tests/recovery/` | Separate synthetic logical dump/restore rehearsal; requires PostgreSQL 17 client tools |
 | `demo/db/migrations/0002_auth_sessions.sql` | Encrypted session table and its access functions |
 | `demo/lib/auth/auth0.ts` | Auth0 client (or null when not configured), hooks, `safeReturnPath`, MFA settings |
 | `demo/lib/auth/session-store.ts` | PostgreSQL session store with hashing and AES-256-GCM |
@@ -184,6 +187,16 @@ The app runs without any database or `.env`; database code activates only when `
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 6 — synthetic logical recovery (2026-10-22)
+
+- `npm run test:recovery`: **6/6 passed** (one parent test and five scenario subtests), PostgreSQL 17 disposable servers with EDB `pg_dump`/`pg_restore` **17.11** on Windows. Synthetic archive snapshot: `2026-10-22T08:26:53.027Z`; SHA-256 `53c337adda2a965c2be4945ed6529db62259ea6bbe8e78b76377a49ecc3ce594`. Restore command: **194 ms**; whole test run including teardown: **12.31 s**. These timings are not a production RTO estimate.
+- Exact snapshot counts/digests matched for all 10 tables: 2 organizations, 4 users, 2 memberships, 2 configs, 2 knowledge entries, 8 audit events, 1 session, 2 invitations, 1 rate bucket and 5 migration records. Ownership, effective ACLs, RLS policies, function definitions, indexes and constraints matched before migration verification or access cleanup.
+- Different application password worked; the source password failed on the target. Owner escalation, direct session/rate-table access, forged cross-tenant access and pre-snapshot removed-member access were denied. A post-snapshot config edit was intentionally absent from the recovered snapshot.
+- Sessions/invitations revoked after the snapshot were demonstrably revived by a raw restore, then invalidated by explicit target-only cleanup. Fresh session-store writes and repository saves worked, including the restored audit identity sequence. Session storage is not a full identity-provider sign-in test. Post-snapshot membership/role/identity revocations still require external reconciliation before traffic resumes.
+- Existing regressions: `npm test` **71/71 passed**, `npm run test:e2e` **13/13 passed**. No dependencies, production code, migrations or UI changed. Existing installed dependencies were reused; `npm ci` was not repeated for this checkpoint.
+- `npm run typecheck`, `npm run build` and `git diff --check` passed after the implementation. The build remains a Node.js application; no deployment or UI/browser acceptance is claimed for this checkpoint.
+- Test teardown removed both temporary clusters and the dump. No customer data, provider credentials or deployed service were used. The client tools were obtained from the official EDB portable archive and kept only in ignored local tooling; future agents need their own PostgreSQL 17 clients as described in the runbook. Managed backup encryption/retention, PITR, real recovery targets, object files and the existing small browser notice follow-up remain unverified.
 
 ### M3 follow-up — invitation HTTP authorization (2026-10-21)
 
@@ -308,7 +321,7 @@ Agents must not create accounts or handle credentials. The user opens these in t
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
 4. Finish the small outstanding browser visual/keyboard check of the non-MFA owner notice; use `npm run dev:local-auth` with `MOCK_MFA=false` and synthetic organization data. The server-side MFA denial is already covered by HTTP regression tests.
-5. Next provider-independent M3 work: build an automated isolated logical backup/restore rehearsal using synthetic records, with assertions for restored roles/RLS and invalidated old sessions. Use the runbook and record real results; do not mark production recovery proven from this test.
+5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof. Complete the browser check in step 4 as the next small task.
 6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open.
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict.
@@ -327,7 +340,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 5 implemented, hosting and identity still provisional. First finish the documented browser check, then implement a provider-independent isolated backup/restore rehearsal using synthetic data. Do not redo the limiter, logs, cleanup or fixed team races. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 6 (synthetic logical recovery) implemented, hosting and identity still provisional. First finish the documented browser notice check; further staging work needs the provider decision and user-created accounts. Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 

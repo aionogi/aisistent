@@ -1,6 +1,6 @@
 # Delivery milestones
 
-Updated: 2026-10-21.
+Updated: 2026-10-22.
 
 The user requested a demo first, followed by security, then pricing and recurring revenue. The phases below preserve that order. No delivery dates or provider commitments are assigned.
 
@@ -8,7 +8,7 @@ The user requested a demo first, followed by security, then pricing and recurrin
 | --- | --- | --- | --- |
 | [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
 | [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete and pushed | M1 | `milestone-2-app-shell` |
-| [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | In progress; operational safeguards and team race fixes added; deployment/recovery gates pending | M2 | `milestone-3-secure-platform` |
+| [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | In progress; synthetic logical recovery verified; deployment/managed recovery gates pending | M2 | `milestone-3-secure-platform` |
 | [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Planned; deferred | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
@@ -58,13 +58,15 @@ Goal: support real organizations and data through the requested Next.js/Node.js 
 - [ ] Enforce server-side authorization and tenant isolation on each protected operation. *(Organization pages and the save action verify session, membership, and role on the server, with RLS underneath; remaining operations come with their features.)*
 - [ ] Implement secure sessions, required privileged-account MFA, revocation, and sensitive-action checks. *(Auth0 sign-in with encrypted server-side sessions, logout and back-channel revocation, and an MFA gate for organization creation exist; MFA is off until the tenant has a factor; team changes also require MFA when it is on; removed members lose access on their next request through live membership checks.)*
 - [ ] Protect imports, uploads, secrets, logs, and private file access. *(Allowlisted operational logging and request limits implemented; ingress trust/provider logging and future imports/uploads/storage remain.)*
-- [ ] Establish migrations, backups, recovery tests, observability, and incident/rollback procedures. *(Migrations, bounded cleanup command and [runbook](operations/RUNBOOK.md) implemented; scheduler, alert sink, backups and actual restore drills remain.)*
+- [ ] Establish migrations, backups, recovery tests, observability, and incident/rollback procedures. *(Migrations, bounded cleanup, [runbook](operations/RUNBOOK.md) and a passing isolated synthetic logical restore rehearsal implemented; scheduler, alert sink, managed backups/PITR and deployed restore drills remain.)*
 - [ ] Test unauthorized access and cross-tenant operations against the actual data access paths. *(Latest evidence: 71 unit/database tests at checkpoint 5 and 13 HTTP tests after the invitation follow-up; includes workspace MFA denial, removed-member denial, concurrent ownership changes, request limits and current-session email verification for invitations. Deployed-provider and future-feature coverage remains.)*
 - [ ] Record the applicable security evidence and unresolved risks.
 
 The detailed baseline is [security-and-billing.md](architecture/security-and-billing.md). Its requirements are proposed controls, not controls already present in M1.
 
 Checkpoint 5 reviews `ec549e3` and adds operational safeguards plus fixes for queued stale-owner authorization, duplicate invitation races and missing workspace-save MFA. This is a partial M3 checkpoint; do not publish `milestone-3-secure-platform` or close the GitHub M3 milestone until all remaining criteria pass. The limited browser visual/keyboard follow-up is recorded in the handoff.
+
+Checkpoint 6 adds `npm run test:recovery`: real PostgreSQL dump/restore between two disposable clusters, snapshot and security-definition comparisons, restricted credentials, tenant isolation, restored-session/invitation invalidation, and usable recovered saves/audit sequence. All 6 reported recovery tests and the 71 unit/database + 13 HTTP regression tests pass locally. This is synthetic recovery evidence, not a production recovery guarantee; provider recovery objectives and post-snapshot authorization reconciliation remain operator responsibilities.
 
 ## M4 — Live AI and telephony
 
