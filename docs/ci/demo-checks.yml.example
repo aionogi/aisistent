@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - "demo/**"
+      - "docs/ci/**"
       - ".github/workflows/demo-checks.yml"
   pull_request:
     paths:
       - "demo/**"
+      - "docs/ci/**"
       - ".github/workflows/demo-checks.yml"
   workflow_dispatch:
 
@@ -21,13 +23,14 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
       run:
         working-directory: demo
     env:
       NEXT_TELEMETRY_DISABLED: "1"
+      PG_CLIENT_BIN_DIR: /usr/lib/postgresql/17/bin
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -39,10 +42,28 @@ jobs:
           cache-dependency-path: demo/package-lock.json
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install PostgreSQL 17 recovery client tools
+        shell: bash
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error --location \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          sudo tee /etc/apt/sources.list.d/pgdg.sources > /dev/null <<'EOF'
+          Types: deb
+          URIs: https://apt.postgresql.org/pub/repos/apt
+          Suites: noble-pgdg
+          Components: main
+          Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          EOF
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends postgresql-client-17
       - name: Check TypeScript
         run: npm run typecheck
       - name: Database integration tests (temporary PostgreSQL 17)
         run: npm test
+      - name: Isolated logical recovery (synthetic data)
+        run: npm run test:recovery
       - name: End-to-end sign-in tests (mock identity provider)
         run: npm run test:e2e
       - name: Build

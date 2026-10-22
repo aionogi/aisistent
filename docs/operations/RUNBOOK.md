@@ -93,7 +93,7 @@ The rehearsal runs the real `pg_dump --format=custom` / `pg_restore --no-owner -
 - A session and invitation revoked **after** the snapshot are initially live again in the raw restore. Explicit deletion of restored sessions/invitations prevents reuse, including with the old session encryption key. Expiry cleanup alone would not do this.
 - Fresh session storage, configuration/knowledge saves and audit-sequence advancement work after recovery. Full OIDC sign-in on the restored target is a separate staging check.
 
-The test prints only versions, snapshot time, archive checksum, table counts and elapsed times. It intentionally demonstrates that a post-snapshot configuration edit is lost. This small local dataset does not establish production recovery time/point objectives, backup encryption/retention, provider PITR, cross-platform portability or object-file recovery. See [the verification record](../HANDOFF.md#verification-record) for actual results. It is separate from `npm test`; a future CI job must provision PostgreSQL 17 clients before running it.
+The test prints only versions, snapshot time, archive checksum, table counts and elapsed times. It intentionally demonstrates that a post-snapshot configuration edit is lost. This small local dataset does not establish production recovery time/point objectives, backup encryption/retention, provider PITR, cross-platform portability or object-file recovery. See [the verification record](../HANDOFF.md#verification-record) for actual results. It is separate from `npm test`; the inactive [CI template](../ci/README.md) provisions PostgreSQL 17 clients and requires the recovery step when enabled.
 
 ### Managed-environment drill
 

@@ -18,6 +18,8 @@ M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concur
 
 **Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
 
+Small follow-up: the inactive CI template now includes PostgreSQL 17 client installation and a required recovery-test step on `ubuntu-24.04`. See [CI setup](ci/README.md). Activating the workflow and obtaining a passing GitHub run are still pending.
+
 Earlier checkpoint 5: [`9e813b3`](https://github.com/aionogi/aisistent/commit/9e813b3685413b4ce72558ab442c1876693b535c), pushed to `main`. Subsequent startup-documentation cleanup and invitation HTTP authorization coverage are recorded below. Checkpoint 6 supersedes the earlier next-task recommendation; use the current next-agent steps.
 
 The earlier uncommitted local M2 draft was preserved in a local Git stash named `preserve pre-Claude local M2 draft before ec549e3 sync` before fast-forwarding to Claude's work. It is obsolete relative to the shipped M2 implementation; do not apply it to current `main`. It is not part of the GitHub handoff.
@@ -188,6 +190,12 @@ Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILES
 
 ## Verification record
 
+### CI recovery follow-up (2026-10-22)
+
+Updated `docs/ci/demo-checks.yml.example` to use `ubuntu-24.04`, install only PostgreSQL 17 clients from the official signed repository, select the versioned client directory, and run `npm run test:recovery` before the HTTP suite and build. Template changes now match the push/PR path filters. Static review, installation-block `bash -n` and `git diff --check` passed. No application changes, dependency changes or deployment occurred; application test suites were not rerun. The Ubuntu install and workflow have not executed on GitHub, and workflow-write access is still required for activation.
+
+The separate notice browser check remains open: the browser tool refused access to the local tab under its URL security policy on this attempt. No alternate browser access was attempted and no new visual/keyboard pass is claimed.
+
 ### M3 checkpoint 6 — synthetic logical recovery (2026-10-22)
 
 - `npm run test:recovery`: **6/6 passed** (one parent test and five scenario subtests), PostgreSQL 17 disposable servers with EDB `pg_dump`/`pg_restore` **17.11** on Windows. Synthetic archive snapshot: `2026-10-22T08:26:53.027Z`; SHA-256 `53c337adda2a965c2be4945ed6529db62259ea6bbe8e78b76377a49ecc3ce594`. Restore command: **194 ms**; whole test run including teardown: **12.31 s**. These timings are not a production RTO estimate.
@@ -298,7 +306,7 @@ Limitations: no automated end-to-end or accessibility test suite exists; no scre
 | Contrast correction | Secondary labels darkened; reviewer scored the targeted correction resolved at 4.83:1 to 5.95:1 |
 | Production integrations/security | Not implemented or tested |
 
-The CI template at `docs/ci/demo-checks.yml.example` repeats dependency installation, TypeScript checks, and the production build. It is not enabled: the existing GitHub credential can push source but lacks the `workflow` scope. Local checks passed; no GitHub Actions run is claimed.
+The CI template at `docs/ci/demo-checks.yml.example` includes dependency installation, TypeScript, unit/database, synthetic recovery, HTTP checks and the production build. It is not enabled: the existing GitHub credential can push source but lacks the `workflow` scope. Local application checks are recorded above; no GitHub Actions run is claimed.
 
 ## Provider setup (user actions)
 

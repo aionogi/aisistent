@@ -68,6 +68,8 @@ Checkpoint 5 reviews `ec549e3` and adds operational safeguards plus fixes for qu
 
 Checkpoint 6 adds `npm run test:recovery`: real PostgreSQL dump/restore between two disposable clusters, snapshot and security-definition comparisons, restricted credentials, tenant isolation, restored-session/invitation invalidation, and usable recovered saves/audit sequence. All 6 reported recovery tests and the 71 unit/database + 13 HTTP regression tests pass locally. This is synthetic recovery evidence, not a production recovery guarantee; provider recovery objectives and post-snapshot authorization reconciliation remain operator responsibilities.
 
+CI follow-up: the inactive workflow template now installs PostgreSQL 17 client tools and requires the recovery rehearsal. Static/script-syntax validation is recorded in [CI setup](ci/README.md); workflow activation and a successful GitHub run remain pending. This does not close M3.
+
 ## M4 — Live AI and telephony
 
 Goal: conduct bounded, authorized live calls and preserve useful conversation outcomes.
