@@ -244,6 +244,7 @@ The onboarding (`/onboarding/`) and workspace (`/workspace/`) reuse the landing 
 - **Onboarding:** a white top bar, a five-item step indicator (current step outlined in azure, completed steps in Outcome Green, locked steps dashed), and one white card per step on the Cloud background. Below 720px the step labels collapse to numbers with a "Korak N od 5" line, and actions stack full width.
 - **Forms:** visible labels, 44px minimum control height, 6px field radius, azure focus ring, red border plus written message for invalid fields, and an error summary with links that focus each field. Choices use radio cards with a pale azure selected state; booking uses a switch. Inputs use 16px text on narrow screens to avoid mobile zoom.
 - **Feedback:** notices in info (pale azure), success (pale green), and warning (pale amber) variants; native `<dialog>` confirmations for destructive actions; a skeleton loading state while the browser-tab draft is read.
+- **Read-only sessions (M3):** members, and owners/admins who still need the MFA step-up, see summaries and labels instead of inputs that would ignore them: the assistant page shows the configuration summary, team roles appear as chips, edit links read "Pogledaj", and the sidebar says "Samo pregled". The step-up notice is a warning with a "Dvofaktorska potvrda" link that returns to the organization.
 - **Example labels:** every workspace page header carries a "Primer podataka" badge; reply previews and example conversations state that they are rule-assembled and not AI output or real calls.
 
 ## Do's and Don'ts

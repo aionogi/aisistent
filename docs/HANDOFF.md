@@ -1,6 +1,6 @@
 # Development handoff
 
-Updated: 2026-10-22.
+Updated: 2026-10-27.
 
 ## Current objective
 
@@ -17,6 +17,8 @@ M3 checkpoint 4 adds team management: owners invite people by link, change roles
 M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concurrency defects, and adds provider-neutral operational safeguards. M3 remains incomplete; there is no deployed production environment, active cleanup schedule, configured alert sink, managed restore-drill evidence, or approved hosting choice. See [operations/RUNBOOK.md](operations/RUNBOOK.md).
 
 **Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
+
+**Current checkpoint 7 (2026-10-27):** the outstanding browser check of the non-MFA owner notice is done, and it found three real defects, now fixed: read-only sessions (members, and owners/admins without MFA) saw assistant forms that silently ignored typing; owners without MFA saw team controls whose every action failed; and the MFA step-up link had never completed a sign-in locally because the mock provider omitted `auth_time`, which `max_age=0` requires. Step-up now returns to the organization and is covered end to end. See the verification record below. Next work needs the provider decision (see "Next agent's first steps").
 
 Small follow-up: the inactive CI template now includes PostgreSQL 17 client installation and a required recovery-test step on `ubuntu-24.04`. See [CI setup](ci/README.md). Activating the workflow and obtaining a passing GitHub run are still pending.
 
@@ -87,6 +89,12 @@ The user explicitly deferred production security implementation, pricing, and mo
   - `npm run ops:cleanup` is a one-shot, provider-neutral command using the restricted `DATABASE_URL`; it deletes expired sessions, invitations and rate buckets in bounded batches, preserving memberships and audit history. It has no public endpoint. A scheduler is documented but not activated. Random sign-in cleanup was removed, also resolving the observed flaky session-purge test.
   - Migration `0005_team_authorization_lock.sql` fixes two reproduced races: queued mutations by a demoted/removed owner and duplicate active invitations with different roles. Mutations serialize per organization and recheck ownership after waiting; invitation acceptance follows the same lock order. Existing duplicate pending links are reconciled, keeping the newest and auditing older revocations.
   - Workspace saves now enforce the configured MFA policy. A non-MFA privileged session sees a read-only view and step-up link. Invitation acceptance explicitly rechecks current-session email verification as well as the database email match.
+- **Read-only views and MFA step-up (checkpoint 7):**
+  - Read-only sessions get no inputs that would ignore them: the assistant page shows the configuration summary (`ConfigSummary readOnly`) instead of the tabbed forms; overview links read "Pogledaj"; onboarding links and the sidebar setup card are hidden; the sidebar says "Samo pregled".
+  - The team page shows owner controls only when `canChange` (owner, and MFA when `AUTH_REQUIRE_MFA=true`); otherwise roles appear as chips and pending invitations without "Opozovi". The server actions still enforce the same rule.
+  - `mfaStepUpPath(returnTo)` in `lib/auth/auth0.ts` builds the step-up link; the organization notice returns to `/org/<id>/` instead of `/account/`.
+  - The local mock provider adds `auth_time`, so `max_age=0` step-ups validate as they would with Auth0.
+  - On narrow screens, notices with a text link put the link below the message.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
 
@@ -189,6 +197,21 @@ The app runs without any database or `.env`; database code activates only when `
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 7 — read-only views and MFA step-up (2026-10-27)
+
+Checked in the Claude desktop app's built-in browser against `next dev` with a temporary database and the mock provider, seeded with synthetic data ("Salon Ana": owner Ana, admin Marko, member Mila; complete example configuration). MFA on the mock was switched per sign-in.
+
+| Check | Evidence |
+| --- | --- |
+| Non-MFA owner notice (the open follow-up) | Shown on overview, assistant, and team. Real Tab presses from the page start: skip link, wordmark, six navigation links, "Nalog i firme", then "Dvofaktorska potvrda" (10th stop) with a visible 3px focus ring. At 390 px the link now sits under the message (before: text squeezed into a narrow column); no horizontal overflow |
+| Defects found and fixed | (1) Assistant page in read-only mode rendered editable-looking inputs; typing changed nothing. Now a read-only summary. (2) Team page for a non-MFA owner showed role selects, remove buttons, and the invite form; every action returned the MFA error. Now read-only until step-up. (3) Clicking "Dvofaktorska potvrda" ended at `/account/?status=login-failed`: `max_age=0` makes the SDK require `auth_time`, which the mock omitted (Auth0 includes it). Mock fixed; step-up returns to the organization |
+| Step-up in the browser | Non-MFA owner → "Dvofaktorska potvrda" → MFA sign-in → `/org/<id>/` with the notice gone, "Uredi odgovore" back, and the team invite form present |
+| Member view | Mila: "Samo pregled" notice, assistant summary instead of forms, "Pogledaj odgovore" / "Pogledaj podešavanje asistenta", sidebar "Samo pregled" text, no step-up notice; no overflow at 390 px |
+| Tests | `npm run typecheck` and `npm run build` passed. `npm test`: **71/71**. `npm run test:e2e`: **14/14**, including the new "workspace step-up link signs in again with MFA and returns to the organization with editing restored"; with `auth_time` removed from the mock that test fails, so it guards the fix |
+| Not run | `npm run test:recovery`: this machine has no PostgreSQL 17 client tools (`pg_dump`). No migration, database function, session, or authorization rule changed, only UI gating and the test mock |
+
+Dev-only observation: right after `next dev` starts (or restarts while a tab from the previous server is open), an organization page can reload in a loop. The server log shows repeated `✓ Compiled in 0ms` and GET lines, with no browser error; reading Next 16.4.2's dev server, the likeliest cause is its Turbopack "HMR hash mismatch" reload when compiling the page bumps the HMR version. It never occurred on `/`. Closing the tab and opening the page again (once needed twice) ended it. `next build`/`next start` are unaffected; no app change is needed.
 
 ### CI recovery follow-up (2026-10-22)
 
@@ -328,11 +351,11 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Finish the small outstanding browser visual/keyboard check of the non-MFA owner notice; use `npm run dev:local-auth` with `MOCK_MFA=false` and synthetic organization data. The server-side MFA denial is already covered by HTTP regression tests.
-5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof. Complete the browser check in step 4 as the next small task.
+4. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
+5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
 6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open.
 
-Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict.
+Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict. If an organization page keeps reloading right after the dev server starts, close the tab and open it again (see checkpoint 7).
 
 Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; styles allow `'unsafe-inline'` in the CSP; the CI template's `npm test` step has never run in GitHub.
 
@@ -348,7 +371,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 6 (synthetic logical recovery) implemented, hosting and identity still provisional. First finish the documented browser notice check; further staging work needs the provider decision and user-created accounts. Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 7 (read-only views and MFA step-up) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 
