@@ -1,13 +1,16 @@
 "use client";
 
-import { BookOpen, Check, PencilLine, Plus, Search, SearchX, Trash2, X } from "lucide-react";
+import { BookOpen, Check, FileUp, PencilLine, Plus, Search, SearchX, Trash2, X } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
+import { questionKey, type ImportedEntry } from "../../../lib/workspace/knowledge-import";
+import { MAX_KNOWLEDGE_ENTRIES } from "../../../lib/workspace/persistence";
 import { applyIndustryTemplate, createId } from "../../../lib/workspace/templates";
 import type { KnowledgeEntry } from "../../../lib/workspace/types";
 import { LIMITS, validateKnowledgeEntry, type FieldErrors } from "../../../lib/workspace/validation";
 import ConfirmDialog from "../ConfirmDialog";
 import { useDraft } from "../DraftProvider";
 import { TextField } from "../FormControls";
+import KnowledgeImport, { answersLabel } from "../KnowledgeImport";
 import { EmptyState, PageHeader } from "../PageParts";
 import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
 import styles from "../pages.module.css";
@@ -24,13 +27,16 @@ export default function KnowledgeView() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState("");
   const [pendingDelete, setPendingDelete] = useState<KnowledgeEntry | null>(null);
+  const [importing, setImporting] = useState(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const importButtonRef = useRef<HTMLButtonElement>(null);
 
   const normalizedQuery = query.trim().toLocaleLowerCase("sr-Latn");
   const visible = draft.knowledge.filter((entry) => !normalizedQuery || `${entry.question} ${entry.answer}`.toLocaleLowerCase("sr-Latn").includes(normalizedQuery));
   const templateAvailable = draft.industry && draft.industry !== "other";
 
   function openEditor(next: Editor) {
+    setImporting(false);
     const entry = next.mode === "edit" ? draft.knowledge.find((item) => item.id === next.id) : undefined;
     setEditor(next);
     setQuestion(entry?.question ?? "");
@@ -66,6 +72,31 @@ export default function KnowledgeView() {
     closeEditor();
   }
 
+  function openImport() {
+    setEditor(null);
+    setImporting(true);
+    setStatus("");
+    window.setTimeout(() => document.getElementById("knowledge-import-title")?.focus(), 0);
+  }
+
+  function closeImport() {
+    setImporting(false);
+    window.setTimeout(() => (importButtonRef.current ?? addButtonRef.current)?.focus(), 0);
+  }
+
+  /** Adds the previewed entries, again skipping questions that exist by now and anything over the limit. */
+  function importEntries(entries: ImportedEntry[]) {
+    const existing = new Set(draft.knowledge.map((entry) => questionKey(entry.question)));
+    const fresh = entries
+      .filter((entry) => !existing.has(questionKey(entry.question)))
+      .slice(0, Math.max(0, MAX_KNOWLEDGE_ENTRIES - draft.knowledge.length))
+      .map((entry) => ({ id: createId("knowledge"), ...entry }));
+    updateDraft((current) => ({ ...current, knowledge: [...current.knowledge, ...fresh] }));
+    const verb = fresh.length % 10 === 1 && fresh.length % 100 !== 11 ? "Uvezen je" : "Uvezeno je";
+    setStatus(fresh.length ? `${verb} ${answersLabel(fresh.length)}${isDemo ? " u bazu znanja ovog nacrta" : ""}.` : "Nijedan odgovor nije dodat.");
+    closeImport();
+  }
+
   function restoreExamples() {
     if (!draft.industry) return;
     const examples = applyIndustryTemplate(draft, draft.industry).knowledge;
@@ -91,16 +122,29 @@ export default function KnowledgeView() {
         title="Baza znanja"
         badge={isDemo ? "Primer podataka" : "Podaci firme"}
         description={isDemo ? "Česta pitanja i odgovori koje asistent koristi u primerima razgovora. Čuvaju se samo u ovom nacrtu." : "Česta pitanja i odgovori vaše firme. Izmene se čuvaju automatski."}
-        actions={readOnly ? undefined : <button ref={addButtonRef} type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })} disabled={editor?.mode === "add"}><Plus size={15} aria-hidden="true" />Dodaj odgovor</button>}
+        actions={readOnly ? undefined : <>
+          <button ref={importButtonRef} type="button" className={styles.secondaryAction} onClick={openImport} disabled={importing}><FileUp size={15} aria-hidden="true" />Uvezi iz fajla</button>
+          <button ref={addButtonRef} type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })} disabled={editor?.mode === "add"}><Plus size={15} aria-hidden="true" />Dodaj odgovor</button>
+        </>}
       />
       <p className={styles.formStatus} role="status">{status}</p>
+
+      {importing && !readOnly && (
+        <KnowledgeImport
+          existingQuestions={draft.knowledge.map((entry) => entry.question)}
+          capacity={MAX_KNOWLEDGE_ENTRIES - draft.knowledge.length}
+          onImport={importEntries}
+          onCancel={closeImport}
+        />
+      )}
 
       {editor?.mode === "add" && form}
 
       {draft.knowledge.length === 0 ? (
-        !editor && (
+        !editor && !importing && (
           <EmptyState icon={BookOpen} title="Baza znanja je prazna" actions={readOnly ? undefined : <>
             <button type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })}><Plus size={15} aria-hidden="true" />Dodaj prvi odgovor</button>
+            <button type="button" className={styles.secondaryAction} onClick={openImport}><FileUp size={15} aria-hidden="true" />Uvezi iz fajla</button>
             {templateAvailable && <button type="button" className={styles.secondaryAction} onClick={restoreExamples}>Vrati primere za delatnost</button>}
           </>}>
             Bez odgovora asistent postupa prema pravilu za nepoznata pitanja. Dodajte pitanja koja klijenti najčešće postavljaju.

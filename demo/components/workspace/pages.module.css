@@ -193,6 +193,26 @@
 .knowledgeItem:last-child { border-bottom: 0; }
 .knowledgeItem > .knowledgeForm { flex: 1; margin: -4px; }
 .knowledgeIcon { color: #7e8ca3; margin-top: 3px; }
+/* Knowledge import panel (inside .knowledgeForm) */
+.importHint { font-size: 13px; line-height: 1.6; color: var(--muted); }
+.importFormats { font-size: 13px; line-height: 1.6; color: var(--muted); }
+.importFormats summary { cursor: pointer; color: var(--blue-dark); font-weight: 650; }
+.importFormats > p { margin: 10px 0 6px; }
+.importFormats pre { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fileField { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fileField label { cursor: pointer; }
+.fileInput:focus-visible + label { outline: 3px solid #93b5ff; outline-offset: 2px; }
+.fileInput:disabled + label { cursor: progress; opacity: .7; }
+.fileName { font-size: 13px; color: var(--secondary-text); overflow-wrap: anywhere; min-width: 0; }
+.importSummary { display: grid; gap: 4px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.importSummary:empty { display: none; }
+.importPreview { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+.importPreview li { display: grid; gap: 2px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.importPreview li:last-child { border-bottom: 0; }
+.importPreview strong { font-weight: 650; }
+.importPreview span { color: var(--muted); }
+.importPreview .importMore { color: var(--secondary-text); }
+.importSkipped { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .knowledgeText { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .knowledgeText strong { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }
 .knowledgeText p { font-size: 13px; line-height: 1.65; color: var(--muted); overflow-wrap: anywhere; }
