@@ -18,7 +18,9 @@ M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concur
 
 **Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
 
-**Current checkpoint 10 (2026-10-28):** the account page lists the signed-in user's active sign-ins (times only) and offers "Odjavi me sa svih uređaja", which ends every application session of that user immediately and then signs this browser out at the identity provider. Sessions at the provider on other devices are not ended; that needs the provider's management API after the identity decision. See the verification record below.
+**Current checkpoint 11 (2026-10-28):** the production Content-Security-Policy no longer allows inline styles. Fixed bar heights moved into CSS, the two dynamic progress bars set their width through the CSSOM, and Serbian 404 and error pages replace Next.js's defaults, which relied on inline styles. Development keeps `'unsafe-inline'` for styles and `'unsafe-eval'` for scripts, which the Next.js dev overlay and hot reloading need. See the verification record below.
+
+**Checkpoint 10 (2026-10-28):** the account page lists the signed-in user's active sign-ins (times only) and offers "Odjavi me sa svih uređaja", which ends every application session of that user immediately and then signs this browser out at the identity provider. Sessions at the provider on other devices are not ended; that needs the provider's management API after the identity decision. See the verification record below.
 
 **Checkpoint 9 (2026-10-27):** owners and admins import knowledge from a CSV or text file. The file is read in the browser only; a preview lists what will be added and which rows are skipped and why, and accepted entries join the draft and are saved through the existing, server-validated workspace save. Works in the demo workspace too. See the verification record below.
 
@@ -56,7 +58,7 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Reset: "Obriši nacrt" clears the draft after a native modal confirmation.
 - **M3 foundation:**
   - Node.js server deployment (`next start`) instead of static export; `render.yaml` defines a Frankfurt staging web service and a PostgreSQL 17 database with no external access.
-  - `proxy.ts` sets a per-request nonce Content-Security-Policy; `next.config.ts` adds static security headers (HSTS in production, nosniff, frame denial, referrer and permissions policies). Pages render dynamically so scripts carry the nonce.
+  - `proxy.ts` sets a per-request nonce Content-Security-Policy built by `lib/security/content-security-policy.ts` (production: `style-src 'self' 'nonce-…'`, no inline style attributes, no `'unsafe-eval'`; checkpoint 11); `next.config.ts` adds static security headers (HSTS in production, nosniff, frame denial, referrer and permissions policies). Pages render dynamically so scripts carry the nonce.
   - `/api/health/` liveness endpoint for Render.
   - Database schema `app` (users, organizations, memberships, assistant configs, knowledge entries, audit events) with RLS, a NOLOGIN `aisistent_runtime` role, and a restricted `aisistent_app` login that is not a member of the owner role.
   - Tenant-scoped data access (`withUser`, `withOrganization`) with transaction-local context and live membership checks; repositories for configuration (optimistic revisions), knowledge, memberships, and audit events.
@@ -183,7 +185,9 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/components/workspace/*.module.css` | `forms`, `shell`, `pages`, and `onboarding` styles |
 | `demo/lib/workspace/` | Types, industry templates, validation, storage, steps, formatting, example conversations |
 | `demo/next.config.ts` | Static security headers and routing options |
-| `demo/proxy.ts` | Per-request nonce Content-Security-Policy |
+| `demo/proxy.ts`, `demo/lib/security/content-security-policy.ts` | Per-request nonce Content-Security-Policy |
+| `demo/components/ProgressFill.tsx` | Progress bar fill sized through the CSSOM (no inline style attributes) |
+| `demo/app/not-found.tsx`, `demo/app/error.tsx`, `demo/app/global-error.tsx` | Serbian 404 and error pages styled with global classes |
 | `demo/app/api/health/route.ts` | Liveness endpoint for Render |
 | `demo/db/migrations/` | Ordered SQL migrations; never edit an applied file, add a new one |
 | `demo/lib/db/config.ts` | Role names and connection-string derivation (restricted runtime vs. owner) |
@@ -224,6 +228,17 @@ The app runs without any database or `.env`; database code activates only when `
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 11 — production CSP without inline styles (2026-10-28)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript, build | `npm run typecheck` and `npm run build` passed |
+| Unit tests | `npm test`: **98/98** (3 new): the production policy has nonce-only `script-src` and `style-src`, no `'unsafe-inline'` or `'unsafe-eval'`, `frame-ancestors 'none'`, `object-src 'none'` and `upgrade-insecure-requests`; development keeps inline styles and eval; no `.tsx` file under `app/` or `components/` contains a `style` attribute or `dangerouslySetInnerHTML` |
+| HTTP tests | `npm run test:e2e`: **18/18** (development server, unchanged) |
+| Production server (`next start`, no database or sign-in) | `/`, `/workspace/`, `/workspace/knowledge/`, `/onboarding/`, `/account/` and an unknown path (404) send `style-src 'self' 'nonce-…'`, and their HTML contained no `style="` attribute and no `<style>` element; after the fix below, `/`, `/workspace/`, `/onboarding/business/`, `/account/` and the 404 page also had no stylesheet preload. In the browser: bar heights and animation delays of the hero, small wave, voice lines and conversation waveform equal the previous inline values; the conversation progress bar advanced (39% after 6 s, 100% at the end) with its width set through the CSSOM; the demo setup bar showed 4 of 4 at full width; a `securitypolicyviolation` listener recorded nothing and the console was empty on a fresh tab; the 404 page renders the Serbian card |
+| Found and fixed during the check | The first version of `app/error.tsx` imported the account CSS module; as the root error boundary it made Next.js preload that stylesheet on every page (a console warning). The error and 404 pages now use global classes |
+| Not verified | The error page and `global-error` were not triggered in the browser; organization and account pages were not loaded under the production policy (they need the sign-in stack, which runs only in development), but they share the checked components and the source test covers them |
 
 ### M3 checkpoint 10 — account sessions and sign-out on all devices (2026-10-28)
 
@@ -414,13 +429,13 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Checkpoint 10 added the account session list and sign-out on all devices; checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
+4. Checkpoint 11 removed inline styles from the production CSP and added Serbian 404/error pages; checkpoint 10 added the account session list and sign-out on all devices; checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
 5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
 6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open. After the identity decision, also end the provider's sessions when a user signs out everywhere (checkpoint 10 ends only application sessions).
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict. If an organization page keeps reloading right after the dev server starts, close the tab and open it again (see checkpoint 7). Stopping `npm run dev:local-auth` with Ctrl+C removes its temporary database; killing the process instead leaves `%TEMP%\aisistent-pgdata-*` folders, which are safe to delete when no `postgres` process is running (ten such folders were removed on 2026-10-28).
 
-Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; styles allow `'unsafe-inline'` in the CSP; the CI template's `npm test` step has never run in GitHub; deleted organizations remain in backups until backup retention expires, and a restore must reapply deletions made after the snapshot (runbook).
+Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; the development CSP still allows `'unsafe-inline'` styles and `'unsafe-eval'` (production does not); the CI template's `npm test` step has never run in GitHub; deleted organizations remain in backups until backup retention expires, and a restore must reapply deletions made after the snapshot (runbook).
 
 Do not add real payment collection or live provider calls merely to make the UI appear complete. Those belong to their milestones and require the corresponding controls.
 
@@ -434,7 +449,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 10 (account sessions and sign-out on all devices) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 11 (production CSP without inline styles) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 
