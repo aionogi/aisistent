@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import TeamView from "../../../../../../components/workspace/team/TeamView";
 import { getCurrentAccount } from "../../../../../../lib/auth/account.ts";
+import { mfaRequired } from "../../../../../../lib/auth/auth0.ts";
 import { ForbiddenError, withOrganization } from "../../../../../../lib/db/context.ts";
 import { getPool } from "../../../../../../lib/db/pool.ts";
 import { listInvitations, listMembers } from "../../../../../../lib/db/team.ts";
@@ -31,6 +32,7 @@ export default async function TeamPage({ params }: PageProps<"/org/[organization
     <TeamView
       currentUserId={account.userId}
       role={data.role}
+      canChange={data.role === "owner" && (account.mfa || !mfaRequired())}
       members={data.members.map((member) => ({ ...member, joinedAt: member.joinedAt.toISOString() }))}
       invitations={data.invitations.map((invitation) => ({
         id: invitation.id,

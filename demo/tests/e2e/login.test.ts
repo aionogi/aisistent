@@ -229,6 +229,37 @@ test("without MFA the account page asks for a step-up before creating organizati
   }
 });
 
+test("the workspace step-up link signs in again with MFA and returns to the organization with editing restored", async () => {
+  stack.user.mfa = false;
+  try {
+    const browser = new Browser();
+    await browser.get("/auth/login?returnTo=/account/");
+    const userId = (await stack.db.admin.query("SELECT id FROM app.users WHERE auth_subject = 'mock|ana'")).rows[0].id as string;
+    const organizationId = await createOrganization(stack.db.appPool, userId, "Step-up regression organization");
+    const home = `/org/${organizationId}/`;
+
+    // Without MFA: notice with a step-up link back to this organization, and no team controls that would fail.
+    const before = await browser.get(home);
+    assert.match(before.body, /Potvrdite prijavu za izmene/);
+    const link = before.body.match(/href="(\/auth\/login\?acr_values=[^"]+)"/)?.[1];
+    assert.ok(link, "step-up link rendered");
+    const stepUp = decodeAttribute(link);
+    assert.equal(new URL(stepUp, stack.appUrl).searchParams.get("returnTo"), home);
+    assert.equal(new URL(stepUp, stack.appUrl).searchParams.get("max_age"), "0");
+    assert.doesNotMatch((await browser.get(`${home}team/`)).body, /Napravi poziv/);
+
+    // The provider now authenticates with MFA; the callback validates auth_time for max_age=0.
+    stack.user.mfa = true;
+    const after = await browser.get(stepUp);
+    assert.equal(after.response.status, 200);
+    assert.equal(new URL(after.url).pathname, home);
+    assert.doesNotMatch(after.body, /Potvrdite prijavu za izmene/);
+    assert.match((await browser.get(`${home}team/`)).body, /Napravi poziv/);
+  } finally {
+    stack.user.mfa = true;
+  }
+});
+
 test("returnTo cannot send the user to another site", async () => {
   const browser = new Browser();
   const { url } = await browser.get("/auth/login?returnTo=https://evil.example/steal");

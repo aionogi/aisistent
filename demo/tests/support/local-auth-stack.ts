@@ -66,6 +66,8 @@ export async function startLocalAuthStack(options: { appPort: number; issuerPort
       email_verified: signedIn.emailVerified,
       name: signedIn.name,
       amr: signedIn.mfa ? ["pwd", "mfa"] : ["pwd"],
+      // Required when the request carries max_age, as the MFA step-up does (OIDC Core 3.1.2.1); Auth0 sends it.
+      auth_time: Math.floor(Date.now() / 1000),
       sid: `mock-session-${randomBytes(6).toString("hex")}`,
     });
   });

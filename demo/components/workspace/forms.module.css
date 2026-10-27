@@ -151,6 +151,9 @@
   .choiceCard { padding: 13px 14px; min-height: 0; }
   .notice { flex-wrap: wrap; }
   .noticeAction { align-self: flex-start; }
+  /* Text links move below the message (aligned with it, past the 18px icon and 12px gap); dismiss buttons stay beside it. */
+  .notice:has(> .noticeAction > a) .noticeBody { flex-basis: calc(100% - 30px); }
+  .noticeAction:has(> a) { margin-left: 30px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

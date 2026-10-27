@@ -12,7 +12,8 @@ import styles from "./pages.module.css";
 
 type SectionStep = Exclude<StepId, "review">;
 
-type EditTarget = { editHref: (step: SectionStep) => string } | { onEdit: (step: SectionStep) => void };
+// `readOnly` shows the same summary without edit controls.
+type EditTarget = { editHref: (step: SectionStep) => string } | { onEdit: (step: SectionStep) => void } | { readOnly: true };
 
 function SummarySection({ step, title, target, children }: { step: SectionStep; title: string; target: EditTarget; children: ReactNode }) {
   const { draft } = useDraft();
@@ -26,7 +27,7 @@ function SummarySection({ step, title, target, children }: { step: SectionStep; 
           : <span className={styles.statusWarn}><CircleAlert size={14} aria-hidden="true" />{problems === 1 ? "1 problem" : `${problems} problema`}</span>}
         {"editHref" in target
           ? <Link href={target.editHref(step)} className={styles.editLink} aria-label={`Izmeni: ${title}`}><PencilLine size={14} aria-hidden="true" />Izmeni</Link>
-          : <button type="button" onClick={() => target.onEdit(step)} className={styles.editLink} aria-label={`Izmeni: ${title}`}><PencilLine size={14} aria-hidden="true" />Izmeni</button>}
+          : "onEdit" in target && <button type="button" onClick={() => target.onEdit(step)} className={styles.editLink} aria-label={`Izmeni: ${title}`}><PencilLine size={14} aria-hidden="true" />Izmeni</button>}
       </header>
       {children}
     </section>

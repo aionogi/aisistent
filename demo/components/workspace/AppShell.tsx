@@ -33,7 +33,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = normalize(usePathname());
   const environment = useWorkspaceEnvironment();
   const isDemo = environment.mode === "demo";
-  const { draft, ready, flash, setFlash, resetDraft } = useDraft();
+  const { draft, ready, flash, setFlash, resetDraft, readOnly } = useDraft();
   const [confirmReset, setConfirmReset] = useState(false);
   const businessName = draft.business.name.trim();
   const displayName = isDemo ? businessName : environment.organizationName ?? businessName;
@@ -83,7 +83,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {ready && !draft.onboardingCompleted && (
+        {ready && !draft.onboardingCompleted && !readOnly && (
           <Link href={onboardingStartHref(environment.onboardingBasePath)} className={styles.setupCard}>
             <span className={styles.setupTitle}>Podešavanje asistenta</span>
             <span className={styles.setupMeta}>{completed} od {EDITABLE_STEP_COUNT} koraka</span>
@@ -101,7 +101,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           ) : (
             <>
               <SaveIndicator />
-              <p>Izmene se automatski čuvaju za vašu firmu.</p>
+              <p>{readOnly ? "Samo pregled: u ovoj prijavi podaci firme ne mogu da se menjaju." : "Izmene se automatski čuvaju za vašu firmu."}</p>
               <a href="/account/" className={styles.resetButton}><UserRound size={14} aria-hidden="true" />Nalog i firme</a>
             </>
           )}

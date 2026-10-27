@@ -33,7 +33,8 @@ function SetupChecklist() {
       <PageHeader
         title={isDemo ? "Dobro došli u radni prostor" : environment.organizationName ?? "Radni prostor firme"}
         badge={isDemo ? "Primer podataka" : "Podaci firme"}
-        description={isDemo ? "Podesite asistenta u nekoliko koraka ili učitajte kompletan primer da biste odmah istražili radni prostor." : "Podesite asistenta za vašu firmu u nekoliko koraka. Izmene se čuvaju automatski."}
+        description={isDemo ? "Podesite asistenta u nekoliko koraka ili učitajte kompletan primer da biste odmah istražili radni prostor."
+          : readOnly ? "Podešavanje asistenta za ovu firmu još nije završeno." : "Podesite asistenta za vašu firmu u nekoliko koraka. Izmene se čuvaju automatski."}
       />
       <section className={styles.setupPanel} aria-labelledby="setup-title">
         <div className={styles.setupIntro}>
@@ -52,7 +53,7 @@ function SetupChecklist() {
               <li key={step.id} className={done ? styles.checkDone : undefined}>
                 <span className={styles.checkMarker} aria-hidden="true">{done ? <Check size={14} /> : <Circle size={10} />}</span>
                 <span><strong>{index + 1}. {step.label}</strong><span>{done ? "Spremno" : "Čeka unos"}</span></span>
-                <Link href={onboardingHref(step.id, environment.onboardingBasePath)} className={styles.checkLink} aria-label={`Otvori korak: ${step.label}`}><ChevronRight size={16} aria-hidden="true" /></Link>
+                {!readOnly && <Link href={onboardingHref(step.id, environment.onboardingBasePath)} className={styles.checkLink} aria-label={`Otvori korak: ${step.label}`}><ChevronRight size={16} aria-hidden="true" /></Link>}
               </li>
             );
           })}
@@ -66,7 +67,7 @@ function SetupChecklist() {
 }
 
 export default function OverviewView() {
-  const { draft } = useDraft();
+  const { draft, readOnly } = useDraft();
   const environment = useWorkspaceEnvironment();
   if (!draft.onboardingCompleted) return <SetupChecklist />;
 
@@ -81,7 +82,7 @@ export default function OverviewView() {
       <PageHeader title={business.name || "Vaš radni prostor"} description="Primer kako bi izgledao vaš radni dan sa asistentom. Brojke i razgovori su izmišljeni." />
 
       {problems > 0 && (
-        <Notice tone="warning" title={problems === 1 ? "Podešavanje ima 1 problem" : `Podešavanje ima ${problems} problema`} action={<Link href={workspacePath(environment, "assistant")} className={styles.noticeLink}>Ispravi</Link>}>
+        <Notice tone="warning" title={problems === 1 ? "Podešavanje ima 1 problem" : `Podešavanje ima ${problems} problema`} action={<Link href={workspacePath(environment, "assistant")} className={styles.noticeLink}>{readOnly ? "Pogledaj" : "Ispravi"}</Link>}>
           Neko polje je u međuvremenu ostalo prazno ili neispravno. Primeri odgovora koriste trenutne vrednosti.
         </Notice>
       )}
@@ -103,7 +104,7 @@ export default function OverviewView() {
           <span className={styles.statusIcon}><BookOpen size={18} aria-hidden="true" /></span>
           <span className={styles.statusLabel}>Baza znanja</span>
           <strong>{draft.knowledge.length === 1 ? "1 odgovor" : `${draft.knowledge.length} odgovora`}</strong>
-          <Link href={workspacePath(environment, "knowledge")} className={styles.statusLink}>Uredi odgovore</Link>
+          <Link href={workspacePath(environment, "knowledge")} className={styles.statusLink}>{readOnly ? "Pogledaj odgovore" : "Uredi odgovore"}</Link>
         </div>
         <div className={`${styles.statusCard} ${styles.statusMuted}`}>
           <span className={styles.statusIcon}><PhoneOff size={18} aria-hidden="true" /></span>
@@ -140,7 +141,7 @@ export default function OverviewView() {
             <span className={styles.bubbleSpeaker}>{assistant.name || "Asistent"}</span>
             <p>{assistant.greeting || <em>Pozdrav još nije unet.</em>}</p>
           </div>
-          <Link href={workspacePath(environment, "assistant")} className={styles.panelLink}><Bot size={15} aria-hidden="true" />Uredi ponašanje asistenta<ArrowRight size={15} aria-hidden="true" /></Link>
+          <Link href={workspacePath(environment, "assistant")} className={styles.panelLink}><Bot size={15} aria-hidden="true" />{readOnly ? "Pogledaj podešavanje asistenta" : "Uredi ponašanje asistenta"}<ArrowRight size={15} aria-hidden="true" /></Link>
         </section>
       </div>
     </>

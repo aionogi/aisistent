@@ -106,4 +106,9 @@ export function mfaRequired(): boolean {
   return process.env.AUTH_REQUIRE_MFA === "true";
 }
 
-export const MFA_STEP_UP_PATH = `/auth/login?acr_values=${encodeURIComponent("http://schemas.openid.net/pape/policies/2007/06/multi-factor")}&max_age=0&returnTo=${encodeURIComponent(ACCOUNT_PATH)}`;
+/** Signs in again with MFA (Auth0 step-up), then returns to `returnTo` on this site. */
+export function mfaStepUpPath(returnTo: string = ACCOUNT_PATH): string {
+  return `/auth/login?acr_values=${encodeURIComponent("http://schemas.openid.net/pape/policies/2007/06/multi-factor")}&max_age=0&returnTo=${encodeURIComponent(returnTo)}`;
+}
+
+export const MFA_STEP_UP_PATH = mfaStepUpPath();

@@ -37,9 +37,12 @@ function tabErrors(tab: TabId, errors: { industry: FieldErrors; business: FieldE
   return 0;
 }
 
-/** Edits the same draft as onboarding. Changes apply immediately and validation is always visible. */
+/**
+ * Edits the same draft as onboarding. Changes apply immediately and validation is always visible.
+ * Read-only sessions get the summary instead of forms that would ignore their input.
+ */
 export default function AssistantSettingsView() {
-  const { draft } = useDraft();
+  const { draft, readOnly } = useDraft();
   const environment = useWorkspaceEnvironment();
   const [active, setActive] = useState<TabId>("business");
   const tabRefs = useRef<Record<TabId, HTMLButtonElement | null>>({ business: null, hours: null, behavior: null, review: null });
@@ -66,10 +69,11 @@ export default function AssistantSettingsView() {
       <PageHeader
         title="Podešavanje asistenta"
         badge={environment.mode === "demo" ? "Primer podataka" : "Podaci firme"}
-        description={environment.mode === "demo" ? "Izmene se odmah primenjuju na nacrt u ovoj kartici i na primere razgovora." : "Izmene se automatski čuvaju za vašu firmu i odmah se vide u primerima razgovora."}
+        description={environment.mode === "demo" ? "Izmene se odmah primenjuju na nacrt u ovoj kartici i na primere razgovora."
+          : readOnly ? "Pregled podešavanja asistenta vaše firme." : "Izmene se automatski čuvaju za vašu firmu i odmah se vide u primerima razgovora."}
       />
 
-      {!draft.onboardingCompleted && (
+      {!draft.onboardingCompleted && !readOnly && (
         <Notice tone="info" title="Početno podešavanje nije završeno" action={<Link href={onboardingStartHref(environment.onboardingBasePath)} className={styles.noticeLink}>Nastavi korak po korak</Link>}>
           Podatke možete uređivati i ovde. Vođeno podešavanje vas vodi redom do završnog pregleda.
         </Notice>
@@ -83,6 +87,7 @@ export default function AssistantSettingsView() {
 
       <div className={styles.settingsLayout}>
         <div className={styles.settingsMain}>
+          {readOnly ? <div className={styles.tabPanel}><ConfigSummary readOnly /></div> : <>
           <div className={styles.tabs} role="tablist" aria-label="Delovi podešavanja">
             {tabs.map((tab, index) => {
               const count = tabErrors(tab.id, errors);
@@ -111,6 +116,7 @@ export default function AssistantSettingsView() {
             {active === "behavior" && <AssistantForm errors={errors.assistant} showErrors />}
             {active === "review" && <ConfigSummary onEdit={(step) => selectTab(tabForStep[step], true)} />}
           </div>
+          </>}
         </div>
         <AssistantPreview />
       </div>

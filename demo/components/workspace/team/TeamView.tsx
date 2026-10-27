@@ -77,9 +77,11 @@ function InviteForm({ invite }: { invite: TeamActions["invite"] }) {
   );
 }
 
-export default function TeamView({ currentUserId, role, members, invitations, actions }: {
+export default function TeamView({ currentUserId, role, canChange, members, invitations, actions }: {
   currentUserId: string;
   role: MemberRole;
+  /** False for owners whose session still needs the MFA step-up; the shell notice explains it. */
+  canChange: boolean;
   members: MemberRow[];
   invitations: InvitationRow[];
   actions: TeamActions;
@@ -118,7 +120,7 @@ export default function TeamView({ currentUserId, role, members, invitations, ac
                 <strong>{name(member)}{member.userId === currentUserId ? " (vi)" : ""}</strong>
                 {member.email && <span>{member.email}</span>}
               </span>
-              {isOwner ? (
+              {canChange ? (
                 <span className={styles.controls}>
                   <label className="visually-hidden" htmlFor={`role-${member.userId}`}>Uloga za {name(member)}</label>
                   <select id={`role-${member.userId}`} className={styles.select} value={member.role} disabled={pending}
@@ -142,7 +144,7 @@ export default function TeamView({ currentUserId, role, members, invitations, ac
         <p className={styles.note}>Vlasnik: tim i sve izmene. Administrator: podešavanje i baza znanja. Član: samo pregled.</p>
       </section>
 
-      {isOwner && <InviteForm invite={actions.invite} />}
+      {canChange && <InviteForm invite={actions.invite} />}
 
       {isOwner && invitations.length > 0 && (
         <section className={styles.panel} aria-labelledby="invitations-title">
@@ -154,7 +156,7 @@ export default function TeamView({ currentUserId, role, members, invitations, ac
                   <strong>{invitation.email}</strong>
                   <span>{ROLE_LABELS[invitation.role]} · {invitation.status === "pending" ? `važi do ${dateFormat.format(new Date(invitation.expiresAt))}` : STATUS_LABELS[invitation.status]}</span>
                 </span>
-                {invitation.status === "pending" && (
+                {canChange && invitation.status === "pending" && (
                   <button type="button" className={styles.textButton} disabled={pending} onClick={() => run(() => actions.revoke(invitation.id))}>
                     <Trash2 size={15} aria-hidden="true" />Opozovi
                   </button>

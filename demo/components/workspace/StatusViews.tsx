@@ -25,7 +25,7 @@ export function DraftNotices() {
     <>
       {readOnly && stepUpPath && (
         <Notice tone="warning" title="Potvrdite prijavu za izmene" action={<a href={stepUpPath}>Dvofaktorska potvrda</a>}>
-          Možete da pregledate podešavanje. Za izmene je potrebna prijava sa dvofaktorskom potvrdom.
+          Možete da pregledate podatke firme. Za izmene je potrebna prijava sa dvofaktorskom potvrdom.
         </Notice>
       )}
       {readOnly && !stepUpPath && (

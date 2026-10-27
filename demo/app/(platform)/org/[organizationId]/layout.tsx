@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import OrganizationDraftProvider from "../../../../components/workspace/OrganizationDraftProvider";
 import { WorkspaceEnvironmentProvider, type WorkspaceEnvironment } from "../../../../components/workspace/WorkspaceEnvironment";
 import { getCurrentAccount } from "../../../../lib/auth/account.ts";
-import { getAuth0, MFA_STEP_UP_PATH, mfaRequired } from "../../../../lib/auth/auth0.ts";
+import { getAuth0, mfaRequired, mfaStepUpPath } from "../../../../lib/auth/auth0.ts";
 import { canManage, ForbiddenError, withOrganization } from "../../../../lib/db/context.ts";
 import { getPool } from "../../../../lib/db/pool.ts";
 import { getAssistantConfig, getOrganizationName, listKnowledge } from "../../../../lib/db/repositories.ts";
@@ -50,7 +50,7 @@ export default async function OrganizationLayout({ children, params }: LayoutPro
     onboardingBasePath: `/org/${organizationId}/onboarding`,
     organizationName: loaded.name ?? undefined,
     role: loaded.role,
-    stepUpPath: canManage(loaded.role) && mfaRequired() && !account.mfa ? MFA_STEP_UP_PATH : undefined,
+    stepUpPath: canManage(loaded.role) && mfaRequired() && !account.mfa ? mfaStepUpPath(`/org/${organizationId}/`) : undefined,
   };
 
   return (
