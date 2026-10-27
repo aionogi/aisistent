@@ -78,6 +78,8 @@ Checkpoint 10 adds the account page's list of active sign-ins and "sign out on a
 
 Checkpoint 11 removes `'unsafe-inline'` from the production style policy (fixed sizes in CSS, dynamic widths through the CSSOM, Serbian 404 and error pages instead of Next.js's inline-styled defaults) and adds a test that keeps components free of inline styles. 98 unit/database and 18 HTTP tests pass locally.
 
+Checkpoint 12 is an accessibility pass over all public and signed-in pages at desktop and phone widths: decorative icons hidden from screen readers, ARIA references fixed, four low-contrast texts darkened, and heading order corrected, with a test that keeps icons hidden. No screen reader test was done. 99 unit/database and 18 HTTP tests pass locally.
+
 CI follow-up: the inactive workflow template now installs PostgreSQL 17 client tools and requires the recovery rehearsal. Static/script-syntax validation is recorded in [CI setup](ci/README.md); workflow activation and a successful GitHub run remain pending. This does not close M3.
 
 ## M4 — Live AI and telephony
