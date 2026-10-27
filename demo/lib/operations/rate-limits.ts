@@ -15,6 +15,8 @@ export const RATE_POLICIES = {
   "workspace.save": { limit: 90, seconds: 60 },
   "team.change": { limit: 30, seconds: 60 },
   "invitation.accept": { limit: 20, seconds: 60 },
+  "organization.export": { limit: 10, seconds: 3600 },
+  "organization.delete": { limit: 10, seconds: 3600 },
 } as const satisfies Record<Operation, { limit: number; seconds: number }>;
 
 /** Select budgets using a fixed route class, never attacker-controlled paths or query strings. */

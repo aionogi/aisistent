@@ -66,6 +66,7 @@
 .secondaryButton:disabled { color: #7c879a; background: var(--surface); border-color: var(--line); }
 .dangerButton { background: var(--danger); color: #fff; }
 .dangerButton:hover { background: #962015; }
+.dangerButton:disabled, .dangerButton:disabled:hover { color: #7c879a; background: var(--surface); border-color: var(--line); }
 .textButton { background: transparent; color: var(--muted); padding-inline: 8px; }
 .textButton:hover { color: var(--ink); }
 .iconButton { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); }

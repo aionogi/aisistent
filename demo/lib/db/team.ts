@@ -3,18 +3,21 @@ import type { Pool, PoolClient } from "pg";
 import { withUser, type MemberRole } from "./context.ts";
 
 /**
- * Team management on top of migration 0003. Functions that take a PoolClient
+ * Team management on top of migration 0003, and organization export, leaving,
+ * and deletion on top of migration 0006. Functions that take a PoolClient
  * run inside withOrganization(); the database functions re-check the caller's
  * role, so these wrappers add no authority of their own.
  */
 
 export type TeamErrorCode =
   | "owner_required" | "admin_required" | "member_required" | "already_member" | "invalid_expiry" | "invalid_role" | "member_not_found" | "last_owner"
-  | "invitation_not_found" | "invitation_used" | "invitation_revoked" | "invitation_expired" | "invitation_email_mismatch";
+  | "invitation_not_found" | "invitation_used" | "invitation_revoked" | "invitation_expired" | "invitation_email_mismatch"
+  | "confirmation_mismatch";
 
 const KNOWN_CODES = new Set<string>([
   "owner_required", "admin_required", "member_required", "already_member", "invalid_expiry", "invalid_role", "member_not_found", "last_owner",
   "invitation_not_found", "invitation_used", "invitation_revoked", "invitation_expired", "invitation_email_mismatch",
+  "confirmation_mismatch",
 ]);
 
 export class TeamError extends Error {
@@ -116,4 +119,22 @@ export async function getAuditLog(client: PoolClient, limit = 100): Promise<Audi
     [limit],
   ));
   return rows;
+}
+
+export const EXPORT_FORMAT = "aisistent.organization-export";
+
+/** Everything the organization holds, as one document for its owner; records an `organization.export` event. */
+export async function exportOrganization(client: PoolClient): Promise<Record<string, unknown>> {
+  const { rows } = await translate(client.query<{ document: Record<string, unknown> }>("SELECT app.export_organization() AS document"));
+  return { format: EXPORT_FORMAT, version: 1, exportedAt: new Date().toISOString(), ...rows[0].document };
+}
+
+/** The signed-in member leaves the organization; the last owner cannot. */
+export async function leaveOrganization(client: PoolClient): Promise<void> {
+  await translate(client.query("SELECT app.leave_organization()"));
+}
+
+/** Permanently deletes the organization; `confirmName` must repeat its name. */
+export async function deleteOrganization(client: PoolClient, confirmName: string): Promise<void> {
+  await translate(client.query("SELECT app.delete_organization($1)", [confirmName]));
 }

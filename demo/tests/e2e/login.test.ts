@@ -3,7 +3,7 @@ import { after, before, beforeEach, test } from "node:test";
 import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
 import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
 import { readFile } from "node:fs/promises";
-import { createOrganization, provisionUser } from "../../lib/db/repositories.ts";
+import { addKnowledge, createOrganization, provisionUser } from "../../lib/db/repositories.ts";
 import { withOrganization } from "../../lib/db/context.ts";
 import { createInvitation } from "../../lib/db/team.ts";
 import { createEmptyDraft } from "../../lib/workspace/templates.ts";
@@ -83,18 +83,30 @@ function decodeAttribute(value: string): string {
 }
 
 /** Read action metadata from the actual page, never hard-code a generated action id. */
-function organizationForm(html: string, name: string): FormData {
-  const form = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)].map(([markup]) => markup).find((markup) => /id="organization-name"/.test(markup));
-  assert.ok(form, "organization form is rendered");
+function nativeForm(html: string, inputId: string, values: Record<string, string>): FormData {
+  const form = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/gi)].map(([markup]) => markup).find((markup) => markup.includes(`id="${inputId}"`));
+  assert.ok(form, `the form with #${inputId} is rendered`);
   const data = new FormData();
   for (const [input] of form.matchAll(/<input\b[^>]*>/gi)) {
     const attributes = Object.fromEntries([...input.matchAll(/([\w$:-]+)="([^"]*)"/g)].map(([, key, value]) => [key, decodeAttribute(value)]));
     if (attributes.type === "hidden" && attributes.name) data.append(attributes.name, attributes.value ?? "");
   }
   assert.ok([...data.keys()].some((key) => key.startsWith("$ACTION_")), "native action metadata is rendered");
-  data.set("name", name);
+  for (const [name, value] of Object.entries(values)) data.set(name, value);
   return data;
 }
+
+const organizationForm = (html: string, name: string) => nativeForm(html, "organization-name", { name });
+
+/** The compiled id of a Server Action from a route that has already been rendered. */
+async function compiledActionId(exportedName: string): Promise<string> {
+  const manifest = JSON.parse(await readFile(new URL("../../.next/dev/server/server-reference-manifest.json", import.meta.url), "utf8")) as { node: Record<string, { exportedName: string }> };
+  const actionId = Object.entries(manifest.node).find(([, action]) => action.exportedName === exportedName)?.[0];
+  assert.ok(actionId, `${exportedName} was compiled from the rendered route`);
+  return actionId;
+}
+
+const userIdFor = async (subject: string) => (await stack.db.admin.query("SELECT id FROM app.users WHERE auth_subject = $1", [subject])).rows[0].id as string;
 
 function assertBlocked(response: Response, expectedStatus: 429 | 503): void {
   assert.equal(response.status, expectedStatus);
@@ -398,4 +410,120 @@ test("invitation acceptance requires the current session's verified matching ema
   assert.match(accepted.response.headers.get("x-action-redirect") ?? "", new RegExp(`/org/${organizationId}/`));
   assert.deepEqual((await stack.db.admin.query("SELECT role FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, inviteeId])).rows, [{ role: "member" }]);
   assert.ok((await stack.db.admin.query("SELECT accepted_at FROM app.invitations WHERE id = $1", [invitation.id])).rows[0].accepted_at);
+});
+
+test("only an owner with MFA downloads the organization export, and only from this site", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const anaId = await userIdFor("mock|ana");
+  const organizationId = await createOrganization(stack.db.appPool, anaId, "Export HTTP regression");
+  await withOrganization(stack.db.appPool, { userId: anaId, organizationId }, (client) => addKnowledge(client, { question: "Izvozno pitanje", answer: "Izvozni odgovor" }));
+  const path = `/org/${organizationId}/export/`;
+
+  const download = await owner.get(path);
+  assert.equal(download.response.status, 200);
+  assert.match(download.response.headers.get("content-type") ?? "", /^application\/json/);
+  assert.match(download.response.headers.get("content-disposition") ?? "", /^attachment; filename="aisistent-podaci-firme-\d{4}-\d{2}-\d{2}\.json"$/);
+  assert.match(download.response.headers.get("cache-control") ?? "", /no-store/);
+  const document = JSON.parse(download.body) as { format: string; organization: { name: string }; knowledge: Array<{ question: string }> };
+  assert.equal(document.format, "aisistent.organization-export");
+  assert.equal(document.organization.name, "Export HTTP regression");
+  assert.deepEqual(document.knowledge.map(({ question }) => question), ["Izvozno pitanje"]);
+
+  const crossSite = await fetch(`${stack.appUrl}${path}`, { redirect: "manual", headers: { "sec-fetch-site": "cross-site", cookie: [...owner.cookies].map(([name, value]) => `${name}=${value}`).join("; ") } });
+  assert.equal(crossSite.status, 403);
+
+  const member = new Browser();
+  await member.get("/auth/login?returnTo=/account/&login_hint=export-member@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'admin')", [organizationId, await userIdFor("mock|export-member")]);
+  assert.equal((await member.get(path)).response.status, 403, "admins cannot export");
+  const stranger = new Browser();
+  await stranger.get("/auth/login?returnTo=/account/&login_hint=export-stranger@example.test");
+  assert.equal((await stranger.get(path)).response.status, 404);
+  assert.equal((await new Browser().get(path)).response.status, 401);
+
+  stack.user.mfa = false;
+  try {
+    const withoutMfa = new Browser();
+    await withoutMfa.get("/auth/login?returnTo=/account/");
+    const refused = await withoutMfa.get(path);
+    assert.equal(refused.response.status, 403);
+    assert.match(refused.body, /dvofaktorskom potvrdom/);
+  } finally {
+    stack.user.mfa = true;
+  }
+  const { rows } = await stack.db.admin.query("SELECT actor_user_id FROM app.audit_events WHERE organization_id = $1 AND action = 'organization.export'", [organizationId]);
+  assert.deepEqual(rows, [{ actor_user_id: anaId }], "only the successful export is recorded");
+});
+
+test("deleting an organization through the native form needs MFA and the exact name", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const anaId = await userIdFor("mock|ana");
+  const organizationId = await createOrganization(stack.db.appPool, anaId, "Delete HTTP regression");
+  const colleague = await provisionUser(stack.db.appPool, { subject: "mock|delete-colleague", email: "delete-colleague@example.test", displayName: "Colleague" });
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, colleague]);
+  const path = `/org/${organizationId}/settings/`;
+  const page = await owner.get(path);
+  assert.match(page.body, /Trajno obriši firmu/);
+  const exists = async () => (await stack.db.admin.query("SELECT 1 FROM app.organizations WHERE id = $1", [organizationId])).rowCount === 1;
+
+  const wrongName = await owner.post(path, nativeForm(page.body, "confirm-name", { confirmName: "Pogrešan naziv" }));
+  assert.equal(wrongName.response.status, 200);
+  assert.match(wrongName.body, /Naziv se ne poklapa/);
+  assert.ok(await exists());
+
+  stack.user.mfa = false;
+  try {
+    const withoutMfa = new Browser();
+    await withoutMfa.get("/auth/login?returnTo=/account/");
+    const view = await withoutMfa.get(path);
+    assert.match(view.body, /Brisanje je dostupno posle dvofaktorske potvrde/);
+    assert.doesNotMatch(view.body, /id="confirm-name"/);
+    const refused = await withoutMfa.post(path, nativeForm(page.body, "confirm-name", { confirmName: "Delete HTTP regression" }));
+    assert.match(refused.body, /Za brisanje firme potrebna je prijava sa dvofaktorskom potvrdom/);
+    assert.ok(await exists());
+  } finally {
+    stack.user.mfa = true;
+  }
+
+  const deleted = await owner.post(path, nativeForm(page.body, "confirm-name", { confirmName: "Delete HTTP regression" }));
+  assert.equal(deleted.response.status, 303);
+  assert.equal(deleted.response.headers.get("location"), "/account/?status=organization-deleted");
+  assert.ok(!(await exists()));
+  assert.equal((await stack.db.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1", [organizationId])).rowCount, 0);
+  assert.deepEqual((await stack.db.admin.query("SELECT actor_user_id FROM app.audit_events WHERE action = 'organization.delete' AND target = $1", [organizationId])).rows, [{ actor_user_id: anaId }]);
+  assert.equal((await owner.get(`/org/${organizationId}/`)).response.status, 404);
+  assert.match((await owner.get("/account/?status=organization-deleted")).body, /Firma i njeni podaci su trajno obrisani/);
+});
+
+test("a member leaves through the Server Action, and the last owner is refused", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const anaId = await userIdFor("mock|ana");
+  const organizationId = await createOrganization(stack.db.appPool, anaId, "Leave HTTP regression");
+  const member = new Browser();
+  await member.get("/auth/login?returnTo=/account/&login_hint=leaver@example.test");
+  const leaverId = await userIdFor("mock|leaver");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, leaverId]);
+  const path = `/org/${organizationId}/settings/`;
+  assert.match((await member.get(path)).body, /Napusti firmu/);
+  assert.match((await owner.get(path)).body, /Vi ste jedini vlasnik/);
+  const actionId = await compiledActionId("leaveOrganizationAction");
+
+  async function leave(browser: Browser) {
+    const response = await fetch(`${stack.appUrl}${path}`, {
+      method: "POST", redirect: "manual",
+      headers: { origin: stack.appUrl, "next-action": actionId, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...browser.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+      body: JSON.stringify([organizationId]),
+    });
+    return { response, body: await response.text() };
+  }
+  assert.match((await leave(owner)).body, /Vi ste jedini vlasnik/);
+  assert.equal((await stack.db.admin.query("SELECT role FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, anaId])).rows[0].role, "owner");
+
+  const left = await leave(member);
+  assert.match(left.response.headers.get("x-action-redirect") ?? "", /\/account\/\?status=left/);
+  assert.equal((await stack.db.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, leaverId])).rowCount, 0);
+  assert.equal((await member.get(path)).response.status, 404);
 });

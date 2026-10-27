@@ -1,4 +1,4 @@
-/* Team and activity pages in the organization workspace. */
+/* Team, activity, and organization pages in the organization workspace. */
 
 .panel { display: grid; gap: 14px; padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: #fff; min-width: 0; }
 .panel h2 { display: flex; align-items: center; gap: 8px; font-size: 15px; line-height: 1.4; font-weight: 700; letter-spacing: -.01em; }
@@ -28,6 +28,12 @@
 .inviteForm .select { width: 100%; min-height: 44px; font-size: 14px; }
 .submit { margin-top: 26px; min-height: 44px; }
 .link { display: block; margin: 4px 0 6px; padding: 8px 10px; border-radius: 6px; background: #fff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow-wrap: anywhere; }
+
+/* Organization page */
+.startAligned { justify-self: start; }
+.dangerPanel { border-color: #f0c9c4; }
+.deleteForm { display: grid; gap: 14px; max-width: 460px; }
+.deleteForm > button { justify-self: start; }
 
 /* Activity */
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }

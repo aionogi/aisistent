@@ -4,7 +4,7 @@ import { after, before, test } from "node:test";
 import type { PoolClient } from "pg";
 import { createHash } from "node:crypto";
 import { createOrganization, provisionUser } from "../../lib/db/repositories.ts";
-import { changeMemberRole, createInvitation, previewInvitation, removeMember, TeamError } from "../../lib/db/team.ts";
+import { changeMemberRole, createInvitation, deleteOrganization, leaveOrganization, previewInvitation, removeMember, TeamError } from "../../lib/db/team.ts";
 import { startTestDatabase, type TestDatabase } from "./harness.ts";
 
 let db: TestDatabase;
@@ -168,4 +168,35 @@ test("upgrading a database with duplicate pending links keeps the newest and rec
   assert.deepEqual(links, [{ id: rows[0].id, revoked: true }, { id: rows[1].id, revoked: false }]);
   const { rows: events } = await db.admin.query("SELECT target FROM app.audit_events WHERE organization_id = $1 AND action = 'invitation.revoke'", [f.organization]);
   assert.deepEqual(events, [{ target: rows[0].id }]);
+});
+
+test("two owners leaving at the same time cannot leave the organization without an owner", async () => {
+  const f = await fixture();
+  const a = await transaction(f.owner, f.organization);
+  const b = await transaction(f.second, f.organization);
+  try {
+    const pid = (await b.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+    await leaveOrganization(a);
+    const pending = capture(leaveOrganization(b));
+    await waitUntilBlocked(pid);
+    await a.query("COMMIT");
+    expectTeamError(await pending, "last_owner");
+    const { rows } = await db.admin.query("SELECT user_id FROM app.memberships WHERE organization_id = $1 AND role = 'owner'", [f.organization]);
+    assert.deepEqual(rows.map((row) => row.user_id), [f.second]);
+  } finally { await rollbackAndRelease(a, b); }
+});
+
+test("a deletion queued behind the deleting owner's demotion is refused", async () => {
+  const f = await fixture();
+  const a = await transaction(f.owner, f.organization);
+  const b = await transaction(f.second, f.organization);
+  try {
+    const pid = (await b.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")).rows[0].pid;
+    await changeMemberRole(a, f.second, "member");
+    const pending = capture(deleteOrganization(b, `Team ${sequence}`));
+    await waitUntilBlocked(pid);
+    await a.query("COMMIT");
+    expectTeamError(await pending, "owner_required");
+    assert.equal((await db.admin.query("SELECT 1 FROM app.organizations WHERE id = $1", [f.organization])).rowCount, 1);
+  } finally { await rollbackAndRelease(a, b); }
 });

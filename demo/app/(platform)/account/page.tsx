@@ -17,6 +17,8 @@ const ROLE_LABELS: Record<Membership["role"], string> = { owner: "Vlasnik", admi
 const STATUS_MESSAGES: Record<string, { tone: "success" | "warning"; text: string }> = {
   created: { tone: "success", text: "Firma je napravljena. Vi ste njen vlasnik." },
   "login-failed": { tone: "warning", text: "Prijava nije uspela. Pokušajte ponovo." },
+  left: { tone: "success", text: "Napustili ste firmu." },
+  "organization-deleted": { tone: "success", text: "Firma i njeni podaci su trajno obrisani." },
 };
 
 function Frame({ children, signedIn }: { children: React.ReactNode; signedIn: boolean }) {

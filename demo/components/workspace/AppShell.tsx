@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bot, History, LayoutDashboard, MessageSquare, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
+import { BookOpen, Bot, Building2, History, LayoutDashboard, MessageSquare, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { completedStepCount, EDITABLE_STEP_COUNT, onboardingStartHref } from "../../lib/workspace/steps";
 import { INDUSTRY_LABELS } from "../../lib/workspace/templates";
@@ -23,9 +23,10 @@ const navigation: NavigationItem[] = [
   { page: "knowledge", label: "Baza znanja", icon: BookOpen },
 ];
 
-// Organizations also have a team page, and owners and admins an activity log.
+// Organizations also have team and organization pages, and owners and admins an activity log.
 const teamItem: NavigationItem = { page: "team", label: "Tim", icon: Users };
 const activityItem: NavigationItem = { page: "activity", label: "Aktivnost", icon: History };
+const organizationItem: NavigationItem = { page: "settings", label: "Firma", icon: Building2 };
 
 const normalize = (path: string) => path.replace(/\/+$/, "") || "/";
 
@@ -40,7 +41,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const completed = completedStepCount(draft);
   const flashPath = useRef(pathname);
   const items = isDemo ? navigation
-    : [...navigation, teamItem, ...(environment.role === "owner" || environment.role === "admin" ? [activityItem] : [])];
+    : [...navigation, teamItem, ...(environment.role === "owner" || environment.role === "admin" ? [activityItem] : []), organizationItem];
 
   // A confirmation belongs to the page where it appeared; drop it once the user moves on.
   useEffect(() => {
@@ -71,7 +72,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className={`${styles.navigation} ${items.length > 4 ? styles.navigationWide : ""}`} aria-label="Radni prostor">
+        {/* Narrow screens: rows of four, or of three when that fills them evenly (six items). */}
+        <nav className={`${styles.navigation} ${items.length === 6 ? styles.navigationWide : ""}`} aria-label="Radni prostor">
           {items.map(({ page, label, icon: Icon }) => {
             const href = workspacePath(environment, page);
             const active = normalize(href) === pathname;
