@@ -1,6 +1,6 @@
 # Development handoff
 
-Updated: 2026-10-27.
+Updated: 2026-10-28.
 
 ## Current objective
 
@@ -18,7 +18,9 @@ M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concur
 
 **Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
 
-**Current checkpoint 9 (2026-10-27):** owners and admins import knowledge from a CSV or text file. The file is read in the browser only; a preview lists what will be added and which rows are skipped and why, and accepted entries join the draft and are saved through the existing, server-validated workspace save. Works in the demo workspace too. See the verification record below.
+**Current checkpoint 10 (2026-10-28):** the account page lists the signed-in user's active sign-ins (times only) and offers "Odjavi me sa svih uređaja", which ends every application session of that user immediately and then signs this browser out at the identity provider. Sessions at the provider on other devices are not ended; that needs the provider's management API after the identity decision. See the verification record below.
+
+**Checkpoint 9 (2026-10-27):** owners and admins import knowledge from a CSV or text file. The file is read in the browser only; a preview lists what will be added and which rows are skipped and why, and accepted entries join the draft and are saved through the existing, server-validated workspace save. Works in the demo workspace too. See the verification record below.
 
 **Checkpoint 8 (2026-10-27):** organization data rights, built and tested locally without provider accounts. A new **Firma** page lets owners download everything the organization holds as JSON and permanently delete the organization by repeating its name; every member can leave, except the last owner. Migration `0006_organization_data.sql` adds the database functions under the existing lock order. See the verification record below.
 
@@ -110,6 +112,9 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Rows are skipped, never shortened, for a missing question or answer, a question over 120 or answer over 400 characters, a duplicate (case, spacing and final punctuation ignored, against the base and within the file), or the 200-entry limit. Control characters are removed and whitespace collapsed.
   - `components/workspace/KnowledgeImport.tsx`: "Uvezi iz fajla" on the knowledge page and its empty state (hidden for read-only sessions); format help, a Serbian file button (the browser's own button text follows the browser language), summary, first five entries, skipped rows with line numbers and reasons, and "Dodaj N odgovora". Adding re-checks duplicates and the limit against the current draft.
   - Nothing new reaches the server: imported entries are ordinary draft edits, and `saveWorkspaceAction` still re-parses and size-checks every save (`parseDraft`, `checkDraftLimits`) under the database constraints. There is no separate audit event; an import appears as `workspace.save`.
+- **Account sessions (checkpoint 10):**
+  - Migration `0007_account_sessions.sql`: `app.my_sessions()` (created, last refreshed, and expiry times of the user's unexpired sessions) and `app.end_my_sessions()` (deletes all of the user's session rows, returns the count, and records `auth.sessions_end` with the count and no organization). Both resolve the user from the `withUser` context, never from a subject the caller passes. No device, browser, or location data is collected.
+  - `/account/` section "Prijave na uređajima": the list (times in Europe/Belgrade), advice for lost devices and suspected password leaks, and the button. `signOutEverywhereAction` (budget `account.sessions`, 10 per hour, no MFA because it only removes access) ends the sessions; the form then navigates to `/auth/logout`. Other devices are signed out on their next request.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
 
@@ -211,12 +216,26 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/app/(platform)/org/[organizationId]/export/route.ts` | JSON export download for owners |
 | `demo/lib/workspace/knowledge-import.ts` | Knowledge file decoding and parsing (CSV/text) |
 | `demo/components/workspace/KnowledgeImport.tsx` | Knowledge import panel with preview |
+| `demo/db/migrations/0007_account_sessions.sql`, `demo/lib/db/sessions.ts` | The user's own session list and sign-out on all devices |
+| `demo/components/account/SignOutEverywhereForm.tsx` | Sign-out-everywhere form that finishes at `/auth/logout` |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 10 — account sessions and sign-out on all devices (2026-10-28)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript, build | `npm run typecheck` and `npm run build` passed |
+| Database tests | `npm test`: **95/95** (3 new): users list only their own unexpired sessions and only times; without a user context nothing is listed and ending is refused; ending removes all of that user's rows (expired included), leaves another user's session, records `auth.sessions_end` with the count, and is harmless to repeat |
+| HTTP tests | `npm run test:e2e`: **18/18** (1 new): two sign-ins of one user and one of another; the account page shows "Aktivnih prijava: 2"; the real Server Action returns `done`; both of the user's devices are signed out on their next request; the other user stays signed in; the audit count is 2 |
+| Browser (local stack) | A second device signed in with `curl`, then the browser: "Aktivnih prijava: 2" with Belgrade times. Clicking the button ended both sessions, went through `/auth/logout` and the mock provider to `/`; the `curl` device then got the sign-in page; `/account/` in the browser showed "Prijavite se". After signing in again: "Trenutno ste prijavljeni samo ovde." No horizontal overflow at 390 px |
+| Not run | `npm run test:recovery` (no PostgreSQL 17 client tools on this machine). Migration 0007 adds functions only; the rehearsal compares security definitions generically |
+
+Limitations: sessions at the identity provider (Auth0 single sign-on) on other devices remain, so such a device can sign in again without a password until that session ends; the list cannot say which entry is this device, because no device data is stored and the current session's id is not exposed by the SDK.
 
 ### M3 checkpoint 9 — knowledge import from files (2026-10-27)
 
@@ -395,9 +414,9 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
+4. Checkpoint 10 added the account session list and sign-out on all devices; checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
 5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
-6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open.
+6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open. After the identity decision, also end the provider's sessions when a user signs out everywhere (checkpoint 10 ends only application sessions).
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict. If an organization page keeps reloading right after the dev server starts, close the tab and open it again (see checkpoint 7).
 
@@ -415,7 +434,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 9 (knowledge import from files) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 10 (account sessions and sign-out on all devices) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 
