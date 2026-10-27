@@ -18,7 +18,9 @@ M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concur
 
 **Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
 
-**Current checkpoint 7 (2026-10-27):** the outstanding browser check of the non-MFA owner notice is done, and it found three real defects, now fixed: read-only sessions (members, and owners/admins without MFA) saw assistant forms that silently ignored typing; owners without MFA saw team controls whose every action failed; and the MFA step-up link had never completed a sign-in locally because the mock provider omitted `auth_time`, which `max_age=0` requires. Step-up now returns to the organization and is covered end to end. See the verification record below. Next work needs the provider decision (see "Next agent's first steps").
+**Current checkpoint 8 (2026-10-27):** organization data rights, built and tested locally without provider accounts. A new **Firma** page lets owners download everything the organization holds as JSON and permanently delete the organization by repeating its name; every member can leave, except the last owner. Migration `0006_organization_data.sql` adds the database functions under the existing lock order. See the verification record below.
+
+**Checkpoint 7 (2026-10-27):** the outstanding browser check of the non-MFA owner notice is done, and it found three real defects, now fixed: read-only sessions (members, and owners/admins without MFA) saw assistant forms that silently ignored typing; owners without MFA saw team controls whose every action failed; and the MFA step-up link had never completed a sign-in locally because the mock provider omitted `auth_time`, which `max_age=0` requires. Step-up now returns to the organization and is covered end to end. See the verification record below. Next work needs the provider decision (see "Next agent's first steps").
 
 Small follow-up: the inactive CI template now includes PostgreSQL 17 client installation and a required recovery-test step on `ubuntu-24.04`. See [CI setup](ci/README.md). Activating the workflow and obtaining a passing GitHub run are still pending.
 
@@ -95,6 +97,12 @@ The user explicitly deferred production security implementation, pricing, and mo
   - `mfaStepUpPath(returnTo)` in `lib/auth/auth0.ts` builds the step-up link; the organization notice returns to `/org/<id>/` instead of `/account/`.
   - The local mock provider adds `auth_time`, so `max_age=0` step-ups validate as they would with Auth0.
   - On narrow screens, notices with a text link put the link below the message.
+- **Organization data (checkpoint 8):**
+  - Migration `0006_organization_data.sql`: `app.export_organization()` (owner), `app.leave_organization()` (any member; `last_owner` refused), and `app.delete_organization(confirm_name)` (owner; exact name after trimming). Each takes the organization row lock first and rechecks the role after it, like migration 0005.
+  - Export: `GET /org/<id>/export/` returns `aisistent-podaci-firme-<date>.json` (`format: aisistent.organization-export`, `version: 1`) with organization, members (names, emails, roles), invitations (no token hashes), assistant configuration, knowledge, and activity. Owner only, MFA when required, refused when the browser marks the request cross-site, `Cache-Control: no-store`, budget `organization.export` (10 per hour per user), and an `organization.export` audit event.
+  - Deletion: Server Action with the native form; owner, MFA when required, budget `organization.delete` (10 per hour). Memberships, configuration, knowledge, and invitations go by cascade; the organization's activity log is deleted too, and one `organization.delete` event without an organization (target = deleted id, actor, time) remains. User accounts are kept.
+  - Leaving: Server Action from a confirmation dialog, budget `team.change`, `member.leave` audit event; no MFA needed because it only gives up access.
+  - Navigation: "Firma" for every role (`/org/<id>/settings/`). On narrow screens the tab row uses rows of four, or three when six items fill them evenly. `/account/` shows "Napustili ste firmu" or "Firma i njeni podaci su trajno obrisani" afterwards.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
 
@@ -190,13 +198,28 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/lib/db/team.ts` | Team operations and `TeamError` codes |
 | `demo/app/(platform)/org/[organizationId]/(shell)/team/`, `.../activity/` | Team page with Server Actions; activity log |
 | `demo/app/(platform)/invite/[token]/` | Invitation preview and acceptance |
-| `demo/components/workspace/team/` | Team view and styles |
+| `demo/components/workspace/team/` | Team view and styles; `OrganizationView` for the Firma page |
+| `demo/db/migrations/0006_organization_data.sql` | Organization export, leaving, and deletion functions |
+| `demo/app/(platform)/org/[organizationId]/(shell)/settings/` | Firma page with leave and delete Server Actions |
+| `demo/app/(platform)/org/[organizationId]/export/route.ts` | JSON export download for owners |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 8 — organization export, leaving, and deletion (2026-10-27)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript, build | `npm run typecheck` and `npm run build` passed; `/org/[organizationId]/settings` and `/org/[organizationId]/export` render dynamically |
+| Database tests | `npm test`: **83/83** (12 new). Export holds the organization's members, invitations, configuration, knowledge, and activity, and none of: token hashes, sign-in subjects, other organizations' data; export is audited; admins, members, and non-members cannot export. Members leave and lose access; the last owner cannot leave until another owner exists; non-members cannot leave. Deletion refuses admins, a wrong or empty name, and non-members; the runtime role cannot delete organizations directly; a successful deletion removes memberships, configuration, knowledge, invitations, and the activity log, keeps one deletion event, keeps user accounts, and leaves other organizations untouched. Concurrency: two owners leaving at once keep one owner; a deletion queued behind the deleting owner's demotion is refused |
+| HTTP tests | `npm run test:e2e`: **17/17** (3 new) through the real SDK, proxy, Server Actions, and mock provider. Export: owner download with JSON, attachment name, and `no-store`; cross-site `Sec-Fetch-Site` 403; admin 403; non-member 404; signed out 401; owner without MFA 403; only the successful export audited. Deletion through the native form: wrong name refused, owner without MFA sees no form and is refused when posting it, exact name gives 303 to `/account/?status=organization-deleted`, data gone, organization pages 404. Leaving through the Server Action: last owner refused, member leaves and then gets 404 |
+| Browser (local stack, synthetic "Salon Ana") | Owner page at desktop width: export, leave note for the only owner, delete section. Export fetched from the page: 200, attachment name, three members, three knowledge entries (not saved to disk). Delete button stays disabled for "Salon An" and enables for the exact name; the disabled style is grey. Member Mila: "Podatke firme preuzima vlasnik", no delete section; leaving with real Tab/Enter in the dialog lands on `/account/?status=left` without the organization. Admin Marko: no export or delete. At 390 px: seven tabs in rows of four and three, no horizontal overflow; deletion with typed name, Tab, Enter lands on the account page with the confirmation |
+| Not run | `npm run test:recovery` (no PostgreSQL 17 client tools on this machine). The rehearsal reads tables and migrations generically, so migration 0006 needs no change there, but it has not been executed with it |
+
+Limitations: deleted data stays in database backups until they expire, and no backup retention period has been chosen (see the runbook). Export is JSON for machines and support, not a re-import format; there is no import. Email notifications to other members about a deletion do not exist.
 
 ### M3 checkpoint 7 — read-only views and MFA step-up (2026-10-27)
 
@@ -351,13 +374,13 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
+4. Checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
 5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
 6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open.
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict. If an organization page keeps reloading right after the dev server starts, close the tab and open it again (see checkpoint 7).
 
-Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; styles allow `'unsafe-inline'` in the CSP; the CI template's `npm test` step has never run in GitHub.
+Known risks to resolve during M3: the web service environment contains `DATABASE_ADMIN_URL` because Render's preDeployCommand needs it (consider a separate migration job); `ALTER ROLE ... PASSWORD` could appear in server logs if statement logging is enabled; styles allow `'unsafe-inline'` in the CSP; the CI template's `npm test` step has never run in GitHub; deleted organizations remain in backups until backup retention expires, and a restore must reapply deletions made after the snapshot (runbook).
 
 Do not add real payment collection or live provider calls merely to make the UI appear complete. Those belong to their milestones and require the corresponding controls.
 
@@ -371,7 +394,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 7 (read-only views and MFA step-up) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 8 (organization export, leaving, and deletion) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 
