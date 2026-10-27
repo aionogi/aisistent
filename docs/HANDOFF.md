@@ -18,7 +18,9 @@ M3 checkpoint 5 reviews Claude's `ec549e3`, fixes confirmed authorization/concur
 
 **Current checkpoint 6 (2026-10-22):** `npm run test:recovery` now performs a real logical backup/restore using synthetic data in two disposable local PostgreSQL clusters. It checks data/migration digests, security definitions, fresh database credentials, RLS and restored-session/invitation invalidation, followed by new session storage and saves. This completes the previously listed provider-independent recovery task. It does not prove managed backups, deployed recovery, full restored-target OIDC sign-in or production recovery objectives. The next steps are the outstanding notice browser check and the provider/deployment gates below.
 
-**Current checkpoint 8 (2026-10-27):** organization data rights, built and tested locally without provider accounts. A new **Firma** page lets owners download everything the organization holds as JSON and permanently delete the organization by repeating its name; every member can leave, except the last owner. Migration `0006_organization_data.sql` adds the database functions under the existing lock order. See the verification record below.
+**Current checkpoint 9 (2026-10-27):** owners and admins import knowledge from a CSV or text file. The file is read in the browser only; a preview lists what will be added and which rows are skipped and why, and accepted entries join the draft and are saved through the existing, server-validated workspace save. Works in the demo workspace too. See the verification record below.
+
+**Checkpoint 8 (2026-10-27):** organization data rights, built and tested locally without provider accounts. A new **Firma** page lets owners download everything the organization holds as JSON and permanently delete the organization by repeating its name; every member can leave, except the last owner. Migration `0006_organization_data.sql` adds the database functions under the existing lock order. See the verification record below.
 
 **Checkpoint 7 (2026-10-27):** the outstanding browser check of the non-MFA owner notice is done, and it found three real defects, now fixed: read-only sessions (members, and owners/admins without MFA) saw assistant forms that silently ignored typing; owners without MFA saw team controls whose every action failed; and the MFA step-up link had never completed a sign-in locally because the mock provider omitted `auth_time`, which `max_age=0` requires. Step-up now returns to the organization and is covered end to end. See the verification record below. Next work needs the provider decision (see "Next agent's first steps").
 
@@ -103,6 +105,11 @@ The user explicitly deferred production security implementation, pricing, and mo
   - Deletion: Server Action with the native form; owner, MFA when required, budget `organization.delete` (10 per hour). Memberships, configuration, knowledge, and invitations go by cascade; the organization's activity log is deleted too, and one `organization.delete` event without an organization (target = deleted id, actor, time) remains. User accounts are kept.
   - Leaving: Server Action from a confirmation dialog, budget `team.change`, `member.leave` audit event; no MFA needed because it only gives up access.
   - Navigation: "Firma" for every role (`/org/<id>/settings/`). On narrow screens the tab row uses rows of four, or three when six items fill them evenly. `/account/` shows "Napustili ste firmu" or "Firma i njeni podaci su trajno obrisani" afterwards.
+- **Knowledge import (checkpoint 9):**
+  - `lib/workspace/knowledge-import.ts` (pure, unit-tested): files up to 256 KB; UTF-8 (BOM optional), UTF-16 with BOM (Excel "Unicode text"), otherwise Windows-1250 (Excel's Serbian Latin CSV); files with NUL bytes (xlsx, pdf, images) are refused as binary. CSV follows RFC 4180 (quotes, doubled quotes, line breaks in quotes) with comma, semicolon or tab detected from the first line and an optional `Pitanje;Odgovor` header; a `.txt` file is a table when most lines contain a tab, otherwise question/answer blocks separated by blank lines (`P:`/`O:` and `1.` prefixes are removed).
+  - Rows are skipped, never shortened, for a missing question or answer, a question over 120 or answer over 400 characters, a duplicate (case, spacing and final punctuation ignored, against the base and within the file), or the 200-entry limit. Control characters are removed and whitespace collapsed.
+  - `components/workspace/KnowledgeImport.tsx`: "Uvezi iz fajla" on the knowledge page and its empty state (hidden for read-only sessions); format help, a Serbian file button (the browser's own button text follows the browser language), summary, first five entries, skipped rows with line numbers and reasons, and "Dodaj N odgovora". Adding re-checks duplicates and the limit against the current draft.
+  - Nothing new reaches the server: imported entries are ordinary draft edits, and `saveWorkspaceAction` still re-parses and size-checks every save (`parseDraft`, `checkDraftLimits`) under the database constraints. There is no separate audit event; an import appears as `workspace.save`.
 
 All example business names, conversations, outcomes, and usage metrics are illustrative. There are no verified customer testimonials or security certifications.
 
@@ -202,12 +209,26 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/db/migrations/0006_organization_data.sql` | Organization export, leaving, and deletion functions |
 | `demo/app/(platform)/org/[organizationId]/(shell)/settings/` | Firma page with leave and delete Server Actions |
 | `demo/app/(platform)/org/[organizationId]/export/route.ts` | JSON export download for owners |
+| `demo/lib/workspace/knowledge-import.ts` | Knowledge file decoding and parsing (CSV/text) |
+| `demo/components/workspace/KnowledgeImport.tsx` | Knowledge import panel with preview |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M3 checkpoint 9 — knowledge import from files (2026-10-27)
+
+| Check | Evidence |
+| --- | --- |
+| TypeScript, build | `npm run typecheck` and `npm run build` passed |
+| Unit tests | `npm test`: **92/92** (9 new parser tests): CSV with header, comma or semicolon, quotes, doubled quotes and line breaks in quotes; no header, blank rows, extra columns, line numbers of skipped rows; tab-separated `.txt` as a table and text blocks with `P:`/`O:` and numbering prefixes; too-long values skipped, not shortened; duplicates against the base and within the file regardless of case, spacing and final punctuation; the overall limit; control characters; UTF-8 with and without BOM, UTF-16 with BOM, Windows-1250; empty, over-256 KB and binary (ZIP/xlsx signature) files refused |
+| HTTP tests | `npm run test:e2e`: **17/17**, unchanged. Import runs in the browser; its saves use the existing, HTTP-tested Server Action |
+| Browser (local stack, synthetic "Salon Ana" with 3 entries) | Files were supplied to the file input as `File` objects from page scripts, not through the operating system's file dialog. Semicolon CSV: preview of 2 entries, 3 skipped with reasons (an existing question written without "?", an answer over 400 characters, a missing answer); "Dodaj 2 odgovora" shows the status, returns focus to "Uvezi iz fajla", autosave reports "Sačuvano", and a reload shows 5 entries from the server. Windows-1250 CSV: correct č, ć, š, đ, ž plus the encoding note. Text file with `P:`/`O:` and `1.` prefixes: 2 entries. `.xlsx`: "Ovo nije tekstualni fajl". 300 KB: size message. The same CSV again: "Nema novih odgovora za uvoz" and no add button. Real Tab from the panel heading reaches the format help, then the file picker, whose label shows the focus ring. 390 px: no horizontal overflow; long file names wrap. Demo `/workspace/knowledge/`: the empty state offers import; a text file adds 2 entries to the tab's draft in `sessionStorage`. Member Mila: no import button and no file input |
+| Not run | `npm run test:recovery` (no PostgreSQL 17 client tools on this machine); this checkpoint changes no database code |
+
+Limitations: no import from a website URL and no `.xlsx` reading (save as CSV first); existing answers are never replaced (duplicates are skipped); imports have no audit event of their own.
 
 ### M3 checkpoint 8 — organization export, leaving, and deletion (2026-10-27)
 
@@ -374,7 +395,7 @@ Agents must not create accounts or handle credentials. The user opens these in t
 1. Inspect `git status`, the current branch, and remote before editing. Preserve any unfinished changes.
 2. Read this handoff, `AGENTS.md`, `docs/MILESTONES.md`, `docs/architecture/security-and-billing.md`, and `docs/architecture/m3-platform-options.md`.
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
-4. Checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
+4. Checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
 5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
 6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open.
 
@@ -394,7 +415,7 @@ Use small, descriptive commits and milestone tags named `milestone-N-name`. Publ
 
 ## Suggested continuation instruction
 
-Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 8 (organization export, leaving, and deletion) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
+Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, `demo/DESIGN.md`, `docs/architecture/security-and-billing.md`, `docs/architecture/m3-platform-options.md`, and `docs/operations/RUNBOOK.md`. Continue from current main: M1/M2 complete, M3 checkpoint 9 (knowledge import from files) implemented, hosting and identity still provisional. Staging work needs the provider decision and user-created accounts; ask the user before starting provider-independent items from "Known risks". Do not redo the limiter, logs, cleanup, fixed team races or restore rehearsal. Keep recovery tests current when protected data paths change. Do not deploy, create provider accounts, choose billing, or add live AI/telephony. Finish with actual checks, a clear partial/completed checkpoint, updated handoff, commit and push.
 
 ## Open decisions for later phases
 
