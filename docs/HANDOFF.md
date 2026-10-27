@@ -467,4 +467,6 @@ Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT
 
 ## Open decisions for later phases
 
+Planned in M4 since 2026-10-28: an AI support chat on the aisistent website for visitors' questions (acceptance criteria in [MILESTONES.md](MILESTONES.md#website-support-chat-requested-2026-10-28)); it needs the AI provider decision.
+
 Production hosting, identity provider, database/storage, AI and telephony providers, retention/recovery targets, merchant approval, prices, currencies, and trial/grace policies remain open. Provider references in the architecture document are research candidates and need current verification when that phase begins.

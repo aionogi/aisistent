@@ -1,6 +1,6 @@
 # Delivery milestones
 
-Updated: 2026-10-22.
+Updated: 2026-10-28.
 
 The user requested a demo first, followed by security, then pricing and recurring revenue. The phases below preserve that order. No delivery dates or provider commitments are assigned.
 
@@ -84,7 +84,7 @@ CI follow-up: the inactive workflow template now installs PostgreSQL 17 client t
 
 ## M4 — Live AI and telephony
 
-Goal: conduct bounded, authorized live calls and preserve useful conversation outcomes.
+Goal: conduct bounded, authorized live calls, preserve useful conversation outcomes, and answer visitors' questions on the aisistent website through an AI support chat.
 
 - [ ] Select approved AI/speech and telephony providers and record their operational constraints.
 - [ ] Add a Node.js voice gateway if persistent audio connections require it.
@@ -95,6 +95,22 @@ Goal: conduct bounded, authorized live calls and preserve useful conversation ou
 - [ ] Keep recordings/transcripts private and implement applicable retention/redaction behavior.
 - [ ] Verify prompt-injection boundaries, unauthorized actions, provider failures, and concurrent usage.
 - [ ] Run a controlled pilot before general availability.
+
+### Website support chat (requested 2026-10-28)
+
+An AI support assistant on the public aisistent website that answers visitors' questions about the product. The user's reference is the support chat on call0.ai: a floating panel with the assistant's name and an "AI assistant" label, a greeting, suggested questions, a message field, new-conversation and close buttons, and a privacy link. Use Serbian Latin text and original aisistent branding; do not copy wording or assets.
+
+- [ ] Chat button on public pages opening a panel with a greeting, about three suggested questions (for example "Kako se podešava aisistent?", "Šta asistent može da radi?", "Želim demo"), a message field, new conversation, close, and a "Privatnost" link. Keyboard, screen reader, and 390 px phone use verified.
+- [ ] Answers come only from an approved aisistent knowledge base (product, setup, security, and FAQ content) through the selected AI provider. When the answer is not there, the assistant says so and offers contact with the team instead of guessing.
+- [ ] It never invents prices, discounts, availability, or legal and security promises; until M5 publishes prices it says pricing is not public yet.
+- [ ] Clearly labeled as AI. A short privacy notice is visible before the first message, visitors are asked not to share sensitive data, transcript retention and deletion are decided and implemented, and conversations are not used for model training without approval.
+- [ ] Demo and contact requests hand off to a form or email the team receives; no calendar booking until an integration is chosen.
+- [ ] No file attachments until upload validation and private storage (M3) exist.
+- [ ] Abuse and cost limits: per-visitor and per-IP message budgets, message length limits, a daily spending cap, and an emergency stop that falls back to a static FAQ and contact link.
+- [ ] Prompt-injection and off-topic tests pass; the assistant reads only public product content and has no tools or customer data; logs exclude message content and personal data.
+- [ ] The widget calls a same-origin API under the existing CSP; no third-party chat script without approval.
+
+The landing page's "Chatbot za sajt — Uskoro" card announces a different, later channel: a chat that customers embed on their own websites. It may reuse this widget but is not part of this item.
 
 This phase may require a Node.js worker and queue. Add those processes when the workload needs them; a Python pipeline requires separate justification.
 
