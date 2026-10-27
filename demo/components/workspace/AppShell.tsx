@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { completedStepCount, EDITABLE_STEP_COUNT, onboardingStartHref } from "../../lib/workspace/steps";
 import { INDUSTRY_LABELS } from "../../lib/workspace/templates";
 import Brand from "../Brand";
+import ProgressFill from "../ProgressFill";
 import ConfirmDialog from "./ConfirmDialog";
 import { useDraft } from "./DraftProvider";
 import { Notice } from "./FormControls";
@@ -89,7 +90,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <Link href={onboardingStartHref(environment.onboardingBasePath)} className={styles.setupCard}>
             <span className={styles.setupTitle}>Podešavanje asistenta</span>
             <span className={styles.setupMeta}>{completed} od {EDITABLE_STEP_COUNT} koraka</span>
-            <span className={styles.setupBar} aria-hidden="true"><span style={{ width: `${(completed / EDITABLE_STEP_COUNT) * 100}%` }} /></span>
+            <span className={styles.setupBar} aria-hidden="true"><ProgressFill fraction={completed / EDITABLE_STEP_COUNT} /></span>
             <span className={styles.setupAction}>{completed ? "Nastavi podešavanje" : "Započni podešavanje"}</span>
           </Link>
         )}

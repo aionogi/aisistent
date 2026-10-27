@@ -2,35 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuth0 } from "./lib/auth/auth0.ts";
 import { getPool } from "./lib/db/pool.ts";
 import { checkRateLimit, clientIdentity, limitMessage, requestOperation } from "./lib/operations/rate-limits.ts";
+import { contentSecurityPolicy } from "./lib/security/content-security-policy.ts";
 
 /**
  * Runs before every page and auth route:
  * 1. Auth0's middleware serves /auth/* (login, callback, logout, back-channel
  *    logout) and rolls the server-side session on other requests.
- * 2. A per-request Content-Security-Policy with a script nonce. Next.js reads
- *    the nonce from the request header and applies it to its own scripts,
- *    which is why every page renders dynamically (see app/layout.tsx).
- *
- * Styles allow 'unsafe-inline' because server-rendered style attributes
- * (for example the landing-page waveform heights) cannot carry a nonce.
+ * 2. A per-request Content-Security-Policy with a nonce (see
+ *    lib/security/content-security-policy.ts). Next.js reads the nonce from
+ *    the request header and applies it to its own scripts, which is why every
+ *    page renders dynamically (see app/layout.tsx).
  */
 export async function proxy(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const isDevelopment = process.env.NODE_ENV === "development";
-  const policy = [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' blob: data:",
-    "font-src 'self'",
-    "connect-src 'self'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
-  ].join("; ");
+  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === "development");
 
   // Every POST is covered, including native form submissions without Next-Action.
   // Budgets run before the identity SDK and do not trust prefetch headers.

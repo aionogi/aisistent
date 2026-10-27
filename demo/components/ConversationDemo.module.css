@@ -27,6 +27,32 @@
 .activePhone { box-shadow: 0 0 0 10px #e5edff, 0 0 0 20px #ebf1ff; }
 .waveform { height: 50px; display: flex; align-items: center; justify-content: center; gap: 5px; opacity: .6; }
 .waveform span { width: 4px; border-radius: 8px; background: #648bf0; transform: scaleY(.35); }
+/* Bar heights and delays live here, not in style attributes, which the Content-Security-Policy blocks. */
+.waveform span:nth-child(1) { height: 8px; animation-delay: 0s; }
+.waveform span:nth-child(2) { height: 14px; animation-delay: -0.13s; }
+.waveform span:nth-child(3) { height: 21px; animation-delay: -0.26s; }
+.waveform span:nth-child(4) { height: 12px; animation-delay: -0.39s; }
+.waveform span:nth-child(5) { height: 30px; animation-delay: -0.52s; }
+.waveform span:nth-child(6) { height: 40px; animation-delay: -0.65s; }
+.waveform span:nth-child(7) { height: 23px; animation-delay: -0.78s; }
+.waveform span:nth-child(8) { height: 48px; animation-delay: -0.91s; }
+.waveform span:nth-child(9) { height: 32px; animation-delay: -1.04s; }
+.waveform span:nth-child(10) { height: 20px; animation-delay: -1.17s; }
+.waveform span:nth-child(11) { height: 35px; animation-delay: -1.3s; }
+.waveform span:nth-child(12) { height: 50px; animation-delay: -1.43s; }
+.waveform span:nth-child(13) { height: 29px; animation-delay: -1.56s; }
+.waveform span:nth-child(14) { height: 17px; animation-delay: -1.69s; }
+.waveform span:nth-child(15) { height: 39px; animation-delay: -1.82s; }
+.waveform span:nth-child(16) { height: 26px; animation-delay: -1.95s; }
+.waveform span:nth-child(17) { height: 12px; animation-delay: -2.08s; }
+.waveform span:nth-child(18) { height: 30px; animation-delay: -2.21s; }
+.waveform span:nth-child(19) { height: 44px; animation-delay: -2.34s; }
+.waveform span:nth-child(20) { height: 22px; animation-delay: -2.47s; }
+.waveform span:nth-child(21) { height: 35px; animation-delay: -2.6s; }
+.waveform span:nth-child(22) { height: 18px; animation-delay: -2.73s; }
+.waveform span:nth-child(23) { height: 27px; animation-delay: -2.86s; }
+.waveform span:nth-child(24) { height: 12px; animation-delay: -2.99s; }
+.waveform span:nth-child(25) { height: 8px; animation-delay: -3.12s; }
 .playing { opacity: 1; }
 .playing span { animation: voiceWave .85s ease-in-out infinite alternate; }
 .elapsed { color: #5c6d86; font-size: 11px; font-variant-numeric: tabular-nums; letter-spacing: 1px; margin-top: -8px; }

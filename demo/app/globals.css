@@ -40,6 +40,16 @@ p { line-height: 1.75; }
 .container { width: min(1140px, calc(100% - 64px)); margin-inline: auto; }
 .skip-link { position: absolute; top: -100px; left: 20px; padding: 12px; background: white; z-index: 100; }
 .skip-link:focus { top: 10px; }
+
+/* Not-found and error pages: global classes, so the root error boundary adds no stylesheet to every page. */
+.status-page { min-height: 100dvh; display: grid; place-items: center; padding: 32px 16px; background: var(--surface); }
+.status-card { width: min(100%, 520px); display: grid; gap: 16px; padding: 28px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.status-card h1 { font-size: clamp(22px, 2.4vw, 28px); line-height: 1.25; font-weight: 700; letter-spacing: -.03em; }
+.status-card p { color: var(--muted); font-size: 14px; line-height: 1.7; }
+.status-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.status-actions a, .status-actions button { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border: 1px solid #d5def0; border-radius: 8px; background: #fff; color: var(--ink); font-size: 14px; font-weight: 700; }
+.status-actions .status-primary { border-color: var(--blue); background: var(--blue); color: #fff; }
+.status-actions .status-primary:hover { background: var(--blue-dark); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .site-header { position: relative; z-index: 20; width: min(1304px, calc(100% - 48px)); margin: 22px auto 0; min-height: 74px; padding: 0 26px; display: flex; align-items: center; justify-content: space-between; gap: 22px; border: 1px solid var(--line); border-radius: 42px; background: rgba(255,255,255,.96); }
 .brand { display: inline-flex; align-items: center; font-size: 27px; font-weight: 800; letter-spacing: -.04em; white-space: nowrap; }
@@ -86,6 +96,14 @@ p { line-height: 1.75; }
 .orb-highlight { position: absolute; inset: 6px 47px 115px 21px; border-radius: 50%; background: linear-gradient(140deg, #fff8, #c8faff00 70%); transform: rotate(-30deg); filter: blur(6px); }
 .orb-wave { display: flex; align-items: center; justify-content: center; gap: 6px; position: absolute; inset: 0; }
 .orb-wave i { width: 6px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #0761cc22; animation: wave 2.2s ease-in-out infinite alternate; }
+/* Bar heights and delays live here, not in style attributes, which the Content-Security-Policy blocks. */
+.orb-wave i:nth-child(1) { height: 18px; animation-delay: 0s; }
+.orb-wave i:nth-child(2) { height: 34px; animation-delay: 0.12s; }
+.orb-wave i:nth-child(3) { height: 54px; animation-delay: 0.24s; }
+.orb-wave i:nth-child(4) { height: 42px; animation-delay: 0.36s; }
+.orb-wave i:nth-child(5) { height: 66px; animation-delay: 0.48s; }
+.orb-wave i:nth-child(6) { height: 48px; animation-delay: 0.6s; }
+.orb-wave i:nth-child(7) { height: 28px; animation-delay: 0.72s; }
 .language-chip { position: absolute; right: -8px; top: 72px; display: flex; align-items: center; gap: 8px; padding: 11px 15px; font-size: 11px; font-weight: 650; background: white; border-radius: 24px; box-shadow: 0 8px 28px #244d8a0d; transform: rotate(5deg); }
 .status-dot { width: 6px; height: 6px; background: #28a085; border-radius: 50%; }
 .floating-question { position: absolute; left: 13px; top: 38px; border-radius: 10px; background: #fff; padding: 14px 18px; font-size: 11px; color: #4f6283; box-shadow: 0 8px 28px #244d8a0a; display: flex; gap: 8px; align-items: center; transform: rotate(-6deg); }
@@ -101,6 +119,31 @@ p { line-height: 1.75; }
 .call-bottom > span { font-size: 8px; color: #647796; }
 .small-wave { display: flex; align-items: center; gap: 2px; height: 22px; }
 .small-wave i { width: 3px; border-radius: 4px; background: #84aaf5; }
+/* Fixed bar heights (see .orb-wave). */
+.small-wave i:nth-child(1) { height: 5px; }
+.small-wave i:nth-child(2) { height: 12px; }
+.small-wave i:nth-child(3) { height: 19px; }
+.small-wave i:nth-child(4) { height: 7px; }
+.small-wave i:nth-child(5) { height: 14px; }
+.small-wave i:nth-child(6) { height: 21px; }
+.small-wave i:nth-child(7) { height: 9px; }
+.small-wave i:nth-child(8) { height: 16px; }
+.small-wave i:nth-child(9) { height: 23px; }
+.small-wave i:nth-child(10) { height: 11px; }
+.small-wave i:nth-child(11) { height: 18px; }
+.small-wave i:nth-child(12) { height: 6px; }
+.small-wave i:nth-child(13) { height: 13px; }
+.small-wave i:nth-child(14) { height: 20px; }
+.small-wave i:nth-child(15) { height: 8px; }
+.small-wave i:nth-child(16) { height: 15px; }
+.small-wave i:nth-child(17) { height: 22px; }
+.small-wave i:nth-child(18) { height: 10px; }
+.small-wave i:nth-child(19) { height: 17px; }
+.small-wave i:nth-child(20) { height: 5px; }
+.small-wave i:nth-child(21) { height: 12px; }
+.small-wave i:nth-child(22) { height: 19px; }
+.small-wave i:nth-child(23) { height: 7px; }
+.small-wave i:nth-child(24) { height: 14px; }
 .appointment-chip { position: absolute; bottom: 23px; right: -5px; display: flex; align-items: center; gap: 9px; border-radius: 12px; background: #fff; padding: 13px 16px; box-shadow: 0 12px 38px #254c7b14; transform: rotate(5deg); }
 .appointment-chip > span { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 50%; color: #14876c; background: #eaf8f2; }
 .appointment-chip strong { display: block; font-size: 10px; }
@@ -127,6 +170,18 @@ p { line-height: 1.75; }
 .voice-lines { height: 78px; display: flex; align-items: center; gap: 6px; }
 .voice-lines i { width: 6px; border-radius: 9px; background: #5185ee; }
 .voice-lines i:nth-child(3n) { background: #80b1f4; }
+/* Fixed bar heights (see .orb-wave). */
+.voice-lines i:nth-child(1) { height: 16px; }
+.voice-lines i:nth-child(2) { height: 27px; }
+.voice-lines i:nth-child(3) { height: 43px; }
+.voice-lines i:nth-child(4) { height: 32px; }
+.voice-lines i:nth-child(5) { height: 57px; }
+.voice-lines i:nth-child(6) { height: 72px; }
+.voice-lines i:nth-child(7) { height: 48px; }
+.voice-lines i:nth-child(8) { height: 30px; }
+.voice-lines i:nth-child(9) { height: 44px; }
+.voice-lines i:nth-child(10) { height: 24px; }
+.voice-lines i:nth-child(11) { height: 13px; }
 .voice-caption { display: flex; align-items: center; gap: 6px; color: #5c6d86; font-size: 10px; }
 .ready-visual { flex-direction: column; gap: 16px; }
 .ready-avatar { display: flex; align-items: center; justify-content: center; height: 50px; }

@@ -15,6 +15,7 @@ import {
   UtensilsCrossed,
   Wrench,
 } from "lucide-react";
+import ProgressFill from "./ProgressFill";
 import styles from "./ConversationDemo.module.css";
 
 const scenarios = [
@@ -86,7 +87,8 @@ const scenarios = [
 
 const duration = 15000;
 const messageInterval = 2800;
-const waveformHeights = [8, 14, 21, 12, 30, 40, 23, 48, 32, 20, 35, 50, 29, 17, 39, 26, 12, 30, 44, 22, 35, 18, 27, 12, 8];
+// Bar heights and delays are in ConversationDemo.module.css (no inline styles under the CSP).
+const WAVEFORM_BARS = 25;
 
 export default function ConversationDemo() {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -177,14 +179,14 @@ export default function ConversationDemo() {
               {isComplete ? <Check size={27} strokeWidth={1.8} /> : <Phone size={25} strokeWidth={1.6} />}
             </div>
             <div className={`${styles.waveform} ${isRunning && !isComplete ? styles.playing : ""}`}>
-              {waveformHeights.map((height, index) => <span key={index} style={{ height, animationDelay: `${index * -0.13}s` }} />)}
+              {Array.from({ length: WAVEFORM_BARS }, (_, index) => <span key={index} />)}
             </div>
             <span className={styles.elapsed}>00:{seconds}</span>
           </div>
 
           <div className={styles.playback}>
             <div className={styles.progress} role="progressbar" aria-label="Napredak simulacije" aria-valuemin={0} aria-valuemax={15} aria-valuenow={Math.floor(elapsed / 1000)}>
-              <span style={{ width: `${(elapsed / duration) * 100}%` }} />
+              <ProgressFill fraction={elapsed / duration} />
             </div>
             <div className={styles.timeLabels}><span>{isComplete ? "Razgovor je završen" : isRunning ? "Razgovor je u toku" : hasStarted ? "Razgovor je pauziran" : "Spremni kad i vi"}</span><span>00:15</span></div>
             <button type="button" onClick={togglePlayback} className={styles.playButton}>

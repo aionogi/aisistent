@@ -94,7 +94,7 @@ export default function Home() {
               <div className="orb-inner" />
               <div className="orb-highlight" />
               <div className="orb-wave">
-                {[18, 34, 54, 42, 66, 48, 28].map((height, index) => <i key={index} style={{ height, animationDelay: `${index * 0.12}s` }} />)}
+                {Array.from({ length: 7 }, (_, index) => <i key={index} />)}
               </div>
             </div>
             <div className="language-chip"><span className="status-dot" /> Priča vašim jezikom</div>
@@ -106,7 +106,7 @@ export default function Home() {
                 <span className="call-time">00:12</span>
               </div>
               <p>„Dobar dan! Rado ću vam pomoći.<br />Koji termin bi vam odgovarao?“</p>
-              <div className="call-bottom"><div className="small-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <i key={index} style={{ height: 5 + ((index * 7) % 19) }} />)}</div><span>Tu je za vaše klijente</span></div>
+              <div className="call-bottom"><div className="small-wave" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <i key={index} />)}</div><span>Tu je za vaše klijente</span></div>
             </div>
             <div className="appointment-chip"><span><Check size={15} /></span><div><strong>Jedan dogovor više.</strong><small>Jedna obaveza manje.</small></div></div>
           </div>
@@ -132,7 +132,7 @@ export default function Home() {
               <p>Usluge, radno vreme i odgovori na česta pitanja. Sve što želite da vaši klijenti znaju.</p>
             </article>
             <article className="step">
-              <div className="step-visual voice-visual"><div className="voice-lines" aria-hidden="true">{[16, 27, 43, 32, 57, 72, 48, 30, 44, 24, 13].map((height, i) => <i key={i} style={{ height }} />)}</div><span className="voice-caption"><AudioLines size={14} /> Ton koji liči na vas</span></div>
+              <div className="step-visual voice-visual"><div className="voice-lines" aria-hidden="true">{Array.from({ length: 11 }, (_, index) => <i key={index} />)}</div><span className="voice-caption"><AudioLines size={14} /> Ton koji liči na vas</span></div>
               <div className="step-heading"><span>02</span><h3>Dajte mu svoj karakter</h3></div>
               <p>Smiren i profesionalan ili srdačan i opušten. Vi birate kako vas asistent predstavlja.</p>
             </article>
