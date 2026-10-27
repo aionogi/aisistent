@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 import { checkRateLimit, limitMessage } from "./rate-limits.ts";
 import { logEvent, type Operation } from "./logging.ts";
 
-export type ActionOperation = "organization.create" | "workspace.save" | "team.change" | "invitation.accept" | "organization.export" | "organization.delete";
+export type ActionOperation = "organization.create" | "workspace.save" | "team.change" | "invitation.accept" | "organization.export" | "organization.delete" | "account.sessions";
 
 /** Call with the server-resolved account ID, before every protected mutation. */
 export async function actionLimit(pool: Pool, operation: ActionOperation, userId: string): Promise<string | null> {

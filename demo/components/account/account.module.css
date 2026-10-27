@@ -32,6 +32,12 @@
 .role { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--secondary-text); white-space: nowrap; }
 .empty { color: var(--secondary-text); font-size: 13px; }
 .note { font-size: 12px; line-height: 1.6; color: var(--secondary-text); }
+.sessions { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.sessions li { display: grid; gap: 2px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.sessions li:last-child { border-bottom: 0; }
+.sessions strong { font-size: 14px; font-weight: 650; }
+.sessions span { font-size: 12px; line-height: 1.6; color: var(--secondary-text); }
+.sessionForm { display: grid; gap: 12px; justify-items: start; }
 .submit { justify-self: start; }
 
 .footer { width: min(880px, calc(100% - 48px)); margin: 0 auto; padding: 0 0 28px; font-size: 12px; line-height: 1.6; color: var(--secondary-text); }

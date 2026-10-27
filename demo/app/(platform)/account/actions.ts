@@ -3,11 +3,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentAccount } from "../../../lib/auth/account.ts";
 import { mfaRequired } from "../../../lib/auth/auth0.ts";
+import { withUser } from "../../../lib/db/context.ts";
 import { getPool } from "../../../lib/db/pool.ts";
 import { createOrganization } from "../../../lib/db/repositories.ts";
+import { endMySessions } from "../../../lib/db/sessions.ts";
 import { actionLimit, actionLog } from "../../../lib/operations/action-guard.ts";
 
 export type CreateOrganizationState = { error: string | null; name: string };
+export type SignOutEverywhereState = { error: string | null; done: boolean };
 
 /**
  * Creates an organization owned by the signed-in user. Identity, email
@@ -35,4 +38,26 @@ export async function createOrganizationAction(_previous: CreateOrganizationStat
   }
   // Start guided setup for the new organization right away.
   redirect(`/org/${organizationId}/onboarding/`);
+}
+
+/**
+ * Ends every application session of the signed-in user on every device. The
+ * form then sends this browser through /auth/logout to end the identity
+ * provider's session here too; sessions at the provider on other devices are
+ * not affected.
+ */
+export async function signOutEverywhereAction(_previous: SignOutEverywhereState): Promise<SignOutEverywhereState> {
+  const account = await getCurrentAccount();
+  const pool = getPool();
+  if (!account || !pool) return { error: null, done: true };
+  const limitError = await actionLimit(pool, "account.sessions", account.userId);
+  if (limitError) return { error: limitError, done: false };
+  try {
+    await withUser(pool, account.userId, (client) => endMySessions(client));
+  } catch {
+    await actionLog("account.sessions", "error");
+    return { error: "Odjava sa svih uređaja trenutno nije moguća. Pokušajte ponovo kasnije.", done: false };
+  }
+  await actionLog("account.sessions", "success");
+  return { error: null, done: true };
 }

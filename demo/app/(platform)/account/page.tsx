@@ -3,16 +3,23 @@ import Link from "next/link";
 import { ChevronRight, CircleAlert, CircleCheck, LogIn, LogOut, ShieldCheck } from "lucide-react";
 import Brand from "../../../components/Brand";
 import CreateOrganizationForm from "../../../components/account/CreateOrganizationForm";
+import SignOutEverywhereForm from "../../../components/account/SignOutEverywhereForm";
 import styles from "../../../components/account/account.module.css";
 import { Notice } from "../../../components/workspace/FormControls";
 import { getCurrentAccount } from "../../../lib/auth/account.ts";
 import { getAuth0, MFA_STEP_UP_PATH, mfaRequired } from "../../../lib/auth/auth0.ts";
+import { withUser } from "../../../lib/db/context.ts";
 import { getPool } from "../../../lib/db/pool.ts";
 import { listMemberships, type Membership } from "../../../lib/db/repositories.ts";
+import { listMySessions } from "../../../lib/db/sessions.ts";
+import { signOutEverywhereAction } from "./actions.ts";
 
 export const metadata: Metadata = { title: "Nalog — aisistent" };
 
 const ROLE_LABELS: Record<Membership["role"], string> = { owner: "Vlasnik", admin: "Administrator", member: "Član" };
+
+// Server-rendered, so the zone is explicit: the server may run in UTC.
+const sessionTime = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Belgrade" });
 
 const STATUS_MESSAGES: Record<string, { tone: "success" | "warning"; text: string }> = {
   created: { tone: "success", text: "Firma je napravljena. Vi ste njen vlasnik." },
@@ -71,6 +78,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   }
 
   const memberships = await listMemberships(getPool()!, account.userId);
+  const sessions = await withUser(getPool()!, account.userId, (client) => listMySessions(client));
   const needsMfa = mfaRequired() && !account.mfa;
 
   return (
@@ -120,6 +128,23 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
           </Notice>
         )}
         <CreateOrganizationForm disabled={!account.emailVerified || needsMfa} />
+      </section>
+
+      <section className={styles.card} aria-labelledby="sessions-title">
+        <h2 id="sessions-title">Prijave na uređajima</h2>
+        <p className={styles.lead}>{sessions.length <= 1 ? "Trenutno ste prijavljeni samo ovde." : `Aktivnih prijava: ${sessions.length}. Svaki uređaj ili pregledač ima svoju prijavu.`}</p>
+        {sessions.length > 0 && (
+          <ul className={styles.sessions}>
+            {sessions.map((session, index) => (
+              <li key={index}>
+                <strong>Prijava {sessionTime.format(session.createdAt)}</strong>
+                <span>Poslednja aktivnost {sessionTime.format(session.updatedAt)} · ističe {sessionTime.format(session.expiresAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className={styles.note}>Ako ne prepoznajete neku prijavu ili ste izgubili uređaj, odjavite se sa svih uređaja, pa se ponovo prijavite ovde. Ako sumnjate da je neko saznao vašu lozinku, promenite je. Ne čuvamo podatke o uređaju ni lokaciji, samo vreme prijave.</p>
+        <SignOutEverywhereForm action={signOutEverywhereAction} />
       </section>
     </Frame>
   );

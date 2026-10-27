@@ -527,3 +527,31 @@ test("a member leaves through the Server Action, and the last owner is refused",
   assert.equal((await stack.db.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, leaverId])).rowCount, 0);
   assert.equal((await member.get(path)).response.status, 404);
 });
+
+test("signing out everywhere ends every session of that user and no one else's", async () => {
+  const laptop = new Browser();
+  const phone = new Browser();
+  const otherUser = new Browser();
+  await laptop.get("/auth/login?returnTo=/account/");
+  await phone.get("/auth/login?returnTo=/account/");
+  await otherUser.get("/auth/login?returnTo=/account/&login_hint=sessions-other@example.test");
+  const page = await laptop.get("/account/");
+  assert.match(page.body, /Aktivnih prijava: 2/);
+  assert.match(page.body, /Odjavi me sa svih uređaja/);
+  const actionId = await compiledActionId("signOutEverywhereAction");
+
+  const response = await fetch(`${stack.appUrl}/account/`, {
+    method: "POST", redirect: "manual",
+    headers: { origin: stack.appUrl, "next-action": actionId, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...laptop.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+    body: JSON.stringify([{ error: null, done: false }]),
+  });
+  assert.match(await response.text(), /"done":true/);
+  const sessionsFor = async (subject: string) => Number((await stack.db.admin.query("SELECT count(*) FROM app.auth_sessions WHERE subject = $1", [subject])).rows[0].count);
+  assert.equal(await sessionsFor("mock|ana"), 0);
+  assert.match((await phone.get("/account/")).body, /Prijavite se/, "the other device is signed out on its next request");
+  assert.match((await laptop.get("/account/")).body, /Prijavite se/);
+  assert.equal(await sessionsFor("mock|sessions-other"), 1);
+  assert.match((await otherUser.get("/account/")).body, /Vaš nalog/);
+  const { rows } = await stack.db.admin.query("SELECT target FROM app.audit_events WHERE action = 'auth.sessions_end' AND actor_user_id = $1", [await userIdFor("mock|ana")]);
+  assert.deepEqual(rows, [{ target: "2" }]);
+});
