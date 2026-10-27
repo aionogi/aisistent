@@ -21,7 +21,7 @@ function SummarySection({ step, title, target, children }: { step: SectionStep; 
   return (
     <section className={styles.summarySection} aria-labelledby={`summary-${step}`}>
       <header>
-        <h3 id={`summary-${step}`}>{title}</h3>
+        <h2 id={`summary-${step}`}>{title}</h2>
         {problems === 0
           ? <span className={styles.statusOk}><CircleCheck size={14} aria-hidden="true" />Spremno</span>
           : <span className={styles.statusWarn}><CircleAlert size={14} aria-hidden="true" />{problems === 1 ? "1 problem" : `${problems} problema`}</span>}

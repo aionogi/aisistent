@@ -98,7 +98,7 @@ export default function AssistantSettingsView() {
                   type="button"
                   role="tab"
                   id={`settings-tab-${tab.id}`}
-                  aria-controls={`settings-panel-${tab.id}`}
+                  aria-controls={active === tab.id ? `settings-panel-${tab.id}` : undefined}
                   aria-selected={active === tab.id}
                   tabIndex={active === tab.id ? 0 : -1}
                   onClick={() => selectTab(tab.id)}

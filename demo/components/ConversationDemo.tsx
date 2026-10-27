@@ -176,7 +176,7 @@ export default function ConversationDemo() {
 
           <div className={styles.callVisualization} aria-hidden="true">
             <div className={`${styles.phoneCircle} ${isRunning && !isComplete ? styles.activePhone : ""}`}>
-              {isComplete ? <Check size={27} strokeWidth={1.8} /> : <Phone size={25} strokeWidth={1.6} />}
+              {isComplete ? <Check size={27} strokeWidth={1.8} aria-hidden="true" /> : <Phone size={25} strokeWidth={1.6} aria-hidden="true" />}
             </div>
             <div className={`${styles.waveform} ${isRunning && !isComplete ? styles.playing : ""}`}>
               {Array.from({ length: WAVEFORM_BARS }, (_, index) => <span key={index} />)}
@@ -222,7 +222,7 @@ export default function ConversationDemo() {
               <div><strong>Termin je zabeležen u simulaciji</strong><p>{scenario.request} · {scenario.appointment}</p></div>
             </div>}
           </div>
-          <div className={styles.transcriptFooter}><span className={styles.footerMark}>a<span>i</span></span><span>Prirodan razgovor. Jasan dogovor.</span><ArrowUpRight size={16} aria-hidden="true" /></div>
+          <div className={styles.transcriptFooter}><span className={styles.footerMark} aria-hidden="true">a<span>i</span></span><span>Prirodan razgovor. Jasan dogovor.</span><ArrowUpRight size={16} aria-hidden="true" /></div>
         </div>
       </div>
       <p className={styles.disclaimer}>Svi nazivi i razgovori u ovom prikazu su izmišljeni. Simulacija ne zakazuje stvarne termine.</p>

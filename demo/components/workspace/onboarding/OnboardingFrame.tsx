@@ -41,7 +41,7 @@ export default function OnboardingFrame({ children }: { children: ReactNode }) {
             const locked = !ready || Boolean(blockingStep(step.id, draft));
             const content = (
               <>
-                <span className={styles.stepMarker} aria-hidden="true">{done ? <Check size={14} /> : locked && !isCurrent ? <Lock size={12} /> : index + 1}</span>
+                <span className={styles.stepMarker} aria-hidden="true">{done ? <Check size={14} aria-hidden="true" /> : locked && !isCurrent ? <Lock size={12} aria-hidden="true" /> : index + 1}</span>
                 <span className={styles.stepLabel}>{step.label}</span>
                 {done && <span className="visually-hidden"> (završeno)</span>}
               </>

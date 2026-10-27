@@ -51,7 +51,7 @@ function SetupChecklist() {
             const done = step.id !== "review" && isStepComplete(step.id, draft);
             return (
               <li key={step.id} className={done ? styles.checkDone : undefined}>
-                <span className={styles.checkMarker} aria-hidden="true">{done ? <Check size={14} /> : <Circle size={10} />}</span>
+                <span className={styles.checkMarker} aria-hidden="true">{done ? <Check size={14} aria-hidden="true" /> : <Circle size={10} aria-hidden="true" />}</span>
                 <span><strong>{index + 1}. {step.label}</strong><span>{done ? "Spremno" : "Čeka unos"}</span></span>
                 {!readOnly && <Link href={onboardingHref(step.id, environment.onboardingBasePath)} className={styles.checkLink} aria-label={`Otvori korak: ${step.label}`}><ChevronRight size={16} aria-hidden="true" /></Link>}
               </li>

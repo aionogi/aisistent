@@ -104,7 +104,7 @@
 .segmented button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 650; }
 .segmented button:hover { color: var(--ink); }
 .segmented button[aria-pressed="true"] { background: #fff; color: var(--blue); box-shadow: 0 1px 3px #1420381f; }
-.count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e6ebf3; color: var(--muted); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #e6ebf3; color: #505e76; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .segmented button[aria-pressed="true"] .count { background: var(--selected); color: var(--blue); }
 
 /* Conversations */
@@ -152,7 +152,7 @@
 .summaryGrid { display: grid; gap: 12px; }
 .summarySection { display: grid; gap: 10px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .summarySection header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.summarySection h3 { font-size: 14px; line-height: 1.4; font-weight: 700; margin-right: auto; }
+.summarySection h2 { font-size: 14px; line-height: 1.4; font-weight: 700; margin-right: auto; }
 .statusOk, .statusWarn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; }
 .statusOk { color: var(--positive); }
 .statusWarn { color: #84561b; }

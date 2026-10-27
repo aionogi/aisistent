@@ -63,7 +63,7 @@
 .playButton { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 48px; gap: 10px; border: 0; border-radius: 8px; background: var(--blue, #2159e8); color: white; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .18s, transform .18s; }
 .playButton:hover { background: #164bd1; transform: translateY(-1px); }
 .playButton:active { transform: translateY(0); }
-.simulationNote { margin: 14px 0 0; text-align: center; color: #65738c; font-size: 10px; line-height: 1.5; }
+.simulationNote { margin: 14px 0 0; text-align: center; color: #5c6d86; font-size: 10px; line-height: 1.5; }
 .transcriptPanel { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid #dfe6f2; }
 .transcriptHeader { height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line, #e6eaf0); padding: 0 28px; font-size: 12px; font-weight: 600; }
 .transcriptHeader > span:first-child { display: flex; align-items: center; gap: 9px; }
