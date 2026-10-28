@@ -1,14 +1,17 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentAccount } from "../../../../../../lib/auth/account.ts";
 import { mfaRequired } from "../../../../../../lib/auth/auth0.ts";
 import { ForbiddenError, withOrganization } from "../../../../../../lib/db/context.ts";
+import { RETENTION_OPTIONS } from "../../../../../../lib/db/conversations.ts";
 import { getPool } from "../../../../../../lib/db/pool.ts";
-import { deleteOrganization, leaveOrganization, TeamError } from "../../../../../../lib/db/team.ts";
+import { deleteOrganization, leaveOrganization, setConversationRetention, TeamError } from "../../../../../../lib/db/team.ts";
 import { actionLimit, actionLog } from "../../../../../../lib/operations/action-guard.ts";
 
 export type OrganizationActionResult = { error: string | null };
+export type RetentionState = { error: string | null; saved: boolean };
 
 /** The signed-in member leaves; the database refuses the last owner. Needs no MFA, since it only gives up access. */
 export async function leaveOrganizationAction(organizationId: string): Promise<OrganizationActionResult> {
@@ -52,4 +55,28 @@ export async function deleteOrganizationAction(organizationId: string, _previous
   }
   await actionLog("organization.delete", "success");
   redirect("/account/?status=organization-deleted");
+}
+
+/** Owners choose how long conversations are kept; MFA when required. */
+export async function setRetentionAction(organizationId: string, _previous: RetentionState, formData: FormData): Promise<RetentionState> {
+  const days = Number(formData.get("days"));
+  const account = await getCurrentAccount();
+  const pool = getPool();
+  if (!account || !pool) return { error: "Sesija je istekla. Prijavite se ponovo.", saved: false };
+  const limitError = await actionLimit(pool, "team.change", account.userId);
+  if (limitError) return { error: limitError, saved: false };
+  if (mfaRequired() && !account.mfa) return { error: "Za izmenu roka potrebna je prijava sa dvofaktorskom potvrdom.", saved: false };
+  if (!(RETENTION_OPTIONS as readonly number[]).includes(days)) return { error: "Izaberite jedan od ponuđenih rokova.", saved: false };
+  try {
+    await withOrganization(pool, { userId: account.userId, organizationId }, (client) => setConversationRetention(client, days));
+  } catch (error) {
+    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error");
+    if (error instanceof TeamError) return { error: "Rok čuvanja menja vlasnik firme.", saved: false };
+    if (error instanceof ForbiddenError) return { error: "Nemate pristup ovoj firmi.", saved: false };
+    return { error: "Izmena trenutno nije moguća. Pokušajte ponovo kasnije.", saved: false };
+  }
+  await actionLog("team.change", "success");
+  revalidatePath(`/org/${organizationId}/settings/`);
+  revalidatePath(`/org/${organizationId}/conversations/`);
+  return { error: null, saved: true };
 }

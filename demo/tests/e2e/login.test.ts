@@ -5,6 +5,7 @@ import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-
 import { readFile } from "node:fs/promises";
 import { addKnowledge, createOrganization, provisionUser } from "../../lib/db/repositories.ts";
 import { withOrganization } from "../../lib/db/context.ts";
+import { recordConversation } from "../../lib/db/conversations.ts";
 import { createInvitation } from "../../lib/db/team.ts";
 import { createEmptyDraft } from "../../lib/workspace/templates.ts";
 
@@ -554,4 +555,81 @@ test("signing out everywhere ends every session of that user and no one else's",
   assert.match((await otherUser.get("/account/")).body, /Vaš nalog/);
   const { rows } = await stack.db.admin.query("SELECT target FROM app.audit_events WHERE action = 'auth.sessions_end' AND actor_user_id = $1", [await userIdFor("mock|ana")]);
   assert.deepEqual(rows, [{ target: "2" }]);
+});
+
+test("stored conversations appear for members, stay private to the organization, and only owners or admins delete them", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const anaId = await userIdFor("mock|ana");
+  const organizationId = await createOrganization(stack.db.appPool, anaId, "Conversation HTTP regression");
+  const otherOrganization = await createOrganization(stack.db.appPool, anaId, "Other conversation organization");
+  const record = (name: string, minutesAgo: number) => ({
+    channel: "call" as const, outcome: "handoff" as const, customerName: name, summary: `Sažetak za ${name}.`,
+    startedAt: new Date(Date.now() - minutesAgo * 60_000), endedAt: new Date(Date.now() - (minutesAgo - 2) * 60_000),
+    messages: [{ speaker: "customer" as const, body: `Pitanje od ${name}` }, { speaker: "assistant" as const, body: "Prosleđujem timu." }],
+  });
+  const first = await recordConversation(stack.db.admin, organizationId, record("Jovana Test", 10));
+  const second = await recordConversation(stack.db.admin, organizationId, record("Petar Test", 60));
+  const foreign = await recordConversation(stack.db.admin, otherOrganization, record("Tuđi Klijent", 5));
+  const path = `/org/${organizationId}/conversations/`;
+
+  const page = await owner.get(path);
+  assert.match(page.body, /Čuvaju se 90 dana/);
+  assert.match(page.body, /Jovana Test/);
+  assert.match(page.body, /Pitanje od Jovana Test/, "the newest conversation is open by default");
+  assert.doesNotMatch(page.body, /Izmišljen primer/);
+  assert.match((await owner.get(`${path}?c=${second}`)).body, /Pitanje od Petar Test/);
+  const probe = await owner.get(`${path}?c=${foreign}`);
+  assert.doesNotMatch(probe.body, /Tuđi Klijent|Pitanje od Tuđi/, "an id from another organization shows nothing of it");
+
+  const member = new Browser();
+  await member.get("/auth/login?returnTo=/account/&login_hint=conversation-member@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, await userIdFor("mock|conversation-member")]);
+  const memberPage = await member.get(path);
+  assert.match(memberPage.body, /Jovana Test/);
+  assert.doesNotMatch(memberPage.body, /Obriši razgovor/);
+
+  const actionId = await compiledActionId("deleteConversationAction");
+  const remove = (browser: Browser, conversationId: string) => fetch(`${stack.appUrl}${path}`, {
+    method: "POST", redirect: "manual",
+    headers: { origin: stack.appUrl, "next-action": actionId, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...browser.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+    body: JSON.stringify([organizationId, conversationId]),
+  }).then(async (response) => ({ response, body: await response.text() }));
+  const exists = async (id: string) => (await stack.db.admin.query("SELECT 1 FROM app.conversations WHERE id = $1", [id])).rowCount === 1;
+
+  assert.match((await remove(member, first)).body, /nemate pravo da ga obrišete/);
+  assert.ok(await exists(first));
+  assert.match((await remove(owner, foreign)).body, /nemate pravo da ga obrišete/, "the bound organization decides, not the id");
+  assert.ok(await exists(foreign));
+  const deleted = await remove(owner, first);
+  assert.match(deleted.response.headers.get("x-action-redirect") ?? "", new RegExp(`/org/${organizationId}/conversations/`));
+  assert.ok(!(await exists(first)));
+  assert.equal((await stack.db.admin.query("SELECT 1 FROM app.conversation_messages WHERE conversation_id = $1", [first])).rowCount, 0);
+});
+
+test("owners change the conversation retention through the native form; admins cannot", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const organizationId = await createOrganization(stack.db.appPool, await userIdFor("mock|ana"), "Retention HTTP regression");
+  const path = `/org/${organizationId}/settings/`;
+  const page = await owner.get(path);
+  assert.match(page.body, /Čuvanje razgovora/);
+  const retention = async () => (await stack.db.admin.query("SELECT conversation_retention_days AS days FROM app.organizations WHERE id = $1", [organizationId])).rows[0].days as number;
+
+  const invalid = await owner.post(path, nativeForm(page.body, "retention-days", { days: "45" }));
+  assert.match(invalid.body, /Izaberite jedan od ponuđenih rokova/);
+  assert.equal(await retention(), 90);
+  const saved = await owner.post(path, nativeForm(page.body, "retention-days", { days: "30" }));
+  assert.match(saved.body, /Rok je sačuvan/);
+  assert.equal(await retention(), 30);
+
+  const admin = new Browser();
+  await admin.get("/auth/login?returnTo=/account/&login_hint=retention-admin@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'admin')", [organizationId, await userIdFor("mock|retention-admin")]);
+  const adminPage = await admin.get(path);
+  assert.match(adminPage.body, /Razgovori se čuvaju 30 dana/);
+  assert.doesNotMatch(adminPage.body, /id="retention-days"/);
+  const refused = await admin.post(path, nativeForm(page.body, "retention-days", { days: "365" }));
+  assert.match(refused.body, /Rok čuvanja menja vlasnik firme/);
+  assert.equal(await retention(), 30);
 });

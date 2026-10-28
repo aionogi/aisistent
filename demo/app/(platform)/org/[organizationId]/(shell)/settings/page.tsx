@@ -4,10 +4,11 @@ import OrganizationView from "../../../../../../components/workspace/team/Organi
 import { getCurrentAccount } from "../../../../../../lib/auth/account.ts";
 import { mfaRequired } from "../../../../../../lib/auth/auth0.ts";
 import { ForbiddenError, withOrganization } from "../../../../../../lib/db/context.ts";
+import { getConversationRetention } from "../../../../../../lib/db/conversations.ts";
 import { getPool } from "../../../../../../lib/db/pool.ts";
 import { getOrganizationName } from "../../../../../../lib/db/repositories.ts";
 import { listMembers } from "../../../../../../lib/db/team.ts";
-import { deleteOrganizationAction, leaveOrganizationAction } from "./actions.ts";
+import { deleteOrganizationAction, leaveOrganizationAction, setRetentionAction } from "./actions.ts";
 
 export const metadata: Metadata = { title: "Firma — aisistent" };
 
@@ -23,6 +24,7 @@ export default async function OrganizationPage({ params }: PageProps<"/org/[orga
       role,
       name: (await getOrganizationName(client)) ?? "",
       owners: (await listMembers(client)).filter((member) => member.role === "owner").length,
+      retentionDays: (await getConversationRetention(client)) ?? 90,
     }));
   } catch (error) {
     if (error instanceof ForbiddenError) notFound();
@@ -36,9 +38,11 @@ export default async function OrganizationPage({ params }: PageProps<"/org/[orga
       canManageData={data.role === "owner" && (account.mfa || !mfaRequired())}
       lastOwner={data.role === "owner" && data.owners <= 1}
       exportHref={`/org/${organizationId}/export/`}
+      retentionDays={data.retentionDays}
       actions={{
         leave: leaveOrganizationAction.bind(null, organizationId),
         remove: deleteOrganizationAction.bind(null, organizationId),
+        setRetention: setRetentionAction.bind(null, organizationId),
       }}
     />
   );
