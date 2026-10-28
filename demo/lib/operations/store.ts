@@ -28,3 +28,11 @@ export async function purgeOperationalData(pool: Pool, batchSize = 500): Promise
   }
   return { sessions: row.sessions, invitations: row.invitations, rateLimits: row.rate_limits };
 }
+
+/** One bounded pass over conversations older than their organization's retention period. */
+export async function purgeExpiredConversations(pool: Pool, batchSize = 500): Promise<number> {
+  const { rows } = await pool.query<{ removed: number }>("SELECT app.purge_expired_conversations($1) AS removed", [batchSize]);
+  const removed = rows[0]?.removed;
+  if (!Number.isInteger(removed) || removed < 0 || removed > batchSize) throw new Error("Invalid conversation cleanup result.");
+  return removed;
+}

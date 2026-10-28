@@ -12,12 +12,12 @@ import { withUser, type MemberRole } from "./context.ts";
 export type TeamErrorCode =
   | "owner_required" | "admin_required" | "member_required" | "already_member" | "invalid_expiry" | "invalid_role" | "member_not_found" | "last_owner"
   | "invitation_not_found" | "invitation_used" | "invitation_revoked" | "invitation_expired" | "invitation_email_mismatch"
-  | "confirmation_mismatch";
+  | "confirmation_mismatch" | "invalid_retention";
 
 const KNOWN_CODES = new Set<string>([
   "owner_required", "admin_required", "member_required", "already_member", "invalid_expiry", "invalid_role", "member_not_found", "last_owner",
   "invitation_not_found", "invitation_used", "invitation_revoked", "invitation_expired", "invitation_email_mismatch",
-  "confirmation_mismatch",
+  "confirmation_mismatch", "invalid_retention",
 ]);
 
 export class TeamError extends Error {
@@ -137,4 +137,9 @@ export async function leaveOrganization(client: PoolClient): Promise<void> {
 /** Permanently deletes the organization; `confirmName` must repeat its name. */
 export async function deleteOrganization(client: PoolClient, confirmName: string): Promise<void> {
   await translate(client.query("SELECT app.delete_organization($1)", [confirmName]));
+}
+
+/** Owners set how many days conversations are kept (migration 0008); records the change. */
+export async function setConversationRetention(client: PoolClient, days: number): Promise<void> {
+  await translate(client.query("SELECT app.set_conversation_retention($1)", [days]));
 }

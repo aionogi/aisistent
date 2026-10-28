@@ -126,7 +126,7 @@ test("cleanup command uses the restricted login and emits count-only JSON", asyn
   await db.admin.query("INSERT INTO app.rate_limit_buckets VALUES ($1, 1, now() - interval '1 hour')", [randomBytes(32)]);
   const { stdout, stderr } = await run(process.execPath, ["scripts/operations/cleanup.ts"], { cwd: projectDir, env: { ...process.env, DATABASE_URL: db.appUrl } });
   assert.equal(stderr, "");
-  assert.deepEqual(JSON.parse(stdout), { event: "operations.cleanup", result: "success", passes: 1, reachedPassLimit: false, sessions: 0, invitations: 0, rateLimits: 1 });
+  assert.deepEqual(JSON.parse(stdout), { event: "operations.cleanup", result: "success", passes: 1, reachedPassLimit: false, sessions: 0, invitations: 0, rateLimits: 1, conversations: 0 });
 });
 
 test("cleanup command rejects owner and missing configuration without exposing credentials", async () => {

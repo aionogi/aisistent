@@ -2,7 +2,7 @@
 // No provider dependency, admin credential fallback, or raw database errors.
 import pg from "pg";
 import { APP_LOGIN_ROLE } from "../../lib/db/config.ts";
-import { purgeOperationalData, type CleanupCounts } from "../../lib/operations/store.ts";
+import { purgeExpiredConversations, purgeOperationalData, type CleanupCounts } from "../../lib/operations/store.ts";
 
 const BATCH_SIZE = 500;
 const MAX_PASSES = 20;
@@ -38,16 +38,18 @@ try {
     throw new Error("Restricted cleanup login required.");
   }
 
-  const total: CleanupCounts = { sessions: 0, invitations: 0, rateLimits: 0 };
+  const total: CleanupCounts & { conversations: number } = { sessions: 0, invitations: 0, rateLimits: 0, conversations: 0 };
   let passes = 0;
   let reachedPassLimit = false;
   for (; passes < MAX_PASSES;) {
-    const removed = await purgeOperationalData(pool, BATCH_SIZE);
+    // Conversations past their organization's retention period go too (migration 0008).
+    const removed = { ...await purgeOperationalData(pool, BATCH_SIZE), conversations: await purgeExpiredConversations(pool, BATCH_SIZE) };
     if (failed) throw new Error("Cleanup connection failed.");
     passes += 1;
     total.sessions += removed.sessions;
     total.invitations += removed.invitations;
     total.rateLimits += removed.rateLimits;
+    total.conversations += removed.conversations;
     if (Object.values(removed).every((count) => count < BATCH_SIZE)) break;
     if (passes === MAX_PASSES) reachedPassLimit = true;
   }
