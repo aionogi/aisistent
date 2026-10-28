@@ -124,6 +124,8 @@ For each drill:
 
 ## Organization data requests
 
+Conversations are kept for each organization's retention period (owners choose 30, 90, 180 or 365 days on the Firma page; default 90) and removed by `npm run ops:cleanup` (reported as `conversations`). Until the cleanup job is scheduled, nothing removes them automatically.
+
 Owners export an organization from **Firma → Preuzmi podatke (JSON)** (`/org/<id>/export/`; MFA when required; 10 per hour per user) and delete it on the same page by repeating its name (10 per hour). Members leave there too; the last owner cannot. Deletion removes the organization's rows and activity log at once and keeps one `organization.delete` audit event (actor, time, deleted id). Copies remain in database backups until they expire. No backup retention period has been chosen yet, so do not promise a deletion deadline that includes backups. After any restore, reapply deletions recorded after the snapshot (managed drill, step 6).
 
 ## Incident and rollback
