@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, pbkdf2Sync, randomBytes } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Client } from "pg";
@@ -61,15 +61,32 @@ export async function migrate(client: Client, directory: string): Promise<Migrat
   }
 }
 
+const SCRAM_ITERATIONS = 4096;
+
+/**
+ * The password as a SCRAM-SHA-256 verifier in PostgreSQL's stored format
+ * (RFC 5802/7677). PostgreSQL keeps a pre-hashed value as given, so the plain
+ * password never appears in the SQL text, statement logs or pg_stat_activity.
+ * Only printable ASCII is accepted: PostgreSQL would apply SASLprep to other
+ * characters at sign-in, which this function does not replicate.
+ */
+export function scramVerifier(password: string, salt: Buffer = randomBytes(16), iterations = SCRAM_ITERATIONS): string {
+  if (!/^[\x21-\x7e]+$/.test(password)) throw new Error("The application database password must be printable ASCII without spaces.");
+  const salted = pbkdf2Sync(password, salt, iterations, 32, "sha256");
+  const storedKey = createHash("sha256").update(createHmac("sha256", salted).update("Client Key").digest()).digest();
+  const serverKey = createHmac("sha256", salted).update("Server Key").digest();
+  return `SCRAM-SHA-256$${iterations}:${salt.toString("base64")}$${storedKey.toString("base64")}:${serverKey.toString("base64")}`;
+}
+
 /**
  * Ensures the application's login role exists with the given password and only
  * the runtime role's privileges. It is not a member of the owner role, so a
  * compromised application connection cannot switch to owner rights.
  */
-export async function ensureAppLogin(client: Client, password: string): Promise<void> {
+export async function ensureAppLogin(client: Pick<Client, "query" | "escapeLiteral">, password: string): Promise<void> {
   if (password.length < 32) throw new Error("The application database password must be at least 32 characters.");
   const exists = await client.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [APP_LOGIN_ROLE]);
-  const literal = client.escapeLiteral(password);
+  const literal = client.escapeLiteral(scramVerifier(password));
   if (exists.rowCount === 0) {
     await client.query(`CREATE ROLE ${APP_LOGIN_ROLE} LOGIN PASSWORD ${literal} IN ROLE ${RUNTIME_ROLE}`);
   } else {
