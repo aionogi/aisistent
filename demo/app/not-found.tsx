@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Brand from "../components/Brand";
+import SupportChat from "../components/support/SupportChat";
 
 export const metadata: Metadata = { title: "Stranica nije pronađena — aisistent" };
 
@@ -20,6 +21,7 @@ export default function NotFound() {
           <a href="/account/">Nalog i firme</a>
         </div>
       </section>
+      <SupportChat />
     </main>
   );
 }

@@ -40,7 +40,7 @@ test("greetings and thanks get a short reply; anything else admits it has no ans
   const unknown = replyTo("asdf qwerty");
   assert.equal(unknown.kind, "unknown");
   assert.match(unknown.text, /nemam pouzdan odgovor/);
-  assert.deepEqual(unknown.links, [{ label: "Česta pitanja na stranici", href: "#questions" }]);
+  assert.deepEqual(unknown.links, [{ label: "Česta pitanja na stranici", href: "/#questions" }]);
 });
 
 test("contact details and card numbers get a privacy reminder instead of an answer", () => {
@@ -57,13 +57,13 @@ test("answers make no price claims and link only inside the site", async () => {
   for (const topic of SUPPORT_TOPICS) {
     assert.doesNotMatch(topic.answer, /\d+\s*(din|rsd|eur|€|%)/i, topic.id);
     assert.ok(topic.answer.length <= 500, topic.id);
-    for (const link of topic.links ?? []) assert.match(link.href, /^(#[a-z-]+|\/[a-z/-]*)$/, `${topic.id}: ${link.href}`);
+    for (const link of topic.links ?? []) assert.match(link.href, /^\/([a-z/-]*|#[a-z-]+)$/, `${topic.id}: ${link.href}`);
   }
   assert.match(topicById("pricing")!.answer, /Cene još nisu objavljene/);
-  // The in-page anchors the answers use exist on the landing page.
+  // The landing page sections the answers link to ("/#demo") exist there.
   const sources = (await Promise.all(["../../app/page.tsx", "../../components/ConversationDemo.tsx"].map((file) => readFile(new URL(file, import.meta.url), "utf8")))).join("\n");
-  for (const anchor of new Set(SUPPORT_TOPICS.flatMap((topic) => topic.links ?? []).map((link) => link.href).filter((href) => href.startsWith("#")).concat("#questions"))) {
-    assert.match(sources, new RegExp(`id="${anchor.slice(1)}"`), anchor);
+  for (const anchor of new Set(SUPPORT_TOPICS.flatMap((topic) => topic.links ?? []).map((link) => link.href).filter((href) => href.startsWith("/#")).concat("/#questions"))) {
+    assert.match(sources, new RegExp(`id="${anchor.slice(2)}"`), anchor);
   }
 });
 

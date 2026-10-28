@@ -44,7 +44,7 @@ export const SUPPORT_TOPICS: SupportTopic[] = [
     id: "channels",
     question: "Da li radi i preko WhatsAppa ili e-maila?",
     answer: "Pored telefona planirani su WhatsApp, e-mail i chatbot za sajt klijenta; na stranici su označeni kao „Uskoro“. Za sada možete da isprobate samo simulaciju telefonskog razgovora.",
-    links: [{ label: "Isprobajte simulaciju", href: "#demo" }],
+    links: [{ label: "Isprobajte simulaciju", href: "/#demo" }],
     keywords: ["whatsapp", "viber", "mail", "email", "sms", "kanal", "chatbot", "instagram", "facebook"],
     hints: ["poruk"],
   },
@@ -79,7 +79,7 @@ export const SUPPORT_TOPICS: SupportTopic[] = [
     id: "demo",
     question: "Želim demo",
     answer: "Demo možete odmah da isprobate, bez registracije: simulaciju razgovora na ovoj stranici i demo radni prostor sa primerom podataka. Demo ne upućuje stvarne pozive i ne čuva podatke na serveru. Zakazivanje prezentacije sa timom preko sajta još nije dostupno.",
-    links: [{ label: "Isprobajte simulaciju", href: "#demo" }, { label: "Demo radni prostor", href: "/workspace/" }],
+    links: [{ label: "Isprobajte simulaciju", href: "/#demo" }, { label: "Demo radni prostor", href: "/workspace/" }],
     keywords: ["demo", "isprob", "probat", "prezent"],
     hints: ["proba", "prikaz", "pogleda", "videt"],
   },
@@ -87,7 +87,7 @@ export const SUPPORT_TOPICS: SupportTopic[] = [
     id: "capabilities",
     question: "Šta asistent može da radi?",
     answer: "aisistent je zamišljen da se javlja na pozive i poruke vaših klijenata, odgovara na česta pitanja iz vaše baze znanja, dogovara termine i prepušta razgovor vašem timu kada je to potrebno. Za sada postoji interaktivni demo sa unapred pripremljenim primerima; povezivanje stvarnih poziva i AI modela dolazi u narednoj fazi.",
-    links: [{ label: "Pogledajte primer razgovora", href: "#demo" }],
+    links: [{ label: "Pogledajte primer razgovora", href: "/#demo" }],
     keywords: ["mogucn", "funkcij", "termin", "zakaz", "sposob"],
     hints: ["moze", "mogu", "radi", "=sta", "poziv", "uslug"],
   },
@@ -170,5 +170,5 @@ export function replyTo(message: string): SupportReply {
   if (best) return reply(best);
   const smallTalk = SMALL_TALK.find(({ phrases }) => phrases.some((phrase) => ` ${text} `.includes(` ${phrase} `)));
   if (smallTalk) return { kind: "topic", text: smallTalk.text };
-  return { kind: "unknown", text: UNKNOWN, links: [{ label: "Česta pitanja na stranici", href: "#questions" }] };
+  return { kind: "unknown", text: UNKNOWN, links: [{ label: "Česta pitanja na stranici", href: "/#questions" }] };
 }

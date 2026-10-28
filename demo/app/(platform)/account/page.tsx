@@ -4,6 +4,7 @@ import { ChevronRight, CircleAlert, CircleCheck, LogIn, LogOut, ShieldCheck } fr
 import Brand from "../../../components/Brand";
 import CreateOrganizationForm from "../../../components/account/CreateOrganizationForm";
 import SignOutEverywhereForm from "../../../components/account/SignOutEverywhereForm";
+import SupportChat from "../../../components/support/SupportChat";
 import styles from "../../../components/account/account.module.css";
 import { Notice } from "../../../components/workspace/FormControls";
 import { getCurrentAccount } from "../../../lib/auth/account.ts";
@@ -43,6 +44,7 @@ function Frame({ children, signedIn }: { children: React.ReactNode; signedIn: bo
       <footer className={styles.footer}>
         Test okruženje za razvoj. Ne unosite stvarne podatke klijenata dok platforma ne prođe bezbednosne provere.
       </footer>
+      <SupportChat />
     </div>
   );
 }

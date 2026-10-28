@@ -245,7 +245,7 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/db/migrations/0008_conversations.sql`, `demo/lib/db/conversations.ts` | Conversation records, retention, cleanup, export |
 | `demo/components/workspace/views/StoredConversationsView.tsx`, `.../(shell)/conversations/` | Stored conversations page and delete action |
 | `demo/components/account/SignOutEverywhereForm.tsx` | Sign-out-everywhere form that finishes at `/auth/logout` |
-| `demo/components/support/SupportChat.tsx`, `demo/lib/support/faq.ts` | Website help chat (landing page, bottom right) and its prepared answers; no AI or server calls until M4 |
+| `demo/components/support/SupportChat.tsx`, `demo/lib/support/faq.ts` | Website help chat (bottom right on the landing, account and 404 pages) and its prepared answers; no AI or server calls until M4 |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
@@ -266,7 +266,8 @@ Built at the user's request after checkpoint 15; M3 remains the current mileston
 | Accessibility | The in-page audit with the panel open (messages, links, privacy note) found no issues: names, labels, ARIA references, hidden icons, heading order, contrast, target sizes. No screen reader test |
 | Production CSP | `npm run build` + `next start`: `style-src 'self' 'nonce-…'`, no violation while opening the panel, asking, and expanding the privacy note; no `style` attribute in the panel |
 | HTTP tests | `npm run test:e2e`: **21/21** |
-| Limits | Prepared answers only, no AI, no message delivery to the team (no contact channel exists yet), landing page only |
+| Other public pages (follow-up) | The chat also appears on `/account/` and the 404 page. Its section links now point to `/#demo` and `/#questions`: on the landing page they stay on the page (panel closes, section focused, scroll started from a timeout so it also runs in background tabs); elsewhere they open the landing page, which scrolls to the section once the browser draws (seen at 110 px from the top for `#questions`). The account footer gained bottom space: at 390 px its note ends 25 px above the button. Both pages: no duplicate ids or broken ARIA references, one `main` and `h1`, no horizontal overflow; the panel opens with focus in the field and returns focus on close. 132 unit/database and 21 HTTP tests pass; build passes |
+| Limits | Prepared answers only, no AI, no message delivery to the team (no contact channel exists yet); not on the demo onboarding and workspace screens, whose own controls sit at the bottom right |
 
 ### M3 checkpoint 15 — knowledge import from a web page (2026-10-28)
 

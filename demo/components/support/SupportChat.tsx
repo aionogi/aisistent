@@ -33,7 +33,7 @@ export default function SupportChat() {
   const returnFocus = useRef(true);
 
   // Focus moves into the panel when it opens and back to the button when it
-  // closes, unless a link inside the page was followed (see followPageLink).
+  // closes, unless a link inside the page was followed (see followSectionLink).
   useEffect(() => {
     if (open) inputRef.current?.focus();
     else if (wasOpen.current && returnFocus.current) launcherRef.current?.focus();
@@ -52,21 +52,23 @@ export default function SupportChat() {
   }
 
   /**
-   * The panel's link disappears with the panel, so instead of relying on the
+   * Links to landing page sections ("/#demo"). On the landing page the
+   * panel's link disappears with the panel, so instead of relying on the
    * browser's fragment navigation the panel closes first and the page then
-   * moves to the section and focuses it, as a normal in-page link would. The
-   * address is left unchanged.
+   * moves to the section and focuses it, as a normal in-page link would; the
+   * address is left unchanged. On other pages the link opens the landing page.
    */
-  function followPageLink(event: MouseEvent<HTMLAnchorElement>, href: string) {
-    const target = document.getElementById(href.slice(1));
+  function followSectionLink(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    const target = location.pathname === "/" ? document.getElementById(href.slice(2)) : null;
     if (!target) return;
     event.preventDefault();
     close(false);
-    requestAnimationFrame(() => {
+    // After React has hidden the panel; a timeout, unlike an animation frame, also runs in background tabs.
+    window.setTimeout(() => {
       if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
       target.focus({ preventScroll: true });
       target.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-    });
+    }, 0);
   }
 
   function ask(text: string) {
@@ -147,8 +149,8 @@ export default function SupportChat() {
                 <ul className={styles.links} aria-label="Linkovi uz odgovor">
                   {message.links.map((link) => (
                     <li key={link.href}>
-                      {link.href.startsWith("#")
-                        ? <a href={link.href} onClick={(event) => followPageLink(event, link.href)}>{link.label}</a>
+                      {link.href.startsWith("/#")
+                        ? <a href={link.href} onClick={(event) => followSectionLink(event, link.href)}>{link.label}</a>
                         : <Link href={link.href}>{link.label}</Link>}
                     </li>
                   ))}
