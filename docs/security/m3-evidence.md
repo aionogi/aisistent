@@ -31,12 +31,12 @@ Status values: **Done locally** (implemented and tested against real PostgreSQL 
 
 | ID | Risk | Impact | Current mitigation | Next step and owner |
 | --- | --- | --- | --- | --- |
-| R1 | Hosting and identity are not chosen; nothing is deployed | No production control is verified | All code paths run locally against real PostgreSQL and the real SDK | The user's team decides; then staging deploy |
+| R1 | Nothing is deployed (platform decided 2026-10-28: Vercel Hobby, Supabase, Auth0 EU) | No production control is verified; Vercel Hobby is for non-commercial use only | All code paths run locally against real PostgreSQL and the real SDK | Vercel configuration and Supabase settings (agent), accounts (user), staging deploy; a paid Vercel plan before launch or real data (user) |
 | R2 | MFA is off (`AUTH_REQUIRE_MFA=false`) | Owners can change data with a password only | Gate, read-only views and step-up are implemented and tested | Enable after the tenant has an MFA factor (user) |
 | R3 | "Sign out everywhere" leaves identity-provider sessions | A lost device with a live provider session can sign in again without a password | Application sessions end at once; the page advises a password change | Call the provider's session revocation API after the identity decision (agent) |
-| R4 | `RATE_LIMIT_IP_HEADER` unset | All clients share one per-IP budget; a burst can slow sign-in for everyone | Conservative shared bucket; per-user budgets still apply | Configure once the ingress overwrites the header (agent + user) |
-| R5 | The web service receives `DATABASE_ADMIN_URL` (Render pre-deploy) | A web compromise could reach owner credentials | Provider-specific; documented | Separate migration job when the platform is chosen (agent) |
-| R6 | Cleanup is not scheduled | Expired sessions, invitations and conversations accumulate | Bounded one-shot command exists | Schedule `npm run ops:cleanup` at deploy (agent + user) |
+| R4 | `RATE_LIMIT_IP_HEADER` unset | All clients share one per-IP budget; a burst can slow sign-in for everyone | Conservative shared bucket; per-user budgets still apply | Set the header Vercel itself provides, after confirming on staging that clients cannot override it; Cloudflare stays DNS-only (agent + user) |
+| R5 | The Render template gave the web service `DATABASE_ADMIN_URL` | A web compromise could reach owner credentials | Not deployed; with Vercel, migrations run outside the build | Document and script the migration step so the Vercel environment never holds owner credentials (agent) |
+| R6 | Cleanup is not scheduled | Expired sessions, invitations and conversations accumulate | Bounded one-shot command exists | A daily Vercel cron calling a protected cleanup route (agent) |
 | R7 | Backup retention and recovery objectives are undecided | Deleted data persists in backups; recovery time unknown | Runbook requires reapplying deletions after a restore | Decide retention/RPO/RTO; run a managed restore drill (user + agent) |
 | R8 | No alert sink or provider log redaction | Incidents may go unnoticed; platform logs may hold personal data | Application logs are allowlisted | Configure with the platform (user + agent) |
 | R9 | CI workflow is not active | Regressions are caught only by local runs | Template with all suites, including recovery | Enable with a token that has the `workflow` scope (user) |

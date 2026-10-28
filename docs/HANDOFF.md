@@ -4,7 +4,7 @@ Updated: 2026-10-28.
 
 ## Current objective
 
-**Open decision:** the platform choice (Render + Auth0 + R2) is provisional; the user wants to revisit it before opening accounts. See "What depends on the provider choice" in [m3-platform-options.md](architecture/m3-platform-options.md).
+**Platform decided (2026-10-28):** Vercel (Hobby while the site is built, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt used only as a database, Auth0 EU; Resend, Cloudflare DNS and Sentry; PostHog later; no Upstash or Pinecone; private storage when uploads start. Details, constraints and sources: [m3-platform-options.md](architecture/m3-platform-options.md#decision-2026-10-28). No account is open and nothing is deployed yet.
 
 M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
@@ -499,16 +499,19 @@ The CI template at `docs/ci/demo-checks.yml.example` includes dependency install
 
 Agents must not create accounts or handle credentials. The user opens these in the company's name, with a company email and card, MFA on, and a second owner where supported:
 
-1. **Render:** create a workspace (Pro for 7-day PITR before real data), connect the GitHub repository, and create a Blueprint from `render.yaml`. Confirm both resources show region Frankfurt. The first deploy runs `npm run db:migrate`; if it fails with a permission error on `CREATE ROLE`, Render's default user lacks `CREATEROLE` and the role setup must be adjusted.
-2. **Auth0:** create a tenant with the **EU** locality, then:
+Before the user opens the Vercel project, the agent replaces `render.yaml` with Vercel configuration (region `fra1`, a daily cleanup cron), adapts the database settings to Supabase's pooler, and documents how migrations run outside the Vercel build. Until then the steps below are the plan, not something to do yet.
+
+1. **Supabase:** create a project in **Frankfurt (eu-central-1)** in the company's organization. Disable the Data API (the app does not use it). Keep the database password and the direct and transaction-pooler connection strings in a password manager; never paste them into chat or commits.
+2. **Vercel:** Hobby during development (non-commercial use only; Pro before launch or when a second person needs access). Import the GitHub repository with root directory `demo`. Environment variables are listed in the runbook once the configuration exists.
+3. **Auth0:** create a tenant with the **EU** locality, then:
    - Applications → Create Application → **Regular Web Application** (e.g. "aisistent staging").
-   - Allowed Callback URLs: `https://<render-host>/auth/callback`. Allowed Logout URLs: `https://<render-host>/`. Leave Allowed Web Origins empty.
+   - Allowed Callback URLs: `https://<vercel-host>/auth/callback`. Allowed Logout URLs: `https://<vercel-host>/`. Leave Allowed Web Origins empty.
    - Authentication: keep the Username-Password database connection; email verification emails are on by default. Optional: Google.
-   - Optional now, required before real data: an MFA factor (Auth0 lists passkeys on the Free plan and its "Pro MFA factors" only on paid plans; confirm which factor sets the `mfa` amr value), then set `AUTH_REQUIRE_MFA=true` on Render.
-   - Optional: Back-Channel Logout URI `https://<render-host>/auth/backchannel-logout`.
-   - In Render's dashboard set `APP_BASE_URL` (`https://<render-host>`, no trailing slash), `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, and `AUTH0_CLIENT_SECRET`. If the Blueprint was created before these were added to `render.yaml`, also add `AUTH0_SECRET` (a random value of at least 32 characters) and `AUTH_REQUIRE_MFA=false`. Never paste these values into chat or commits.
-3. **Cloudflare:** create an account; R2 buckets (EU jurisdiction) are needed only when file uploads start.
-4. Sign each provider's DPA and keep copies; prepare Serbian Commissioner SCCs where a provider may process data outside the EU.
+   - Optional now, required before real data: an MFA factor (Auth0 lists passkeys on the Free plan and its "Pro MFA factors" only on paid plans; confirm which factor sets the `mfa` amr value), then set `AUTH_REQUIRE_MFA=true` in Vercel.
+   - Optional: Back-Channel Logout URI `https://<vercel-host>/auth/backchannel-logout`.
+   - In Vercel's project settings set `APP_BASE_URL` (`https://<vercel-host>`, no trailing slash), `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET` (a random value of at least 32 characters) and `AUTH_REQUIRE_MFA=false`. Never paste these values into chat or commits.
+4. **Later:** Resend for invitation emails, Sentry (EU region) for errors and alerts, Cloudflare DNS for the domain. Private storage (Supabase Storage or R2) only when uploads start.
+5. Sign each provider's DPA and keep copies; prepare Serbian Commissioner SCCs where a provider may process data outside the EU.
 
 ## Next agent's first steps
 
@@ -517,7 +520,7 @@ Agents must not create accounts or handle credentials. The user opens these in t
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
 4. Checkpoint 15 added knowledge import from a public web page (`lib/import/`; keep its SSRF checks and tests); checkpoint 14 added the SCRAM password and the [security evidence and risk register](security/m3-evidence.md); checkpoint 13 added durable conversation records (writer granted in M4); checkpoint 12 was an accessibility pass; checkpoint 11 removed inline styles from the production CSP and added Serbian 404/error pages; checkpoint 10 added the account session list and sign-out on all devices; checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
 5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
-6. Needs decisions/accounts: confirm hosting/identity, then deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open. After the identity decision, also end the provider's sessions when a user signs out everywhere (checkpoint 10 ends only application sessions).
+6. Next, without accounts: replace `render.yaml` with Vercel configuration (region `fra1`, a daily cron calling a protected cleanup route), move `statement_timeout` to a role setting and size the pool for Supabase's transaction pooler, and script migrations outside the Vercel build. Then, with the user's accounts (Supabase, Vercel Hobby, Auth0 EU): deploy staging, configure the trusted ingress IP header and `RATE_LIMIT_SECRET`, activate restricted cleanup, configure/verify alerts, perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open. After the identity decision, also end the provider's sessions when a user signs out everywhere (checkpoint 10 ends only application sessions).
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict. If an organization page keeps reloading right after the dev server starts, close the tab and open it again (see checkpoint 7). If it keeps happening, stop the dev server and delete `demo/.next/dev`: on 2026-10-28 a 603 MB cache shared by earlier dev and test servers kept the loop going, and a fresh cache ended it. Stopping `npm run dev:local-auth` with Ctrl+C removes its temporary database; killing the process instead leaves `%TEMP%\aisistent-pgdata-*` folders, which are safe to delete when no `postgres` process is running (ten such folders were removed on 2026-10-28).
 
@@ -541,4 +544,4 @@ Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT
 
 Planned in M4 since 2026-10-28: an AI support chat on the aisistent website for visitors' questions (acceptance criteria in [MILESTONES.md](MILESTONES.md#website-support-chat-requested-2026-10-28)); it needs the AI provider decision. At the user's request its interface already exists without AI (see "Website help chat interface" in the verification record). Open user decision: a contact email or form the team receives for demo and contact requests; until then the chat says contacting the team through the site is not available.
 
-Production hosting, identity provider, database/storage, AI and telephony providers, retention/recovery targets, merchant approval, prices, currencies, and trial/grace policies remain open. Provider references in the architecture document are research candidates and need current verification when that phase begins.
+Private storage, AI and telephony providers, retention/recovery targets, merchant approval, prices, currencies, and trial/grace policies remain open. Provider references in the architecture document are research candidates and need current verification when that phase begins.

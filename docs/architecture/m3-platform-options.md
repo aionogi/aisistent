@@ -1,6 +1,22 @@
 # M3 platform options: hosting, identity, database
 
-Status: **provisional — combination A** (Render Frankfurt + Render Postgres + Auth0 EU + Cloudflare R2 EU), chosen by the user on 2026-10-21. Later the same day the user said they are not yet sure about Render and Auth0 and asked to continue and revisit the choice. **Open: confirm or switch before opening provider accounts or deploying.**
+Status: **decided on 2026-10-28** by the user: Vercel for hosting (the free Hobby plan while the site is being built, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt used only as a database, and Auth0 with an EU tenant for sign-in. Supporting tools the team already uses: Resend (email), Cloudflare (DNS), Sentry (error tracking and alerts), and PostHog (analytics, later). Upstash and Pinecone are not used. Private file storage is decided when uploads start (Supabase Storage or Cloudflare R2). Nothing is deployed and no account has been opened yet. The 2026-10-21 research below (combination A: Render + Auth0 + R2) is kept for reference.
+
+## Decision (2026-10-28)
+
+| Concern | Choice | Constraints and follow-ups |
+| --- | --- | --- |
+| Hosting | Vercel, functions in `fra1` (Frankfurt) | **Hobby is limited to non-commercial personal use** under Vercel's fair use guidelines, which count a site promoting a business as commercial; move to Pro before launch, before real customer data, and when more than one person needs access to the project. Hobby cron jobs run at most once a day (enough for the nightly cleanup). Migrations run outside the Vercel build, so the web environment never holds `DATABASE_ADMIN_URL` (resolves R5). The M4 voice gateway needs long-lived connections that Vercel functions do not keep; it will need a separate small host. [Hobby plan](https://vercel.com/docs/plans/hobby-plan), [Fair use](https://vercel.com/docs/limits/fair-use-guidelines), [Cron limits](https://vercel.com/docs/cron-jobs/usage-and-pricing) |
+| Database | Supabase PostgreSQL, Frankfurt | Use it as plain PostgreSQL only: no Supabase Auth, no client libraries, Data API disabled, the `service_role` key never in the application. Migrations connect directly (they need `CREATE ROLE` and a session for the advisory lock); the app connects through the transaction pooler with a small pool. `statement_timeout` must move from the connection options to a role setting, because the pooler does not pass startup parameters. Confirm how a custom login role (`aisistent_app`) authenticates through the shared pooler (third-party examples show `role.project-ref`) and whether the plan includes point-in-time recovery. [Roles](https://supabase.com/docs/guides/database/postgres/roles), [Connecting](https://supabase.com/docs/guides/database/connecting-to-postgres/serverless-drivers.md) |
+| Identity | Auth0, EU tenant | Unchanged from the existing integration (`demo/lib/auth/`). Clerk was considered and rejected: Clerk states that it offers no regional data residency (data hosted in the US), and its session token cookie is readable by JavaScript, which conflicts with the session design. [Clerk security](https://clerk.com/security) |
+| Email | Resend | For invitation emails (resolves R14 once built). Sending from Ireland is a paid-plan region; account data stays in the US either way, so the SCC step applies. [Regions](https://resend.com/docs/dashboard/domains/regions) |
+| DNS | Cloudflare | DNS only (no proxy in front of Vercel), so the client IP header comes from Vercel. |
+| Errors and alerts | Sentry, EU region | Can serve as the alert sink (R8). Send no personal data or request bodies; extend the CSP `connect-src` for it. |
+| Analytics | PostHog, EU cloud, later | Public pages only, after cookie consent; no session recording in organization workspaces. Needs CSP changes. |
+| Not used | Upstash (Redis), Pinecone (vector database) | Rate limits already run in PostgreSQL; knowledge search in M4 can use `pgvector` in the same database under the same RLS. |
+| Private files | Open | Supabase Storage or Cloudflare R2 (EU jurisdiction), decided when uploads are built. |
+
+Open follow-ups: sign each provider's DPA; prepare Serbian Commissioner SCCs for providers that may process data outside the EU (Clerk is not used; Resend account data is in the US); open accounts in the company's name with MFA. This is not legal advice.
 
 ### What depends on the provider choice
 
@@ -8,13 +24,13 @@ Keep provider-specific code in these places so a switch stays small:
 
 | Provider | Where it is used | Portable part |
 | --- | --- | --- |
-| Render | `render.yaml`; `DATABASE_ADMIN_URL`/`DATABASE_APP_PASSWORD` naming in `demo/lib/db/config.ts` | Any Node.js host running `npm run build`, `npm run db:migrate`, `npm run start` |
-| Render Postgres | Nothing provider-specific | Standard PostgreSQL 17 with roles, RLS, and SECURITY DEFINER functions |
+| Render (superseded by Vercel) | `render.yaml`, to be replaced by Vercel configuration; `DATABASE_ADMIN_URL`/`DATABASE_APP_PASSWORD` naming in `demo/lib/db/config.ts` | Any Node.js host running `npm run build`, `npm run db:migrate`, `npm run start` |
+| Render Postgres / Supabase | Nothing provider-specific yet; Supabase needs the pooler and timeout settings above | Standard PostgreSQL 17 with roles, RLS, and SECURITY DEFINER functions |
 | Auth0 | `demo/lib/auth/auth0.ts`, the `/auth/*` routes mounted in `demo/proxy.ts`, `AUTH0_*` variables | Any OpenID Connect provider; `lib/auth/account.ts`, the session table, and authorization stay the same |
 | Cloudflare R2 | Not used yet | S3-compatible API |
 Researched: 2026-10-21. Merchant: company based in Serbia.
 
-## Decision record
+## Earlier decision record (2026-10-21, superseded)
 
 | Concern | Choice | Region / constraint |
 | --- | --- | --- |
