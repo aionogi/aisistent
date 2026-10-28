@@ -185,6 +185,8 @@ npm run start
 
 The app runs without any database or `.env`; database code activates only when `DATABASE_URL` (local) or `DATABASE_ADMIN_URL` plus `DATABASE_APP_PASSWORD` (Render) are set. `npm run start` serves the production build on `PORT` (default 3000). Use `package-lock.json` through `npm ci` to reproduce the dependency versions.
 
+Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts a temporary PostgreSQL database (discarded on Ctrl+C) and `next dev` at `http://127.0.0.1:4320` with the tenant settings from `demo/.env.auth0.local` (git-ignored, not loaded by `npm run dev`): `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, optionally `AUTH0_SECRET` and `AUTH_REQUIRE_MFA`. The Auth0 application needs `http://127.0.0.1:4320/auth/callback` as a callback URL and `http://127.0.0.1:4320/` as a logout URL. Stop other dev servers of the same checkout first. Checked on 2026-10-28 against Auth0's public `samples.auth0.com` with a dummy client: the account page offers sign-in, `/auth/login/` redirects there with `redirect_uri=http://127.0.0.1:4320/auth/callback` and scope `openid profile email`, the secret never appears in the output, and the temporary database is removed. A real sign-in needs the user's own tenant. `npm run dev:local-auth` stays the account-free option with a mock provider.
+
 ## Source guide
 
 | Path | Responsibility |
@@ -509,6 +511,7 @@ Before the user opens the Vercel project, the agent replaces `render.yaml` with 
    - Authentication: keep the Username-Password database connection; email verification emails are on by default. Optional: Google.
    - Optional now, required before real data: an MFA factor (Auth0 lists passkeys on the Free plan and its "Pro MFA factors" only on paid plans; confirm which factor sets the `mfa` amr value), then set `AUTH_REQUIRE_MFA=true` in Vercel.
    - Optional: Back-Channel Logout URI `https://<vercel-host>/auth/backchannel-logout`.
+   - For local tests with `npm run dev:auth0`, also add `http://127.0.0.1:4320/auth/callback` (callback) and `http://127.0.0.1:4320/` (logout).
    - In Vercel's project settings set `APP_BASE_URL` (`https://<vercel-host>`, no trailing slash), `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`, `AUTH0_SECRET` (a random value of at least 32 characters) and `AUTH_REQUIRE_MFA=false`. Never paste these values into chat or commits.
 4. **Later:** Resend for invitation emails, Sentry (EU region) for errors and alerts, Cloudflare DNS for the domain. Private storage (Supabase Storage or R2) only when uploads start.
 5. Sign each provider's DPA and keep copies; prepare Serbian Commissioner SCCs where a provider may process data outside the EU.
