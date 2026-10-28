@@ -224,7 +224,8 @@ p { line-height: 1.75; }
 .closing-section h2 { margin-block: 25px 29px; font-size: clamp(29px, 3.5vw, 44px); font-weight: 550; line-height: 1.25; }
 .closing-section p { color: #d7e3ff; font-size: 11px; margin-top: 18px; }
 .closing-orbit { position: absolute; z-index: -1; width: 690px; height: 420px; border: 1px solid #ffffff1f; border-radius: 50%; top: 30px; right: -340px; transform: rotate(-35deg); box-shadow: 0 0 0 48px #ffffff05, 0 0 0 96px #ffffff04, 0 0 0 144px #ffffff03; }
-.site-footer { padding-top: 43px; display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 30px; }
+/* The bottom padding keeps the last footer row clear of the fixed help button. */
+.site-footer { padding-top: 43px; padding-bottom: 80px; display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 30px; }
 .site-footer .brand { font-size: 22px; }
 .site-footer .brand svg { width: 28px; height: 28px; }
 .site-footer p { font-size: 11px; margin-top: 11px; color: #5c6d86; }

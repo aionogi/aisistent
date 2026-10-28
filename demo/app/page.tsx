@@ -24,6 +24,7 @@ import AssistantChannels from "../components/AssistantChannels";
 import Brand from "../components/Brand";
 import ConversationDemo from "../components/ConversationDemo";
 import DashboardPreview from "../components/DashboardPreview";
+import SupportChat from "../components/support/SupportChat";
 
 const questions = [
   {
@@ -197,6 +198,7 @@ export default function Home() {
         <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><Link href="/workspace/">Radni prostor</Link><a href="#questions">Pitanja</a><a href="/account/">Prijava</a></nav>
         <div className="footer-bottom"><span>© {new Date().getFullYear()} aisistent</span><span>Interaktivni prototip · Bez stvarnih poziva i naplate</span><a href="#main">Na vrh <ArrowDown size={13} aria-hidden="true" /></a></div>
       </footer>
+      <SupportChat />
     </>
   );
 }
