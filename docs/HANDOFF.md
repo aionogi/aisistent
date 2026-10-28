@@ -245,12 +245,28 @@ The app runs without any database or `.env`; database code activates only when `
 | `demo/db/migrations/0008_conversations.sql`, `demo/lib/db/conversations.ts` | Conversation records, retention, cleanup, export |
 | `demo/components/workspace/views/StoredConversationsView.tsx`, `.../(shell)/conversations/` | Stored conversations page and delete action |
 | `demo/components/account/SignOutEverywhereForm.tsx` | Sign-out-everywhere form that finishes at `/auth/logout` |
+| `demo/components/support/SupportChat.tsx`, `demo/lib/support/faq.ts` | Website help chat (landing page, bottom right) and its prepared answers; no AI or server calls until M4 |
 | `render.yaml` | Render Blueprint for the Frankfurt staging environment |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### Website help chat interface, without AI (M4 preview, 2026-10-28)
+
+Built at the user's request after checkpoint 15; M3 remains the current milestone.
+
+| Check | Evidence |
+| --- | --- |
+| Unit tests | `npm test`: **132/132** (6 new in `support-faq.test.ts`): every listed and suggested question gets its own answer; typed variants (case, diacritics, Cyrillic, word forms) reach the right topic; greetings and thanks get short replies and anything else admits there is no answer and links to the page FAQ; emails and phone- or card-like numbers (8+ digits) get the privacy reminder while times, dates and prices do not; no answer contains an amount; links stay on the site and the `#demo` / `#questions` anchors exist |
+| Browser, dev (1280 px) | Real clicks and typing: "Pomoć" opens the panel with focus in the field; "Koliko košta?" + Enter answers that prices are not published; an unrelated question gets the no-answer reply, a link to the page FAQ and the suggestions again; a phone number gets the privacy reminder; "Privatnost" expands the note; Escape closes and returns focus to "Pomoć" with the conversation kept; Enter reopens; "Novi razgovor" clears it; "Želim demo" answers with links to the simulation and the demo workspace |
+| In-page links | Following "Isprobajte simulaciju" from the panel first closed the panel without scrolling. The link now closes the panel, focuses the `#demo` section and scrolls to it (instant with reduced motion); verified by the call and by `scrollY` once the hidden pane drew frames. The pane often ran at 2 frames per second, so smooth-scroll checks there are unreliable |
+| Phone (390 px) | Bottom sheet 390 × 640 px, no horizontal overflow, the button hides while it is open and gets focus back on close, 16 px field text. At the page bottom the button covered "Na vrh" and the footer note; the footer now has 80 px bottom space (no overlap at 390 or 1280 px) |
+| Accessibility | The in-page audit with the panel open (messages, links, privacy note) found no issues: names, labels, ARIA references, hidden icons, heading order, contrast, target sizes. No screen reader test |
+| Production CSP | `npm run build` + `next start`: `style-src 'self' 'nonce-…'`, no violation while opening the panel, asking, and expanding the privacy note; no `style` attribute in the panel |
+| HTTP tests | `npm run test:e2e`: **21/21** |
+| Limits | Prepared answers only, no AI, no message delivery to the team (no contact channel exists yet), landing page only |
 
 ### M3 checkpoint 15 — knowledge import from a web page (2026-10-28)
 
@@ -522,6 +538,6 @@ Read `AGENTS.md`, `CLAUDE.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT
 
 ## Open decisions for later phases
 
-Planned in M4 since 2026-10-28: an AI support chat on the aisistent website for visitors' questions (acceptance criteria in [MILESTONES.md](MILESTONES.md#website-support-chat-requested-2026-10-28)); it needs the AI provider decision.
+Planned in M4 since 2026-10-28: an AI support chat on the aisistent website for visitors' questions (acceptance criteria in [MILESTONES.md](MILESTONES.md#website-support-chat-requested-2026-10-28)); it needs the AI provider decision. At the user's request its interface already exists without AI (see "Website help chat interface" in the verification record). Open user decision: a contact email or form the team receives for demo and contact requests; until then the chat says contacting the team through the site is not available.
 
 Production hosting, identity provider, database/storage, AI and telephony providers, retention/recovery targets, merchant approval, prices, currencies, and trial/grace policies remain open. Provider references in the architecture document are research candidates and need current verification when that phase begins.

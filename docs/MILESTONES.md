@@ -116,6 +116,8 @@ An AI support assistant on the public aisistent website that answers visitors' q
 - [ ] Prompt-injection and off-topic tests pass; the assistant reads only public product content and has no tools or customer data; logs exclude message content and personal data.
 - [ ] The widget calls a same-origin API under the existing CSP; no third-party chat script without approval.
 
+**Interface built early (2026-10-28, at the user's request), without AI:** the landing page has a "Pomoć" button at the bottom right that opens the panel described in the first item. Until an AI provider is chosen it answers only from prepared answers in `demo/lib/support/faq.ts` (keyword matching, Latin or Cyrillic), labels itself "Unapred napisani odgovori · nije AI", shows the privacy notice before the first message, sends nothing to a server and keeps nothing after the page closes, answers that prices are not public, and replies to contact details or card-like numbers with a privacy reminder. Keyboard use and the 390 px phone layout were checked in a browser; no screen reader test was done, so the first item stays open. The remaining items need the AI provider, a same-origin API, budgets, and a team contact (form or email) that does not exist yet; no item is complete.
+
 The landing page's "Chatbot za sajt — Uskoro" card announces a different, later channel: a chat that customers embed on their own websites. It may reuse this widget but is not part of this item.
 
 This phase may require a Node.js worker and queue. Add those processes when the workload needs them; a Python pipeline requires separate justification.
