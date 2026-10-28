@@ -60,7 +60,7 @@ Goal: support real organizations and data through the requested Next.js/Node.js 
 - [ ] Protect imports, uploads, secrets, logs, and private file access. *(Allowlisted operational logging and request limits implemented. Knowledge import reads CSV/text files in the browser only, with size, encoding, binary, length, duplicate and count checks, and the server revalidates every save. Ingress trust/provider logging, URL imports, uploads and private storage remain.)*
 - [ ] Establish migrations, backups, recovery tests, observability, and incident/rollback procedures. *(Migrations, bounded cleanup, [runbook](operations/RUNBOOK.md) and a passing isolated synthetic logical restore rehearsal implemented; scheduler, alert sink, managed backups/PITR and deployed restore drills remain.)*
 - [ ] Test unauthorized access and cross-tenant operations against the actual data access paths. *(Latest evidence: 71 unit/database tests at checkpoint 5 and 13 HTTP tests after the invitation follow-up; includes workspace MFA denial, removed-member denial, concurrent ownership changes, request limits and current-session email verification for invitations. Deployed-provider and future-feature coverage remains.)*
-- [ ] Record the applicable security evidence and unresolved risks.
+- [ ] Record the applicable security evidence and unresolved risks. *(Local evidence and a risk register with owners are in [m3-evidence.md](security/m3-evidence.md) since checkpoint 14; deployed evidence is still missing.)*
 
 The detailed baseline is [security-and-billing.md](architecture/security-and-billing.md). Its requirements are proposed controls, not controls already present in M1.
 
@@ -81,6 +81,8 @@ Checkpoint 11 removes `'unsafe-inline'` from the production style policy (fixed 
 Checkpoint 12 is an accessibility pass over all public and signed-in pages at desktop and phone widths: decorative icons hidden from screen readers, ARIA references fixed, four low-contrast texts darkened, and heading order corrected, with a test that keeps icons hidden. No screen reader test was done. 99 unit/database and 18 HTTP tests pass locally.
 
 Checkpoint 13 adds durable conversation records: transcripts per organization under RLS, deletion by owners and admins, a retention period owners choose (default 90 days) with cleanup, and inclusion in export and organization deletion. The web runtime cannot create records; M4's ingestion will. 108 unit/database, 20 HTTP and 6 recovery tests pass locally.
+
+Checkpoint 14 stores the application database password only as a SCRAM verifier and records the M3 security evidence and risk register. 111 unit/database, 20 HTTP and 6 recovery tests pass locally.
 
 CI follow-up: the inactive workflow template now installs PostgreSQL 17 client tools and requires the recovery rehearsal. Static/script-syntax validation is recorded in [CI setup](ci/README.md); workflow activation and a successful GitHub run remain pending. This does not close M3.
 

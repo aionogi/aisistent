@@ -4,6 +4,8 @@ Status: implemented local safeguards and a passing synthetic logical restore reh
 
 ## Release and configuration
 
+`npm run db:migrate` sets the `aisistent_app` password as a SCRAM-SHA-256 verifier, so statement logs never contain it. `DATABASE_APP_PASSWORD` must be at least 32 printable ASCII characters without spaces (a generated random value). The current risk register is [m3-evidence.md](../security/m3-evidence.md).
+
 Use Node.js 24 and PostgreSQL 17. Run from `demo/`: `npm ci`, `npm run typecheck`, `npm test`, `npm run test:e2e`, `npm run build`. Stop this project's development server before the HTTP suite; it starts its own disposable database, mock identity provider and Next server. Tests use example identities only.
 
 Before staging receives traffic:
