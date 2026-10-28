@@ -633,3 +633,45 @@ test("owners change the conversation retention through the native form; admins c
   assert.match(refused.body, /Rok čuvanja menja vlasnik firme/);
   assert.equal(await retention(), 30);
 });
+
+test("only editors make the server read a web page, and internal addresses are refused before any request", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const organizationId = await createOrganization(stack.db.appPool, await userIdFor("mock|ana"), "URL import regression");
+  const path = `/org/${organizationId}/knowledge/`;
+  assert.match((await owner.get(path)).body, /Uvezi odgovore/);
+  const actionId = await compiledActionId("importKnowledgeFromUrlAction");
+  const importPage = (browser: Browser, url: string) => fetch(`${stack.appUrl}${path}`, {
+    method: "POST", redirect: "manual",
+    headers: { origin: stack.appUrl, "next-action": actionId, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...browser.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+    body: JSON.stringify([organizationId, url]),
+  }).then((response) => response.text());
+
+  for (const url of ["http://127.0.0.1/", "http://169.254.169.254/latest/meta-data/", "http://[::1]/", "http://localhost/", "http://2130706433/", "http://10.0.0.1/admin"]) {
+    assert.match(await importPage(owner, url), /privatnu ili internu mrežu/, url);
+  }
+  assert.match(await importPage(owner, `${stack.appUrl}/api/health/`), /bez posebnog porta/, "the app itself on its own port is refused");
+  assert.match(await importPage(owner, "file:///etc/passwd"), /http:\/\/ ili https:\/\//);
+
+  const member = new Browser();
+  await member.get("/auth/login?returnTo=/account/&login_hint=import-member@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, await userIdFor("mock|import-member")]);
+  assert.doesNotMatch((await member.get(path)).body, /Uvezi odgovore|Uvezi iz fajla/);
+  assert.match(await importPage(member, "https://example.com/"), /"status":"forbidden"/);
+
+  stack.user.mfa = false;
+  try {
+    const withoutMfa = new Browser();
+    await withoutMfa.get("/auth/login?returnTo=/account/");
+    assert.match(await importPage(withoutMfa, "https://example.com/"), /"status":"forbidden"/);
+  } finally {
+    stack.user.mfa = true;
+  }
+  const otherOrganization = await createOrganization(stack.db.appPool, await userIdFor("mock|import-member"), "Someone else's organization");
+  const foreign = await fetch(`${stack.appUrl}${path}`, {
+    method: "POST", redirect: "manual",
+    headers: { origin: stack.appUrl, "next-action": actionId, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...owner.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+    body: JSON.stringify([otherOrganization, "https://example.com/"]),
+  }).then((response) => response.text());
+  assert.match(foreign, /"status":"forbidden"/, "an organization the user does not belong to is refused");
+});

@@ -50,14 +50,24 @@ export function decodeImportFile(bytes: Uint8Array): DecodedFile {
 
 // Line breaks become \n; other control characters are removed.
 const normalizeText = (text: string) => text.replace(/^﻿/, "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "");
-const cleanField = (value: string) => value.replace(/\s+/g, " ").trim();
+export const cleanField = (value: string) => value.replace(/\s+/g, " ").trim();
 
-/** Comparison key: case, spacing and trailing punctuation do not make a question new. */
+const TRAILING = /[\s?!.:;,]/u;
+
+/**
+ * Comparison key: case, spacing and trailing punctuation do not make a question new.
+ * Trailing characters are trimmed in a loop: the equivalent `/[…]+$/` regex takes
+ * quadratic time on long punctuation runs, which web pages could supply.
+ */
 export function questionKey(question: string): string {
-  return cleanField(question).toLocaleLowerCase("sr-Latn").replace(/[\s?!.:;,]+$/u, "");
+  const key = cleanField(question).toLocaleLowerCase("sr-Latn");
+  let end = key.length;
+  while (end > 0 && TRAILING.test(key[end - 1])) end--;
+  return key.slice(0, end);
 }
 
-type RawRecord = { line: number; question: string; answer: string };
+/** One candidate before checks; `line` is the file line or, for a web page, the item's position. */
+export type RawRecord = { line: number; question: string; answer: string };
 
 function detectDelimiter(text: string): string {
   const firstLine = text.split("\n").find((line) => line.trim()) ?? "";
@@ -147,20 +157,25 @@ function chooseFormat(fileName: string, text: string): ImportFormat {
   return lines.length > 0 && lines.filter((line) => line.includes("\t")).length * 2 > lines.length ? "csv" : "text";
 }
 
+/** The records of a CSV or text file, before any checks. */
+export function readRecords(rawText: string, fileName: string): { format: ImportFormat; records: RawRecord[] } {
+  const text = normalizeText(rawText);
+  const format = chooseFormat(fileName, text);
+  return { format, records: format === "csv" ? csvRecords(text) : textRecords(text) };
+}
+
 /**
- * Accepted entries in file order, and every row that was left out with its
+ * Accepted entries in order, and every record that was left out with its
  * reason. `existingQuestions` and `capacity` come from the current draft, so
  * duplicates and the overall limit are reported here rather than at save time.
  */
-export function parseKnowledgeImport(rawText: string, options: { fileName: string; existingQuestions: string[]; capacity?: number }): ImportResult {
-  const text = normalizeText(rawText);
-  const format = chooseFormat(options.fileName, text);
+export function acceptRecords(records: RawRecord[], options: { existingQuestions: string[]; capacity?: number }): Pick<ImportResult, "entries" | "skipped"> {
   const capacity = Math.max(0, options.capacity ?? MAX_KNOWLEDGE_ENTRIES);
   const seen = new Set(options.existingQuestions.map(questionKey));
   const entries: ImportedEntry[] = [];
   const skipped: SkippedEntry[] = [];
 
-  for (const record of format === "csv" ? csvRecords(text) : textRecords(text)) {
+  for (const record of records) {
     const question = cleanField(record.question);
     const answer = cleanField(record.answer);
     const skip = (reason: SkipReason) => skipped.push({ line: record.line, question: question.slice(0, 80), reason });
@@ -175,5 +190,21 @@ export function parseKnowledgeImport(rawText: string, options: { fileName: strin
       entries.push({ question, answer });
     }
   }
-  return { format, entries, skipped };
+  return { entries, skipped };
 }
+
+export function parseKnowledgeImport(rawText: string, options: { fileName: string; existingQuestions: string[]; capacity?: number }): ImportResult {
+  const { format, records } = readRecords(rawText, options.fileName);
+  return { format, ...acceptRecords(records, options) };
+}
+
+/**
+ * What the server returns for a web page import. The records are only
+ * suggestions: the person reviews them, and saving validates them again.
+ */
+export type UrlImportResult =
+  | { status: "ok"; source: string; title: string | null; records: RawRecord[] }
+  | { status: "invalid"; message: string }
+  | { status: "forbidden" }
+  | { status: "signed-out" }
+  | { status: "error" };

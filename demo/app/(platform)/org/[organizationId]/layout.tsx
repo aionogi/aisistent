@@ -8,7 +8,7 @@ import { canManage, ForbiddenError, withOrganization } from "../../../../lib/db/
 import { getPool } from "../../../../lib/db/pool.ts";
 import { getAssistantConfig, getOrganizationName, listKnowledge } from "../../../../lib/db/repositories.ts";
 import { draftFromStored } from "../../../../lib/workspace/persistence.ts";
-import { saveWorkspaceAction } from "./actions.ts";
+import { importKnowledgeFromUrlAction, saveWorkspaceAction } from "./actions.ts";
 
 export const metadata: Metadata = { title: "Radni prostor firme — aisistent" };
 
@@ -51,6 +51,7 @@ export default async function OrganizationLayout({ children, params }: LayoutPro
     organizationName: loaded.name ?? undefined,
     role: loaded.role,
     stepUpPath: canManage(loaded.role) && mfaRequired() && !account.mfa ? mfaStepUpPath(`/org/${organizationId}/`) : undefined,
+    importFromUrl: importKnowledgeFromUrlAction.bind(null, organizationId),
   };
 
   return (

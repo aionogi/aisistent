@@ -196,7 +196,7 @@
 /* Knowledge import panel (inside .knowledgeForm) */
 .importHint { font-size: 13px; line-height: 1.6; color: var(--muted); }
 .importFormats { font-size: 13px; line-height: 1.6; color: var(--muted); }
-.importFormats summary { cursor: pointer; color: var(--blue-dark); font-weight: 650; }
+.importFormats summary { padding: 2px 0; cursor: pointer; color: var(--blue-dark); font-weight: 650; }
 .importFormats > p { margin: 10px 0 6px; }
 .importFormats pre { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .fileField { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -206,12 +206,18 @@
 .fileName { font-size: 13px; color: var(--secondary-text); overflow-wrap: anywhere; min-width: 0; }
 .importSummary { display: grid; gap: 4px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .importSummary:empty { display: none; }
-.importPreview { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
+.importSource { justify-self: start; max-width: 100%; flex-wrap: wrap; }
+.importUrl { display: grid; gap: 14px; }
+.importChoices { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.importToggle { justify-self: start; min-height: 24px; padding: 2px 0; border: 0; background: none; color: var(--blue-dark); font-size: 13px; font-weight: 650; cursor: pointer; }
+.importToggle:hover { text-decoration: underline; }
+.importPreview { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .importPreview li { display: grid; gap: 2px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .importPreview li:last-child { border-bottom: 0; }
-.importPreview strong { font-weight: 650; }
-.importPreview span { color: var(--muted); }
-.importPreview .importMore { color: var(--secondary-text); }
+.importChoice { grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; }
+.importChoice input { grid-row: span 2; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--blue); }
+.importChoice label { font-weight: 650; cursor: pointer; }
+.importChoice span { grid-column: 2; color: var(--muted); }
 .importSkipped { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .knowledgeText { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .knowledgeText strong { font-size: 14px; font-weight: 650; overflow-wrap: anywhere; }

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { MemberRole } from "../../lib/db/context.ts";
+import type { UrlImportResult } from "../../lib/workspace/knowledge-import.ts";
 
 /**
  * Where the shared workspace screens are running:
@@ -18,6 +19,8 @@ export type WorkspaceEnvironment = {
   role?: MemberRole;
   /** Set by the server when this privileged session needs MFA before editing. */
   stepUpPath?: string;
+  /** Server Action that reads a public web page for the knowledge import; organizations only. */
+  importFromUrl?: (url: string) => Promise<UrlImportResult>;
 };
 
 export const DEMO_ENVIRONMENT: WorkspaceEnvironment = { mode: "demo", basePath: "/workspace", onboardingBasePath: "/onboarding" };

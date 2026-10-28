@@ -19,7 +19,9 @@ type Editor = { mode: "add" } | { mode: "edit"; id: string };
 
 export default function KnowledgeView() {
   const { draft, updateDraft, readOnly } = useDraft();
-  const isDemo = useWorkspaceEnvironment().mode === "demo";
+  const environment = useWorkspaceEnvironment();
+  const isDemo = environment.mode === "demo";
+  const importLabel = environment.importFromUrl ? "Uvezi odgovore" : "Uvezi iz fajla";
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [question, setQuestion] = useState("");
@@ -123,7 +125,7 @@ export default function KnowledgeView() {
         badge={isDemo ? "Primer podataka" : "Podaci firme"}
         description={isDemo ? "Česta pitanja i odgovori koje asistent koristi u primerima razgovora. Čuvaju se samo u ovom nacrtu." : "Česta pitanja i odgovori vaše firme. Izmene se čuvaju automatski."}
         actions={readOnly ? undefined : <>
-          <button ref={importButtonRef} type="button" className={styles.secondaryAction} onClick={openImport} disabled={importing}><FileUp size={15} aria-hidden="true" />Uvezi iz fajla</button>
+          <button ref={importButtonRef} type="button" className={styles.secondaryAction} onClick={openImport} disabled={importing}><FileUp size={15} aria-hidden="true" />{importLabel}</button>
           <button ref={addButtonRef} type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })} disabled={editor?.mode === "add"}><Plus size={15} aria-hidden="true" />Dodaj odgovor</button>
         </>}
       />
@@ -135,6 +137,7 @@ export default function KnowledgeView() {
           capacity={MAX_KNOWLEDGE_ENTRIES - draft.knowledge.length}
           onImport={importEntries}
           onCancel={closeImport}
+          importFromUrl={environment.importFromUrl}
         />
       )}
 
@@ -144,7 +147,7 @@ export default function KnowledgeView() {
         !editor && !importing && (
           <EmptyState icon={BookOpen} title="Baza znanja je prazna" actions={readOnly ? undefined : <>
             <button type="button" className={styles.primaryAction} onClick={() => openEditor({ mode: "add" })}><Plus size={15} aria-hidden="true" />Dodaj prvi odgovor</button>
-            <button type="button" className={styles.secondaryAction} onClick={openImport}><FileUp size={15} aria-hidden="true" />Uvezi iz fajla</button>
+            <button type="button" className={styles.secondaryAction} onClick={openImport}><FileUp size={15} aria-hidden="true" />{importLabel}</button>
             {templateAvailable && <button type="button" className={styles.secondaryAction} onClick={restoreExamples}>Vrati primere za delatnost</button>}
           </>}>
             Bez odgovora asistent postupa prema pravilu za nepoznata pitanja. Dodajte pitanja koja klijenti najčešće postavljaju.
