@@ -34,7 +34,7 @@ An interactive frontend prototype is implemented in `demo/`: a landing page with
 
 ## Current Delivery Scope
 
-The user explicitly requested a website demo first, deferring monthly recurring billing and pricing. The public demo uses local browser state and scripted or rule-assembled conversations, without card collection or paid services. M1 (website demo) and M2 (app shell and onboarding UI) are complete. M3 is in progress: separate organization routes have server-side identity/storage, team management, organization export/leave/delete, knowledge import from files, a session list with sign-out on all devices, locally tested operational safeguards and a synthetic logical backup/restore rehearsal. Hosting and identity choices remain provisional; there is no production deployment or production recovery evidence. The original production security requirements still apply before a future paid launch.
+The user explicitly requested a website demo first, deferring monthly recurring billing and pricing. The public demo uses local browser state and scripted or rule-assembled conversations, without card collection or paid services. M1 (website demo) and M2 (app shell and onboarding UI) are complete. M3 is in progress: separate organization routes have server-side identity/storage, team management, organization export/leave/delete, knowledge import from files and public web pages, a session list with sign-out on all devices, locally tested operational safeguards and a synthetic logical backup/restore rehearsal. Hosting and identity choices remain provisional; there is no production deployment or production recovery evidence. The original production security requirements still apply before a future paid launch.
 
 ## Open Decisions
 

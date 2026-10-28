@@ -34,8 +34,14 @@ The PostgreSQL limiter atomically admits a bounded number of requests per fixed 
 | Workspace saves | 90 / minute | Verified server-resolved account |
 | Team changes | 30 / minute | Verified server-resolved account |
 | Invitation acceptance | 20 / minute | Verified server-resolved account |
+| Organization export | 10 / hour | Verified server-resolved account |
+| Organization deletion | 10 / hour | Verified server-resolved account |
+| Sign-out on all devices | 10 / hour | Verified server-resolved account |
+| Knowledge import from a web page | 20 / hour | Verified server-resolved account |
 
 User budgets span organizations and sessions. Callbacks and logout have separate budgets so a login burst does not consume their quota. Proxy rejection returns 429 and `Retry-After`, `Cache-Control: no-store`, and a server-generated `x-request-id`. Limiter failures return 503 with a 30-second retry instruction. Action-level rejections use the existing Serbian form/save error UI; they perform no write. Unsaved editor changes remain in browser memory; after waiting, editing again triggers another save.
+
+URL knowledge imports make outbound GET requests from the web service: standard ports only, public addresses only (checked when connecting), at most 10 s and 2 MB per import, no cookies or credentials, and the address is never logged. When hosting is chosen, allow outbound 80/443 and block private ranges and metadata addresses at the network level as a second layer (risk R16). A spike of `knowledge.import` outcomes `denied` can mean someone is probing internal addresses; check the request IDs and the user's activity.
 
 These are staging defaults, not measured production capacity. Set ingress connection/body limits and DDoS controls when hosting is chosen: a database limiter alone cannot protect network or connection saturation. Unauthenticated GET pages and `/api/health/` are not globally throttled. Future APIs, downloads, uploads and integrations need their own budgets. Observe legitimate shared-IP usage before tuning limits in `lib/operations/rate-limits.ts`.
 
