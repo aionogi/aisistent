@@ -13,7 +13,8 @@ import { createEmptyDraft } from "../../lib/workspace/templates.ts";
 // and database, with a mock OpenID Connect provider standing in for Auth0.
 
 let stack: LocalAuthStack;
-before(async () => { stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true }); }, { timeout: 180_000 });
+const CRON_SECRET = "test-only-cron-secret-0123456789abcdef";
+before(async () => { stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET }); }, { timeout: 180_000 });
 after(async () => { await stack?.stop(); });
 beforeEach(async () => {
   await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
@@ -674,4 +675,21 @@ test("only editors make the server read a web page, and internal addresses are r
     body: JSON.stringify([otherOrganization, "https://example.com/"]),
   }).then((response) => response.text());
   assert.match(foreign, /"status":"forbidden"/, "an organization the user does not belong to is refused");
+});
+
+test("the daily cleanup route runs only with the cron secret and reports counts only", async () => {
+  const cleanup = (authorization?: string) => fetch(`${stack.appUrl}/api/cron/cleanup/`, { headers: authorization ? { authorization } : {}, redirect: "manual" });
+  for (const authorization of [undefined, "Bearer wrong-secret", `Bearer ${CRON_SECRET}x`, CRON_SECRET, `bearer ${CRON_SECRET}`]) {
+    const refused = await cleanup(authorization);
+    assert.equal(refused.status, 401, String(authorization));
+    assert.match(refused.headers.get("cache-control") ?? "", /no-store/);
+  }
+  await stack.db.admin.query("INSERT INTO app.rate_limit_buckets VALUES (decode(md5('expired-bucket') || md5('expired-bucket-2'), 'hex'), 1, now() - interval '1 hour')");
+  const accepted = await cleanup(`Bearer ${CRON_SECRET}`);
+  assert.equal(accepted.status, 200);
+  const body = await accepted.json() as Record<string, unknown>;
+  assert.equal(body.result, "success");
+  assert.deepEqual(Object.keys(body).sort(), ["conversations", "invitations", "passes", "rateLimits", "reachedPassLimit", "result", "sessions"]);
+  assert.ok((body.rateLimits as number) >= 1);
+  assert.equal((await stack.db.admin.query("SELECT 1 FROM app.rate_limit_buckets WHERE expires_at < now()")).rowCount, 0);
 });

@@ -24,8 +24,8 @@ Keep provider-specific code in these places so a switch stays small:
 
 | Provider | Where it is used | Portable part |
 | --- | --- | --- |
-| Render (superseded by Vercel) | `render.yaml`, to be replaced by Vercel configuration; `DATABASE_ADMIN_URL`/`DATABASE_APP_PASSWORD` naming in `demo/lib/db/config.ts` | Any Node.js host running `npm run build`, `npm run db:migrate`, `npm run start` |
-| Render Postgres / Supabase | Nothing provider-specific yet; Supabase needs the pooler and timeout settings above | Standard PostgreSQL 17 with roles, RLS, and SECURITY DEFINER functions |
+| Vercel | `demo/vercel.json` (region, cron), `demo/app/api/cron/cleanup/route.ts` (`CRON_SECRET`) | Any Node.js host running `npm run build`, `npm run start`, and `npm run ops:cleanup` on a schedule |
+| Supabase | Connection strings and `DATABASE_CA_CERT` only (`connectionOptions` in `demo/lib/db/config.ts`); timeouts are role settings set by `ensureAppLogin` | Standard PostgreSQL 17 with roles, RLS, and SECURITY DEFINER functions |
 | Auth0 | `demo/lib/auth/auth0.ts`, the `/auth/*` routes mounted in `demo/proxy.ts`, `AUTH0_*` variables | Any OpenID Connect provider; `lib/auth/account.ts`, the session table, and authorization stay the same |
 | Cloudflare R2 | Not used yet | S3-compatible API |
 Researched: 2026-10-21. Merchant: company based in Serbia.

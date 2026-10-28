@@ -2,6 +2,58 @@
 
 Status: implemented local safeguards and a passing synthetic logical restore rehearsal. No production deployment, scheduler, alert destination, managed backup or deployed restore drill has been configured. Hosting and identity remain provisional. This document is an executable checklist for the eventual staging operator, not evidence of production readiness.
 
+## Vercel and Supabase setup
+
+The platform decision (2026-10-28) is Vercel for the app and Supabase PostgreSQL in Frankfurt as the database. The repository contains the configuration (`demo/vercel.json`: functions in `fra1`, a daily cleanup cron); the user opens the accounts and enters every secret. Never paste secrets into chat, commits or screenshots.
+
+### Supabase project
+
+1. Region **Central EU (Frankfurt)**, Data API **off**, "Automatically expose new tables" **off**, automatic RLS **off** (the migrations enable RLS themselves), Postgres (not OrioleDB). Under Database settings turn on **Enforce SSL**.
+2. Download the project's **CA certificate** (Database settings, SSL configuration). Its PEM text is `DATABASE_CA_CERT`. With it every connection uses TLS and verifies the server; TLS options in a connection URL are ignored, so they cannot weaken this.
+3. From the **Connect** dialog copy two connection strings into a password manager:
+   - **Session pooler** (port 5432, user `postgres.<project-ref>`): `DATABASE_ADMIN_URL`, for migrations only. The migrator needs a session (advisory lock, `CREATE ROLE`), so do not use the transaction pooler for it. URL-encode special characters in the password.
+   - **Transaction pooler** (port 6543): the app's `DATABASE_URL`, after replacing the user `postgres.<project-ref>` with **`aisistent_app.<project-ref>`** and the password with `DATABASE_APP_PASSWORD`. The project ref suffix is required on the shared pooler; without it Supabase answers "Tenant or user not found".
+4. Generate `DATABASE_APP_PASSWORD` (32+ printable ASCII characters, no spaces), for example: `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. Generate `RATE_LIMIT_SECRET`, `CRON_SECRET` and `AUTH0_SECRET` the same way, each separately.
+
+### Migrations (from a trusted computer, never in the Vercel build)
+
+PowerShell, from `demo/` in an up-to-date checkout:
+
+```powershell
+$env:DATABASE_ADMIN_URL = "<session pooler URL>"
+$env:DATABASE_APP_PASSWORD = "<generated app password>"
+$env:DATABASE_CA_CERT = Get-Content -Raw "<path to the downloaded CA certificate>"
+npm run db:migrate
+```
+
+Expected output: the applied migrations and "Application database login is up to date." Then close the terminal so the owner URL does not stay in its environment. Rerun the same command before deploying any commit that adds a migration. The command also sets `statement_timeout = 10s` and `idle_in_transaction_session_timeout = 30s` on `aisistent_app`; they are role settings because the transaction pooler drops connection options.
+
+### Vercel project
+
+Import the GitHub repository with **Root Directory `demo`** (Next.js preset, default build and install commands), Node.js 24. Set these variables for the **Production** environment only; preview deployments have other addresses and stay demo-only without them:
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | Transaction pooler URL with `aisistent_app.<project-ref>` and the app password |
+| `DATABASE_CA_CERT` | The Supabase CA certificate (PEM text) |
+| `DATABASE_POOL_MAX` | `3` (each function instance has its own pool; Supavisor shares the database connections) |
+| `RATE_LIMIT_SECRET` | Generated, 32+ characters |
+| `RATE_LIMIT_IP_HEADER` | `x-forwarded-for` (Vercel overwrites it with the client address to prevent spoofing; a value that is not a single address falls back to the shared budget) |
+| `CRON_SECRET` | Generated, 32+ characters; Vercel sends it to the cleanup route |
+| `APP_BASE_URL` | `https://<project>.vercel.app` (the production address, no trailing slash) |
+| `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` | From the Auth0 application |
+| `AUTH0_SECRET` | Generated, 32+ characters |
+| `AUTH_REQUIRE_MFA` | `false` until the tenant has an MFA factor |
+
+Never set `DATABASE_ADMIN_URL` or `DATABASE_APP_PASSWORD` in Vercel. After saving the variables, **redeploy** (variables apply to new deployments only). In the Auth0 application add `https://<project>.vercel.app/auth/callback` (callback) and `https://<project>.vercel.app/` (logout).
+
+### Checks after the deploy
+
+1. `/api/health/` returns `{"status":"ok"}`; `/account/` shows "Prijava".
+2. Sign up, confirm the email, create an organization, add a knowledge entry, reload: it is still there.
+3. Vercel → Settings → Cron Jobs → run `/api/cron/cleanup/` once; the logs show `{"event":"operations.cleanup","result":"success",…}`. Without `CRON_SECRET` the route answers 503, with a wrong one 401.
+4. Supabase → Database → roles: `aisistent_app` exists, is not a superuser and has no BYPASSRLS.
+
 ## Release and configuration
 
 `npm run db:migrate` sets the `aisistent_app` password as a SCRAM-SHA-256 verifier, so statement logs never contain it. `DATABASE_APP_PASSWORD` must be at least 32 printable ASCII characters without spaces (a generated random value). The current risk register is [m3-evidence.md](../security/m3-evidence.md).
@@ -11,9 +63,9 @@ Use Node.js 24 and PostgreSQL 17. Run from `demo/`: `npm ci`, `npm run typecheck
 Before staging receives traffic:
 
 1. Record the release commit and a verified database backup. Apply migrations with `npm run db:migrate` using a separate migration identity where possible. Migrations are ordered, checksum checked and transactional. Never edit an already applied SQL file.
-2. Supply a restricted `DATABASE_URL` for `aisistent_app` to the web service. The current provisional Render template also supports deriving it from `DATABASE_ADMIN_URL` and `DATABASE_APP_PASSWORD`; remove the admin credential from the web process when a separate migration job is available.
+2. Supply a restricted `DATABASE_URL` for `aisistent_app` to the web service, never the owner URL (on Vercel and Supabase: see "Vercel and Supabase setup" above). `appConnectionString` can still derive the URL from `DATABASE_ADMIN_URL` and `DATABASE_APP_PASSWORD` for hosts that need it, but that puts the owner credential into the web process; do not use it on Vercel.
 3. Set `RATE_LIMIT_SECRET` to an independently generated random secret of at least 32 characters, identical across all replicas. Keep it in the deployment secret store, separate from `AUTH0_SECRET`. Missing/short secrets or an unavailable limiter return 503 for protected requests. Do not disable this behavior to resolve an incident.
-4. Leave `RATE_LIMIT_IP_HEADER` unset until the selected ingress is verified to **overwrite** that header with a single canonical IP and direct access to the origin is blocked. The implementation does not trust `X-Forwarded-For` by default or parse chains. Missing/invalid addresses use one shared `unknown-client` budget. This protects against spoofing but can throttle unrelated visitors, so ingress verification is a staging gate.
+4. Leave `RATE_LIMIT_IP_HEADER` unset until the selected ingress is verified to **overwrite** that header with a single canonical IP and direct access to the origin is blocked. On Vercel use `x-forwarded-for`, which Vercel documents as overwritten to prevent spoofing; keep Cloudflare in DNS-only mode so no second proxy changes it. The implementation does not trust `X-Forwarded-For` by default or parse chains. Missing/invalid addresses use one shared `unknown-client` budget. This protects against spoofing but can throttle unrelated visitors, so ingress verification is a staging gate.
 5. Configure the identity callback/logout addresses and require privileged-account MFA before real data. `AUTH_REQUIRE_MFA=true` gates organization creation, team changes and workspace writes. Check fresh MFA and non-MFA sessions against actual HTTP operations.
 6. Configure cleanup and alerts below. Confirm `/api/health/` responds, then test sign-in, organization save, invite/accept, role change and removed-member denial. Health is liveness only; it does not prove database or identity availability.
 
@@ -47,9 +99,9 @@ These are staging defaults, not measured production capacity. Set ingress connec
 
 ## Cleanup job
 
-Run `npm run ops:cleanup` from `demo/` with **only the restricted `DATABASE_URL`**. The command refuses an owner, superuser, BYPASSRLS or owner-role-member connection. No HTTP cleanup endpoint or shared web cron token exists.
+On Vercel, `demo/vercel.json` calls `/api/cron/cleanup/` daily at 03:15 UTC (Hobby runs cron jobs at most once a day, within the hour). The route runs only with `Authorization: Bearer <CRON_SECRET>` (Vercel adds it when `CRON_SECRET` is set; 503 without a configured secret, 401 otherwise) and returns counts only. Daily is enough at the current scale: expired sessions and invitations are already refused when read; cleanup only removes them. Move to a shorter interval with a paid plan if tables grow.
 
-Once hosting is approved, configure its private scheduler every 15 minutes with this command, a five-minute process deadline, the same database network rules, and failure alerts. An equivalent cron entry on an approved Node host is:
+Elsewhere, run `npm run ops:cleanup` from `demo/` with **only the restricted `DATABASE_URL`** (plus `DATABASE_CA_CERT` for Supabase). Both paths use `lib/operations/cleanup.ts`, which refuses an owner, superuser, BYPASSRLS or owner-role-member connection. A cron entry on a Node host could be:
 
 ```cron
 */15 * * * * cd /srv/aisistent/demo && npm run ops:cleanup

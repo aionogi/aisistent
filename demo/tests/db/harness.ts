@@ -67,8 +67,13 @@ function run(command: string, args: string[]): Promise<void> {
   });
 }
 
+// Generous because `npm test` starts one server per test file at the same time;
+// on a busy machine ten parallel startups can take longer than 10 seconds.
+const SERVER_START_TIMEOUT_MS = 60_000;
+
 async function waitForServer(config: pg.ClientConfig, server: ChildProcess): Promise<void> {
-  for (let attempt = 0; attempt < 100; attempt++) {
+  const deadline = Date.now() + SERVER_START_TIMEOUT_MS;
+  while (Date.now() < deadline) {
     if (server.exitCode !== null) throw new Error(`postgres exited early with code ${server.exitCode}`);
     const client = new pg.Client(config);
     try {
@@ -79,7 +84,7 @@ async function waitForServer(config: pg.ClientConfig, server: ChildProcess): Pro
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
-  throw new Error("PostgreSQL did not start within 10 seconds.");
+  throw new Error(`PostgreSQL did not start within ${SERVER_START_TIMEOUT_MS / 1000} seconds.`);
 }
 
 /**

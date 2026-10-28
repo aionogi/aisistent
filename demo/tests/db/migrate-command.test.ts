@@ -16,8 +16,8 @@ let db: TestDatabase;
 before(async () => { db = await startTestDatabase({ migrate: false }); });
 after(async () => { await db?.stop(); });
 
-// Mirrors Render: preDeployCommand `npm run db:migrate` with DATABASE_ADMIN_URL
-// and DATABASE_APP_PASSWORD, then the web server derives its own connection.
+// `npm run db:migrate` with DATABASE_ADMIN_URL and DATABASE_APP_PASSWORD, as run
+// before a deploy; the web server then connects as the restricted login.
 test("the deploy migration command prepares a working restricted login", async () => {
   const env = { ...process.env, DATABASE_ADMIN_URL: db.adminUrl, DATABASE_APP_PASSWORD: APP_PASSWORD, DATABASE_URL: "" };
   const first = await run(process.execPath, ["scripts/db/migrate.ts"], { cwd: projectDir, env });
@@ -36,6 +36,9 @@ test("the deploy migration command prepares a working restricted login", async (
   try {
     const { rows } = await client.query("SELECT current_user AS name");
     assert.equal(rows[0].name, "aisistent_app");
+    // Role settings, so they hold through a transaction pooler that drops connection options.
+    assert.equal((await client.query("SHOW statement_timeout")).rows[0].statement_timeout, "10s");
+    assert.equal((await client.query("SHOW idle_in_transaction_session_timeout")).rows[0].idle_in_transaction_session_timeout, "30s");
   } finally {
     await client.end();
   }

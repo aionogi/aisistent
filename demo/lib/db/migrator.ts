@@ -79,9 +79,17 @@ export function scramVerifier(password: string, salt: Buffer = randomBytes(16), 
 }
 
 /**
- * Ensures the application's login role exists with the given password and only
- * the runtime role's privileges. It is not a member of the owner role, so a
- * compromised application connection cannot switch to owner rights.
+ * Limits for every session of the application login. They are role settings,
+ * not connection options, so they also apply through a transaction pooler
+ * (Supabase's Supavisor), which does not pass connection options on.
+ */
+export const APP_LOGIN_SETTINGS = { statement_timeout: "10s", idle_in_transaction_session_timeout: "30s" } as const;
+
+/**
+ * Ensures the application's login role exists with the given password, only
+ * the runtime role's privileges, and APP_LOGIN_SETTINGS. It is not a member of
+ * the owner role, so a compromised application connection cannot switch to
+ * owner rights.
  */
 export async function ensureAppLogin(client: Pick<Client, "query" | "escapeLiteral">, password: string): Promise<void> {
   if (password.length < 32) throw new Error("The application database password must be at least 32 characters.");
@@ -92,5 +100,8 @@ export async function ensureAppLogin(client: Pick<Client, "query" | "escapeLiter
   } else {
     await client.query(`ALTER ROLE ${APP_LOGIN_ROLE} WITH LOGIN PASSWORD ${literal}`);
     await client.query(`GRANT ${RUNTIME_ROLE} TO ${APP_LOGIN_ROLE}`);
+  }
+  for (const [setting, value] of Object.entries(APP_LOGIN_SETTINGS)) {
+    await client.query(`ALTER ROLE ${APP_LOGIN_ROLE} SET ${setting} = ${client.escapeLiteral(value)}`);
   }
 }

@@ -27,3 +27,34 @@ export function adminConnectionString(env: Env = process.env): string {
   if (!env.DATABASE_ADMIN_URL) throw new Error("DATABASE_ADMIN_URL is required to run migrations.");
   return env.DATABASE_ADMIN_URL;
 }
+
+export type ConnectionOptions = { connectionString: string; ssl?: { ca: string; rejectUnauthorized: true } };
+
+const URL_TLS_PARAMETERS = ["sslmode", "ssl", "sslrootcert", "sslcert", "sslkey", "uselibpqcompat"];
+
+/**
+ * Connection options for a remote database such as Supabase. With
+ * DATABASE_CA_CERT (the provider's CA certificate as PEM; "\n" escapes are
+ * accepted) every connection uses TLS and verifies the server against it.
+ * TLS settings in the URL are removed then, because node-postgres would let
+ * them override this verification. Without the variable (local databases) the
+ * URL is used as given.
+ */
+export function connectionOptions(connectionString: string, env: Env = process.env): ConnectionOptions {
+  const pem = env.DATABASE_CA_CERT?.replace(/\\n/g, "\n").trim();
+  if (!pem) return { connectionString };
+  if (!pem.startsWith("-----BEGIN CERTIFICATE-----")) throw new Error("DATABASE_CA_CERT must be a PEM certificate.");
+  const url = new URL(connectionString);
+  for (const parameter of URL_TLS_PARAMETERS) url.searchParams.delete(parameter);
+  return { connectionString: url.toString(), ssl: { ca: pem, rejectUnauthorized: true } };
+}
+
+/**
+ * Connections per server instance (DATABASE_POOL_MAX, 1–20, default 10). On
+ * Vercel each function instance has its own pool, so keep it small and let
+ * Supabase's transaction pooler share the database connections.
+ */
+export function poolSize(env: Env = process.env): number {
+  const size = Number(env.DATABASE_POOL_MAX ?? 10);
+  return Number.isInteger(size) && size >= 1 && size <= 20 ? size : 10;
+}
