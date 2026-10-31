@@ -23,7 +23,7 @@ export async function leaveOrganizationAction(organizationId: string): Promise<O
   try {
     await withOrganization(pool, { userId: account.userId, organizationId }, (client) => leaveOrganization(client));
   } catch (error) {
-    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error");
+    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error", error);
     if (error instanceof TeamError && error.code === "last_owner") return { error: "Vi ste jedini vlasnik. Prvo na stranici Tim postavite drugog vlasnika ili obrišite firmu." };
     if (error instanceof ForbiddenError) return { error: "Više niste član ove firme. Osvežite stranicu." };
     return { error: "Napuštanje firme trenutno nije moguće. Pokušajte ponovo kasnije." };
@@ -47,7 +47,7 @@ export async function deleteOrganizationAction(organizationId: string, _previous
   try {
     await withOrganization(pool, { userId: account.userId, organizationId }, (client) => deleteOrganization(client, confirmName));
   } catch (error) {
-    await actionLog("organization.delete", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error");
+    await actionLog("organization.delete", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error", error);
     if (error instanceof TeamError && error.code === "confirmation_mismatch") return { error: "Naziv se ne poklapa. Upišite tačan naziv firme." };
     if (error instanceof TeamError) return { error: "Firmu može da obriše samo vlasnik." };
     if (error instanceof ForbiddenError) return { error: "Firma nije pronađena ili više niste njen član." };
@@ -70,7 +70,7 @@ export async function setRetentionAction(organizationId: string, _previous: Rete
   try {
     await withOrganization(pool, { userId: account.userId, organizationId }, (client) => setConversationRetention(client, days));
   } catch (error) {
-    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error");
+    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error", error);
     if (error instanceof TeamError) return { error: "Rok čuvanja menja vlasnik firme.", saved: false };
     if (error instanceof ForbiddenError) return { error: "Nemate pristup ovoj firmi.", saved: false };
     return { error: "Izmena trenutno nije moguća. Pokušajte ponovo kasnije.", saved: false };

@@ -12,7 +12,7 @@ export async function actionLimit(pool: Pool, operation: ActionOperation, userId
   return result.allowed ? null : limitMessage(result);
 }
 
-export async function actionLog(operation: Operation, outcome: "success" | "denied" | "error"): Promise<void> {
+export async function actionLog(operation: Operation, outcome: "success" | "denied" | "error", cause?: unknown): Promise<void> {
   const requestId = (await headers()).get("x-request-id") ?? undefined;
-  logEvent(outcome === "error" ? "action.failed" : "action.completed", { operation, outcome, requestId });
+  logEvent(outcome === "error" ? "action.failed" : "action.completed", { operation, outcome, requestId }, cause);
 }

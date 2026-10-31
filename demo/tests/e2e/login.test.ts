@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
-import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
+import { DEFAULT_MOCK_USER, startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
 import { readFile } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
 import { addKnowledge, createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
 import { withOrganization } from "../../lib/db/context.ts";
 import { recordConversation } from "../../lib/db/conversations.ts";
@@ -15,8 +16,26 @@ import { applyIndustryTemplate, createEmptyDraft } from "../../lib/workspace/tem
 
 let stack: LocalAuthStack;
 const CRON_SECRET = "test-only-cron-secret-0123456789abcdef";
-before(async () => { stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET }); }, { timeout: 180_000 });
-after(async () => { await stack?.stop(); });
+// Stands in for Sentry for the whole run, so every failure below passes through reporting.
+const REPORTING_PORT = 4591;
+const reportedEnvelopes: string[] = [];
+let reportingServer: Server;
+before(async () => {
+  reportingServer = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("end", () => {
+      reportedEnvelopes.push(Buffer.concat(chunks).toString("utf8"));
+      response.end("{}");
+    });
+  });
+  await new Promise<void>((resolve) => reportingServer.listen(REPORTING_PORT, "127.0.0.1", resolve));
+  stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET, sentryDsn: `http://testkey@127.0.0.1:${REPORTING_PORT}/1` });
+}, { timeout: 180_000 });
+after(async () => {
+  await stack?.stop();
+  await new Promise((resolve) => reportingServer?.close(resolve));
+});
 beforeEach(async () => {
   await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
   await stack.db.admin.query("DELETE FROM app.auth_sessions");
@@ -736,4 +755,44 @@ test("a firm's overview shows its own data, never the demo's examples or another
   assert.match(asMember.body, /Pogledaj tim/);
   assert.doesNotMatch(asMember.body, /Pozovite člana/);
   assert.equal((await member.get(`/org/${other}/`)).response.status, 404, "non-members get the same 404");
+});
+
+// Keep last: it also checks what every earlier test caused to be reported.
+test("failures reach error reporting without anything about the person or the request", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const organizationId = await createOrganization(stack.db.appPool, await userIdFor(DEFAULT_MOCK_USER.sub), "Tajna Firma Reporting");
+
+  const page = await owner.get("/");
+  assert.ok(page.response.headers.get("content-security-policy")?.includes(`connect-src 'self' http://127.0.0.1:${REPORTING_PORT};`));
+
+  // A failure the app handles itself: logged and answered with a redirect.
+  const failedSignIn = await owner.get("/auth/callback?code=canary-code&state=canary-state");
+  assert.match(failedSignIn.url, /status=login-failed/);
+
+  // A failure nothing catches: the page cannot read its data.
+  await stack.db.admin.query("ALTER TABLE app.conversations RENAME TO conversations_canary");
+  try {
+    await owner.get(`/org/${organizationId}/`);
+  } finally {
+    await stack.db.admin.query("ALTER TABLE app.conversations_canary RENAME TO conversations");
+  }
+
+  type ReportedEvent = { message?: string; tags?: Record<string, string>; transaction?: string; exception?: { values?: { value?: string; stacktrace?: unknown }[] } };
+  const events = (): ReportedEvent[] => reportedEnvelopes.flatMap((envelope) => {
+    const lines = envelope.split("\n");
+    return lines.flatMap((line, index) => (line.includes('"type":"event"') ? [JSON.parse(lines[index + 1]) as ReportedEvent] : []));
+  });
+  const callbackReported = () => events().some((event) => event.message === "auth.callback_failed" && event.tags?.event === "auth.callback_failed" && event.tags?.operation === "auth.callback");
+  const pageReported = () => events().some((event) => event.transaction?.includes("/org/[organizationId]") && event.exception?.values?.some((value) => value.stacktrace));
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline && !(callbackReported() && pageReported())) await new Promise((resolve) => setTimeout(resolve, 200));
+  assert.ok(callbackReported(), "the handled failure was reported");
+  assert.ok(pageReported(), "the uncaught failure was reported with its route and stack");
+
+  const everything = reportedEnvelopes.join("\n");
+  for (const secret of [
+    DEFAULT_MOCK_USER.email, DEFAULT_MOCK_USER.name, "Tajna Firma Reporting", organizationId, "canary-code", "canary-state", "__session",
+    "conversations_canary", "\"cookie\"", "\"request\"", "\"user\"", "\"breadcrumbs\"", "\"extra\"", "request_path", "\"infer_ip\":\"auto\"", CRON_SECRET,
+  ]) assert.ok(!everything.includes(secret), `reports must not contain ${secret}`);
 });

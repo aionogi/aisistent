@@ -32,8 +32,8 @@ export async function createOrganizationAction(_previous: CreateOrganizationStat
   try {
     organizationId = await createOrganization(pool, account.userId, name);
     await actionLog("organization.create", "success");
-  } catch {
-    await actionLog("organization.create", "error");
+  } catch (error) {
+    await actionLog("organization.create", "error", error);
     return { error: "Firma nije napravljena. Pokušajte ponovo kasnije.", name };
   }
   // Start guided setup for the new organization right away.
@@ -54,8 +54,8 @@ export async function signOutEverywhereAction(_previous: SignOutEverywhereState)
   if (limitError) return { error: limitError, done: false };
   try {
     await withUser(pool, account.userId, (client) => endMySessions(client));
-  } catch {
-    await actionLog("account.sessions", "error");
+  } catch (error) {
+    await actionLog("account.sessions", "error", error);
     return { error: "Odjava sa svih uređaja trenutno nije moguća. Pokušajte ponovo kasnije.", done: false };
   }
   await actionLog("account.sessions", "success");

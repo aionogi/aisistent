@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAuth0 } from "./lib/auth/auth0.ts";
 import { getPool } from "./lib/db/pool.ts";
+import { reportingOrigin } from "./lib/observability/reporting.ts";
 import { checkRateLimit, clientIdentity, limitMessage, requestOperation } from "./lib/operations/rate-limits.ts";
 import { contentSecurityPolicy } from "./lib/security/content-security-policy.ts";
 
@@ -16,7 +17,7 @@ import { contentSecurityPolicy } from "./lib/security/content-security-policy.ts
 export async function proxy(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === "development");
+  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === "development", reportingOrigin(process.env.NEXT_PUBLIC_SENTRY_DSN));
 
   // Every POST is covered, including native form submissions without Next-Action.
   // Budgets run before the identity SDK and do not trust prefetch headers.

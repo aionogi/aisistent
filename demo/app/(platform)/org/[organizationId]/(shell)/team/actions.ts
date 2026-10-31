@@ -40,7 +40,7 @@ async function runTeamChange(organizationId: string, work: Parameters<typeof wit
   try {
     await withOrganization(pool, { userId: checked.account.userId, organizationId }, work);
   } catch (error) {
-    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error");
+    await actionLog("team.change", error instanceof TeamError || error instanceof ForbiddenError ? "denied" : "error", error);
     if (error instanceof TeamError) return { error: MESSAGES[error.code] ?? "Izmena nije uspela." };
     if (error instanceof ForbiddenError) return { error: "Nemate pristup ovoj firmi." };
     return { error: "Izmena trenutno nije moguća. Pokušajte ponovo kasnije." };

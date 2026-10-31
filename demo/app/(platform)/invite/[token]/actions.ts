@@ -29,7 +29,7 @@ export async function acceptInvitationAction(token: string, _previous: AcceptSta
     organizationId = await acceptInvitation(pool, account.userId, token);
     await actionLog("invitation.accept", "success");
   } catch (error) {
-    await actionLog("invitation.accept", error instanceof TeamError ? "denied" : "error");
+    await actionLog("invitation.accept", error instanceof TeamError ? "denied" : "error", error);
     if (error instanceof TeamError) return { error: MESSAGES[error.code] ?? "Poziv nije prihvaćen." };
     return { error: "Poziv trenutno nije moguće prihvatiti. Pokušajte ponovo kasnije." };
   }

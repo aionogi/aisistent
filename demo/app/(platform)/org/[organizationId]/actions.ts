@@ -51,7 +51,7 @@ export async function saveWorkspaceAction(organizationId: string, draft: unknown
   } catch (error) {
     if (error instanceof ConflictError) return { status: "conflict" };
     if (error instanceof ForbiddenError) return { status: "forbidden" };
-    await actionLog("workspace.save", "error");
+    await actionLog("workspace.save", "error", error);
     return { status: "error" };
   }
 }
@@ -100,7 +100,7 @@ export async function importKnowledgeFromUrlAction(organizationId: string, url: 
     }
   } catch (error) {
     if (error instanceof ForbiddenError) return { status: "forbidden" };
-    await actionLog("knowledge.import", "error");
+    await actionLog("knowledge.import", "error", error);
     return { status: "error" };
   }
 

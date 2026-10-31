@@ -23,7 +23,7 @@ export async function deleteConversationAction(organizationId: string, conversat
   try {
     deleted = await withOrganization(pool, { userId: account.userId, organizationId }, (client, role) => canManage(role) ? deleteConversation(client, conversationId) : Promise.resolve(false));
   } catch (error) {
-    await actionLog("workspace.save", error instanceof ForbiddenError ? "denied" : "error");
+    await actionLog("workspace.save", error instanceof ForbiddenError ? "denied" : "error", error);
     return { error: error instanceof ForbiddenError ? "Nemate pristup ovoj firmi." : "Brisanje trenutno nije moguće. Pokušajte ponovo kasnije." };
   }
   await actionLog("workspace.save", deleted ? "success" : "denied");

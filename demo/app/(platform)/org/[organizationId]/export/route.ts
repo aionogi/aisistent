@@ -37,7 +37,7 @@ export async function GET(request: Request, context: RouteContext<"/org/[organiz
       await actionLog("organization.export", "denied");
       return error instanceof ForbiddenError ? message(404, "Firma nije pronađena.") : message(403, "Podatke firme preuzima vlasnik.");
     }
-    await actionLog("organization.export", "error");
+    await actionLog("organization.export", "error", error);
     return message(500, "Izvoz trenutno nije moguć. Pokušajte ponovo kasnije.");
   }
   await actionLog("organization.export", "success");

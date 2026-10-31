@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { getPool } from "../../../../lib/db/pool.ts";
 import { runCleanup } from "../../../../lib/operations/cleanup.ts";
+import { reportFailure } from "../../../../lib/operations/logging.ts";
 
 // Daily cleanup for Vercel Cron (vercel.json). Vercel sends
 // `Authorization: Bearer <CRON_SECRET>` when the CRON_SECRET variable is set;
@@ -25,8 +26,9 @@ export async function GET(request: Request) {
     const { passes, reachedPassLimit, ...counts } = await runCleanup(pool);
     console.log(JSON.stringify({ event: "operations.cleanup", result: "success", passes, reachedPassLimit, ...counts }));
     return Response.json({ result: "success", passes, reachedPassLimit, ...counts }, { headers: NO_STORE });
-  } catch {
+  } catch (error) {
     console.error(JSON.stringify({ event: "operations.cleanup", result: "error" }));
+    reportFailure("operations.cleanup", {}, error);
     return Response.json({ result: "error" }, { status: 500, headers: NO_STORE });
   }
 }

@@ -7,15 +7,16 @@
  * through the CSSOM (see components/ProgressFill.tsx) and fixed ones in CSS.
  * Development keeps 'unsafe-inline' for styles and 'unsafe-eval' for scripts,
  * which the Next.js dev overlay and hot reloading need.
+ * `reportingOrigin` is the error-reporting host, when one is configured.
  */
-export function contentSecurityPolicy(nonce: string, development: boolean): string {
+export function contentSecurityPolicy(nonce: string, development: boolean, reportingOrigin?: string | null): string {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
     development ? "style-src 'self' 'unsafe-inline'" : `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' blob: data:",
     "font-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self'${reportingOrigin ? ` ${reportingOrigin}` : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

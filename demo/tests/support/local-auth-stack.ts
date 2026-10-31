@@ -41,7 +41,7 @@ async function waitForHttp(url: string, server: ChildProcess, timeoutMs: number)
  * `next dev` configured for both. Development only — the Auth0 SDK refuses
  * the insecure (http) provider when NODE_ENV is production.
  */
-export async function startLocalAuthStack(options: { appPort: number; issuerPort: number; user?: MockUser; quiet?: boolean; cronSecret?: string }): Promise<LocalAuthStack> {
+export async function startLocalAuthStack(options: { appPort: number; issuerPort: number; user?: MockUser; quiet?: boolean; cronSecret?: string; sentryDsn?: string }): Promise<LocalAuthStack> {
   const db = await startTestDatabase();
   const user: MockUser = { ...(options.user ?? DEFAULT_MOCK_USER) };
 
@@ -92,6 +92,7 @@ export async function startLocalAuthStack(options: { appPort: number; issuerPort
       CRON_SECRET: options.cronSecret ?? randomBytes(32).toString("hex"),
       // No ingress in this local stack: requests deliberately share the fallback bucket.
       RATE_LIMIT_IP_HEADER: "",
+      ...(options.sentryDsn ? { NEXT_PUBLIC_SENTRY_DSN: options.sentryDsn } : {}),
       NEXT_TELEMETRY_DISABLED: "1",
     },
     stdio: options.quiet ? "ignore" : "inherit",
