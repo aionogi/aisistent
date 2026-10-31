@@ -3,11 +3,12 @@ import { after, before, beforeEach, test } from "node:test";
 import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
 import { startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
 import { readFile } from "node:fs/promises";
-import { addKnowledge, createOrganization, provisionUser } from "../../lib/db/repositories.ts";
+import { addKnowledge, createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
 import { withOrganization } from "../../lib/db/context.ts";
 import { recordConversation } from "../../lib/db/conversations.ts";
 import { createInvitation } from "../../lib/db/team.ts";
-import { createEmptyDraft } from "../../lib/workspace/templates.ts";
+import { toStoredConfig } from "../../lib/workspace/persistence.ts";
+import { applyIndustryTemplate, createEmptyDraft } from "../../lib/workspace/templates.ts";
 
 // Full sign-in round trip through the real Auth0 SDK, proxy, session store,
 // and database, with a mock OpenID Connect provider standing in for Auth0.
@@ -692,4 +693,47 @@ test("the daily cleanup route runs only with the cron secret and reports counts 
   assert.deepEqual(Object.keys(body).sort(), ["conversations", "invitations", "passes", "rateLimits", "reachedPassLimit", "result", "sessions"]);
   assert.ok((body.rateLimits as number) >= 1);
   assert.equal((await stack.db.admin.query("SELECT 1 FROM app.rate_limit_buckets WHERE expires_at < now()")).rowCount, 0);
+});
+
+test("a firm's overview shows its own data, never the demo's examples or another firm's", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/");
+  const anaId = await userIdFor("mock|ana");
+  const organizationId = await createOrganization(stack.db.appPool, anaId, "Pregled Firma");
+  const other = await createOrganization(stack.db.appPool, anaId, "Druga Firma");
+  const example = { ...applyIndustryTemplate(createEmptyDraft(), "salon"), onboardingCompleted: true };
+  await withOrganization(stack.db.appPool, { userId: anaId, organizationId }, (client) =>
+    saveWorkspace(client, { config: toStoredConfig(example) as unknown as Record<string, unknown>, knowledge: example.knowledge, expectedRevision: 0 }));
+
+  const path = `/org/${organizationId}/`;
+  const empty = (await owner.get(path)).body;
+  assert.match(empty, /<h1[^>]*>Pregled Firma<\/h1>/);
+  assert.match(empty, /Podaci firme/);
+  assert.match(empty, /Šta dalje/);
+  assert.match(empty, /Još nema razgovora/);
+  assert.match(empty, /Još stoji primer za vašu delatnost/);
+  assert.match(empty, /Za sada ste sami u firmi/);
+  assert.match(empty, /Uskoro/);
+  for (const invented of [/Primer podataka/, /izmišljeni/, /Mila Petrović/, /Luka Jovanović/, /Svi primeri razgovora/]) assert.doesNotMatch(empty, invented);
+
+  const record = (name: string) => ({ channel: "call" as const, outcome: "booked" as const, customerName: name, startedAt: new Date(), messages: [] });
+  await recordConversation(stack.db.admin, organizationId, record("Jovana Pregled"));
+  await recordConversation(stack.db.admin, other, record("Tuđi Klijent"));
+  const member = new Browser();
+  await member.get("/auth/login?returnTo=/account/&login_hint=overview-member@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, await userIdFor("mock|overview-member")]);
+
+  const filled = (await owner.get(path)).body;
+  assert.match(filled, /Jovana Pregled/);
+  assert.match(filled, /1 razgovor/);
+  assert.match(filled, /2 člana/);
+  assert.doesNotMatch(filled, /Tuđi Klijent/);
+  assert.doesNotMatch(filled, /Još nema razgovora/);
+
+  const asMember = await member.get(path);
+  assert.equal(asMember.response.status, 200);
+  assert.match(asMember.body, /Jovana Pregled/);
+  assert.match(asMember.body, /Pogledaj tim/);
+  assert.doesNotMatch(asMember.body, /Pozovite člana/);
+  assert.equal((await member.get(`/org/${other}/`)).response.status, 404, "non-members get the same 404");
 });

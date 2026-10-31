@@ -54,7 +54,17 @@ export function describeHours(hours: Record<DayId, DayHours>): string {
 const jsDayToId: DayId[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export function todayHours(hours: Record<DayId, DayHours>, now: Date): { label: string; open: boolean } {
-  const day = jsDayToId[now.getDay()];
+  return hoursForDay(hours, jsDayToId[now.getDay()]);
+}
+
+const belgradeWeekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Europe/Belgrade" });
+
+/** Today's day in Serbia, so the server (UTC on Vercel) and the visitor's browser agree. */
+export function dayInBelgrade(now: Date): DayId {
+  return belgradeWeekday.format(now).toLowerCase() as DayId;
+}
+
+export function hoursForDay(hours: Record<DayId, DayHours>, day: DayId): { label: string; open: boolean } {
   const entry = hours[day];
   return entry.open
     ? { label: `${DAY_LABELS[day].long} · ${entry.from}–${entry.to}`, open: true }

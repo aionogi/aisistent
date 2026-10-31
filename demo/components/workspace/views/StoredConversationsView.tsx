@@ -22,7 +22,7 @@ export type ConversationRow = {
   endedAt: string | null;
 };
 
-const OUTCOMES: Record<ConversationOutcome, { label: string; pending: boolean }> = {
+export const OUTCOMES: Record<ConversationOutcome, { label: string; pending: boolean }> = {
   booked: { label: "Zakazan termin", pending: false },
   answered: { label: "Odgovoreno", pending: false },
   handoff: { label: "Za vaš tim", pending: true },
@@ -30,11 +30,11 @@ const OUTCOMES: Record<ConversationOutcome, { label: string; pending: boolean }>
 };
 
 // The same zone as the server render, so times do not change on hydration.
-const timeFormat = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Belgrade" });
+export const timeFormat = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Belgrade" });
 
-const displayName = (row: ConversationRow) => row.customerName ?? row.customerContact ?? "Nepoznat klijent";
+export const displayName = (row: Pick<ConversationRow, "customerName" | "customerContact">) => row.customerName ?? row.customerContact ?? "Nepoznat klijent";
 // Letters only, so a phone number shown in place of a name gives "?" rather than "+6".
-const initials = (name: string) => name.split(/\s+/).filter((part) => /^\p{L}/u.test(part)).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?";
+export const initials = (name: string) => name.split(/\s+/).filter((part) => /^\p{L}/u.test(part)).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?";
 function duration(row: ConversationRow): string | null {
   if (!row.endedAt) return null;
   const seconds = Math.max(0, Math.round((Date.parse(row.endedAt) - Date.parse(row.startedAt)) / 1000));

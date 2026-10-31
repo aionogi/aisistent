@@ -39,6 +39,11 @@ export async function listConversations(client: PoolClient, limit = 100): Promis
   return rows;
 }
 
+export async function countConversations(client: PoolClient): Promise<number> {
+  const { rows } = await client.query<{ total: number }>("SELECT count(*)::int AS total FROM app.conversations WHERE organization_id = app.current_organization_id()");
+  return rows[0].total;
+}
+
 /** The transcript of one conversation, or an empty list for unknown or foreign ids. */
 export async function getConversationMessages(client: PoolClient, conversationId: string): Promise<StoredMessage[]> {
   if (!uuidPattern.test(conversationId)) return [];

@@ -218,15 +218,30 @@ export function createCompleteExample(): WorkspaceDraft {
 }
 
 /** True while the draft's details are still exactly its industry's example, so switching industry loses nothing. */
-export function matchesIndustryTemplate(draft: WorkspaceDraft): boolean {
-  if (!draft.industry) return !draft.business.name.trim() && draft.knowledge.length === 0;
+/** True while the business details, services and hours are still the example for the chosen industry. */
+export function businessMatchesTemplate(draft: WorkspaceDraft): boolean {
+  if (!draft.industry) return !draft.business.name.trim();
   const template = templates[draft.industry];
   const { business } = draft;
   const sameBusiness = (Object.keys(template.business) as Array<keyof IndustryTemplate["business"]>).every((key) => business[key] === template.business[key]);
   const sameServices = business.services.length === template.services.length
     && business.services.every((service, index) => service.name === template.services[index].name && service.duration === template.services[index].duration);
-  const sameKnowledge = draft.knowledge.length === template.knowledge.length
+  // Field by field: PostgreSQL jsonb does not keep key order, so stored hours serialize differently.
+  const sameHours = DAY_IDS.every((day) => {
+    const [own, example] = [draft.hours[day], template.hours[day]];
+    return own.open === example.open && own.from === example.from && own.to === example.to;
+  });
+  return sameBusiness && sameServices && sameHours;
+}
+
+/** True while the knowledge base is still the example for the chosen industry. */
+export function knowledgeMatchesTemplate(draft: WorkspaceDraft): boolean {
+  if (!draft.industry) return draft.knowledge.length === 0;
+  const template = templates[draft.industry];
+  return draft.knowledge.length === template.knowledge.length
     && draft.knowledge.every((entry, index) => entry.question === template.knowledge[index].question && entry.answer === template.knowledge[index].answer);
-  const sameHours = DAY_IDS.every((day) => JSON.stringify(draft.hours[day]) === JSON.stringify(template.hours[day]));
-  return sameBusiness && sameServices && sameKnowledge && sameHours;
+}
+
+export function matchesIndustryTemplate(draft: WorkspaceDraft): boolean {
+  return businessMatchesTemplate(draft) && knowledgeMatchesTemplate(draft);
 }

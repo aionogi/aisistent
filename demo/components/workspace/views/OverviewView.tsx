@@ -15,7 +15,7 @@ import { PageHeader } from "../PageParts";
 import { useWorkspaceEnvironment, workspacePath } from "../WorkspaceEnvironment";
 import styles from "../pages.module.css";
 
-function SetupChecklist() {
+export function SetupChecklist() {
   const { draft, replaceDraft, setFlash, readOnly } = useDraft();
   const environment = useWorkspaceEnvironment();
   const isDemo = environment.mode === "demo";
