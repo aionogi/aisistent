@@ -15,9 +15,21 @@ The platform decision (2026-10-28) is Vercel for the app and Supabase PostgreSQL
    - **Transaction pooler** (port 6543): the app's `DATABASE_URL`, after replacing the user `postgres.<project-ref>` with **`aisistent_app.<project-ref>`** and the password with `DATABASE_APP_PASSWORD`. The project ref suffix is required on the shared pooler; without it Supabase answers "Tenant or user not found".
 4. Generate `DATABASE_APP_PASSWORD` (32+ printable ASCII characters, no spaces), for example: `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. Generate `RATE_LIMIT_SECRET`, `CRON_SECRET` and `AUTH0_SECRET` the same way, each separately.
 
+### The short way: `npm run setup:supabase`
+
+From `demo/` in an up-to-date checkout, this does steps 3 and 4 above, the migrations below, and prepares the Vercel variables, on your own computer:
+
+1. Run `npm run setup:supabase` once. It creates `demo/.env.supabase.local` (git-ignored) as a template.
+2. Fill in the session pooler address as Supabase shows it, the database password, the path to the certificate, and the Vercel address; add the Auth0 values if you have them (or keep them in `.env.auth0.local`).
+3. Run the command again. It applies the migrations, sets up `aisistent_app`, connects through the transaction pooler as that login with the verified certificate, and writes `demo/.env.vercel.local`. Existing secrets are reused when that file already exists, so running it again is safe (for example after adding Auth0 values or a migration).
+4. In Vercel use **Import .env** with that file, Production only, then redeploy.
+5. Once the checks below pass, delete both files. They hold secrets, and a project folder inside OneDrive syncs them to the cloud. Without `.env.vercel.local` the next run generates new secrets, which must be imported again.
+
+Secret values are never printed. The manual steps below do the same thing.
+
 ### Migrations (from a trusted computer, never in the Vercel build)
 
-PowerShell, from `demo/` in an up-to-date checkout:
+Already done if you used `npm run setup:supabase`. PowerShell, from `demo/` in an up-to-date checkout:
 
 ```powershell
 $env:DATABASE_ADMIN_URL = "<session pooler URL>"

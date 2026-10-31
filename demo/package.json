@@ -13,6 +13,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --test \"tests/unit/**/*.test.ts\" \"tests/db/**/*.test.ts\"",
     "db:migrate": "node scripts/db/migrate.ts",
+    "setup:supabase": "node scripts/db/supabase-setup.ts",
     "ops:cleanup": "node scripts/operations/cleanup.ts",
     "dev:local-auth": "node scripts/dev/local-auth.ts",
     "dev:auth0": "node scripts/dev/auth0-local.ts",

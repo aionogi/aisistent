@@ -251,12 +251,23 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 | `demo/components/account/SignOutEverywhereForm.tsx` | Sign-out-everywhere form that finishes at `/auth/logout` |
 | `demo/components/support/SupportChat.tsx`, `demo/lib/support/faq.ts` | Website help chat (bottom right on the landing, account and 404 pages) and its prepared answers; no AI or server calls until M4 |
 | `demo/vercel.json`, `demo/app/api/cron/cleanup/route.ts`, `demo/lib/operations/cleanup.ts` | Vercel region and daily cleanup cron, the protected cron route, and the cleanup shared with `npm run ops:cleanup` |
+| `demo/scripts/db/supabase-setup.ts`, `demo/lib/db/supabase-setup.ts` | `npm run setup:supabase`: migrations, app login check and the `.env.vercel.local` file for Vercel's import, run on the user's computer |
 | `demo/lib/db/config.ts` (`connectionOptions`, `poolSize`) | TLS verification with `DATABASE_CA_CERT` and the per-instance pool size |
 | `demo/AGENTS.md` | Next.js-generated guidance for the installed version |
 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### `npm run setup:supabase` (M3 checkpoint 16 follow-up, 2026-10-31)
+
+| Check | Evidence |
+| --- | --- |
+| Unit tests | `npm test`: **145/145** (7 new in `tests/unit/supabase-setup.test.ts`): the Connect dialog's address gets the password URL-encoded; direct, transaction-pooler, wrong-user and password-less addresses are refused with a fix and without the password in the message; the app address uses `aisistent_app.<project-ref>` on port 6543; Vercel variables never include owner credentials; the env file round-trips the certificate; a second run keeps existing secrets |
+| Database tests | 3 new in `tests/db/supabase-setup.test.ts` against real PostgreSQL: migrations and login are applied and the app address proven (`statement_timeout` 10s), a second run applies nothing, a wrong app password and an owner address as the app address both fail the setup |
+| Command | Run with fake settings: creates the template, lists unfilled values, refuses direct and transaction-pooler addresses, an app address with a path, a missing certificate file and a non-certificate file; no secret appears in the output and no output file is written on failure |
+| Build | `npm run typecheck` and `npm run build` passed. HTTP and recovery suites were not rerun: nothing the app or the migrations use changed |
+| Not verified | A run against a real Supabase project; that is the user's next step |
 
 ### M3 checkpoint 16 — Vercel and Supabase configuration (2026-10-29)
 
@@ -538,7 +549,7 @@ The Vercel project exists and runs the demo without a database (user, 2026-10-28
 3. Install locked dependencies and run `npm run typecheck`, `npm test`, and `npm run build`. Read the relevant installed Next.js guide before framework changes.
 4. Checkpoint 15 added knowledge import from a public web page (`lib/import/`; keep its SSRF checks and tests); checkpoint 14 added the SCRAM password and the [security evidence and risk register](security/m3-evidence.md); checkpoint 13 added durable conversation records (writer granted in M4); checkpoint 12 was an accessibility pass; checkpoint 11 removed inline styles from the production CSP and added Serbian 404/error pages; checkpoint 10 added the account session list and sign-out on all devices; checkpoint 9 added knowledge import from CSV/text files; checkpoint 8 added organization export, leaving, and deletion. The non-MFA owner notice check is complete (checkpoint 7). Read-only sessions must not see inputs or actions that the server will refuse: keep using `readOnly` from the draft context and `canChange` on the team page for new screens.
 5. The provider-independent logical backup/restore rehearsal is complete. Keep `npm run test:recovery` passing when migrations or authorization/session behavior changes; provide PostgreSQL 17 client tools first (runbook setup). Do not recreate the rehearsal or treat it as production recovery proof.
-6. Next, with the user's accounts (checkpoint 16 prepared the configuration): run the migrations against Supabase, set the Vercel variables, redeploy, and run the runbook checks (sign-in, organization, cron run). Then configure/verify alerts (Sentry), perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open. After the identity decision, also end the provider's sessions when a user signs out everywhere (checkpoint 10 ends only application sessions).
+6. Next, with the user's accounts (checkpoint 16 prepared the configuration): `npm run setup:supabase` (migrations and the Vercel variables file), import into Vercel, redeploy, and run the runbook checks (sign-in, organization, cron run). Then configure/verify alerts (Sentry), perform the managed-platform restore drill, and enable MFA and CI. Choose an invitation email provider only after approval. Private object storage and its restore test still need implementation; provider choice remains open. After the identity decision, also end the provider's sessions when a user signs out everywhere (checkpoint 10 ends only application sessions).
 
 Local testing: `npm run dev:local-auth` and `npm run test:e2e` each start their own `next dev`; stop any other dev server for this project first, because two dev servers on one project directory conflict. If an organization page keeps reloading right after the dev server starts, close the tab and open it again (see checkpoint 7). If it keeps happening, stop the dev server and delete `demo/.next/dev`: on 2026-10-28 a 603 MB cache shared by earlier dev and test servers kept the loop going, and a fresh cache ended it. Stopping `npm run dev:local-auth` with Ctrl+C removes its temporary database; killing the process instead leaves `%TEMP%\aisistent-pgdata-*` folders, which are safe to delete when no `postgres` process is running (ten such folders were removed on 2026-10-28).
 
