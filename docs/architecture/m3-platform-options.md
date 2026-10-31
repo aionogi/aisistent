@@ -11,7 +11,7 @@ Status: **decided on 2026-10-28** by the user: Vercel for hosting (the free Hobb
 | Identity | Auth0, EU tenant | Unchanged from the existing integration (`demo/lib/auth/`). Clerk was considered and rejected: Clerk states that it offers no regional data residency (data hosted in the US), and its session token cookie is readable by JavaScript, which conflicts with the session design. [Clerk security](https://clerk.com/security) |
 | Email | Resend | For invitation emails (resolves R14 once built). Sending from Ireland is a paid-plan region; account data stays in the US either way, so the SCC step applies. [Regions](https://resend.com/docs/dashboard/domains/regions) |
 | DNS | Cloudflare | DNS only (no proxy in front of Vercel), so the client IP header comes from Vercel. |
-| Errors and alerts | Sentry, EU region | Can serve as the alert sink (R8). Send no personal data or request bodies; extend the CSP `connect-src` for it. |
+| Errors and alerts | Sentry, EU region | The alert sink (R8). Errors only, with no personal data or request bodies, through an allowlist; the CSP `connect-src` gains its host only when `NEXT_PUBLIC_SENTRY_DSN` is set. |
 | Analytics | PostHog, EU cloud, later | Public pages only, after cookie consent; no session recording in organization workspaces. Needs CSP changes. |
 | Not used | Upstash (Redis), Pinecone (vector database) | Rate limits already run in PostgreSQL; knowledge search in M4 can use `pgvector` in the same database under the same RLS. |
 | Private files | Open | Supabase Storage or Cloudflare R2 (EU jurisdiction), decided when uploads are built. |
@@ -26,6 +26,7 @@ Keep provider-specific code in these places so a switch stays small:
 | --- | --- | --- |
 | Vercel | `demo/vercel.json` (region, cron), `demo/app/api/cron/cleanup/route.ts` (`CRON_SECRET`) | Any Node.js host running `npm run build`, `npm run start`, and `npm run ops:cleanup` on a schedule |
 | Supabase | Connection strings and `DATABASE_CA_CERT` only (`connectionOptions` in `demo/lib/db/config.ts`); timeouts are role settings set by `ensureAppLogin` | Standard PostgreSQL 17 with roles, RLS, and SECURITY DEFINER functions |
+| Sentry | `demo/lib/observability/`, `demo/instrumentation.ts`, `demo/instrumentation-client.ts`, `NEXT_PUBLIC_SENTRY_DSN`; the app reports through `setFailureReporter` in `lib/operations/logging.ts` | Any error tracker, or none: without a DSN nothing loads |
 | Auth0 | `demo/lib/auth/auth0.ts`, the `/auth/*` routes mounted in `demo/proxy.ts`, `AUTH0_*` variables | Any OpenID Connect provider; `lib/auth/account.ts`, the session table, and authorization stay the same |
 | Cloudflare R2 | Not used yet | S3-compatible API |
 Researched: 2026-10-21. Merchant: company based in Serbia.

@@ -56,6 +56,7 @@ Import the GitHub repository with **Root Directory `demo`** (Next.js preset, def
 | `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` | From the Auth0 application |
 | `AUTH0_SECRET` | Generated, 32+ characters |
 | `AUTH_REQUIRE_MFA` | `false` until the tenant has an MFA factor |
+| `NEXT_PUBLIC_SENTRY_DSN` | Optional: the Sentry project's DSN; see "Error reporting (Sentry)". Read at build time, so redeploy after changing it. It is sent to browsers by design and is not a secret |
 
 Never set `DATABASE_ADMIN_URL` or `DATABASE_APP_PASSWORD` in Vercel. After saving the variables, **redeploy** (variables apply to new deployments only). In the Auth0 application add `https://<project>.vercel.app/auth/callback` (callback) and `https://<project>.vercel.app/` (logout).
 
@@ -139,6 +140,19 @@ Before staging, name a primary and backup operator and configure a restricted lo
 - Repeated action/callback failures or a sudden sustained increase in 429s: distinguish misconfiguration, legitimate shared-IP traffic and abuse before changing budgets.
 
 Verify alerts reach an operator. Record the test timestamp and recipient in the release evidence; no alert-delivery test has yet been performed.
+
+### Error reporting (Sentry)
+
+Every error-level event above, uncaught server and browser errors, and failed cleanup go to Sentry once `NEXT_PUBLIC_SENTRY_DSN` is set. What may leave the app is defined in `demo/lib/observability/reporting.ts`; change the allowlist only with its tests, and read a real payload after upgrading the SDK, because its defaults collect everything.
+
+1. Create the account at sentry.io with data storage in the **EU**, which cannot be changed later. Do not run `@sentry/wizard` or install Sentry's Vercel integration.
+2. Create a project with platform **Next.js**. Copy its DSN from Project Settings, Client Keys (DSN); it should contain `ingest.de.sentry.io`.
+3. In the Sentry project's Security & Privacy settings, turn on **Prevent Storing of IP Addresses**. The app already asks for this; the setting keeps it true if the code changes.
+4. In Vercel add `NEXT_PUBLIC_SENTRY_DSN` for **Production** only, and redeploy.
+5. Test: open `https://<project>.vercel.app/auth/callback/?code=test&state=test`. It redirects to the account page with a sign-in error and creates an `auth.callback_failed` event in Sentry within a minute. The same failure is sent at most once a minute per server.
+6. Create an alert for a new issue that emails the operator, repeat step 5 after the issue is resolved, and record the time and recipient in `docs/HANDOFF.md`.
+
+Sentry's free plan has one user and a monthly event limit; check that its terms suit commercial use before launch.
 
 ## Backups and isolated restore drill
 
