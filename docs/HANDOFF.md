@@ -4,7 +4,7 @@ Updated: 2026-10-28.
 
 ## Current objective
 
-**Platform decided (2026-10-28):** Vercel (Hobby while the site is built, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt used only as a database, Auth0 EU; Resend, Cloudflare DNS and Sentry; PostHog later; no Upstash or Pinecone; private storage when uploads start. Details, constraints and sources: [m3-platform-options.md](architecture/m3-platform-options.md#decision-2026-10-28). No account is open and nothing is deployed yet.
+**Platform decided (2026-10-28):** Vercel (Hobby while the site is built, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt used only as a database, Auth0 EU; Resend, Cloudflare DNS and Sentry; PostHog later; no Upstash or Pinecone; private storage when uploads start. Details, constraints and sources: [m3-platform-options.md](architecture/m3-platform-options.md#decision-2026-10-28). The accounts exist. The Vercel project (`https://aisistent-jsxx.vercel.app`) runs in `fra1`, and the Supabase database has all migrations (2026-10-31). The deployed app's variables and its sign-in are the current step.
 
 M1 and M2 are implemented. The user wants milestone-based progress in [aionogi/aisistent](https://github.com/aionogi/aisistent) so Claude or another AI agent can continue from GitHub. M3 (persistent platform and production security) is in progress. On 2026-10-21 the user chose combination A from [m3-platform-options.md](architecture/m3-platform-options.md): Render in Frankfurt for hosting and Postgres, Auth0 with an EU tenant for identity, and Cloudflare R2 with EU jurisdiction for private files.
 
@@ -258,6 +258,14 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### First real services: Supabase and Vercel (2026-10-31)
+
+| Check | Evidence |
+| --- | --- |
+| Supabase (user's run of `npm run setup:supabase`, output shared without secrets) | All 8 migrations applied on PostgreSQL 17 through the session pooler as `postgres.<project-ref>`, including `CREATE ROLE`. `aisistent_app` connected through the transaction pooler as `aisistent_app.<project-ref>` with the project's CA certificate verified. `statement_timeout` reads 10s through the pooler, so role settings hold there |
+| Vercel, public responses checked by the agent before the variables were set | `https://aisistent-jsxx.vercel.app`: `/` 200 with the production CSP, HSTS and `X-Frame-Options: DENY`; `X-Vercel-Id` shows `fra1`; `/api/health/` 200; `/account/` shows "Prijava još nije podešena"; `/api/cron/cleanup/` 503 `not_configured`, as designed without `CRON_SECRET` |
+| Not verified yet | The deployed app with its variables: sign-in against the Auth0 tenant, organization data in Supabase, the cron call from Vercel, and `x-forwarded-for`. These are the runbook's checks after the import and redeploy |
 
 ### `npm run setup:supabase` (M3 checkpoint 16 follow-up, 2026-10-31)
 
