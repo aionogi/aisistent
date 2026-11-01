@@ -33,7 +33,7 @@ npm run build
 npm run start
 ```
 
-Run these commands from `demo/`. `npm test` starts temporary PostgreSQL 17 databases (no Docker needed). `npm run dev:local-auth` runs the signed-in app with a mock identity provider at http://127.0.0.1:4313/account/, and `npm run test:e2e` tests sign-in, MFA and request limits through HTTP. Stop this project's development server first. The public demo runs without environment variables or provider accounts. Database-backed operations additionally require `RATE_LIMIT_SECRET`; the local mock stack generates one. `render.yaml` is a provisional deployment template; hosting and identity remain undecided.
+Run these commands from `demo/`. `npm test` starts temporary PostgreSQL 17 databases (no Docker needed). `npm run dev:local-auth` runs the signed-in app with a mock identity provider at http://127.0.0.1:4313/account/, and `npm run test:e2e` tests sign-in, MFA and request limits through HTTP. Stop this project's development server first. The public demo runs without environment variables or provider accounts. Database-backed operations additionally require `RATE_LIMIT_SECRET`; the local mock stack generates one. The site runs on Vercel, Supabase and Auth0 EU; the setup is in `docs/operations/RUNBOOK.md`.
 
 The separate `npm run test:recovery` command rehearses synthetic database recovery. It needs PostgreSQL 17 client tools; setup and boundaries are in the [runbook](docs/operations/RUNBOOK.md#repeatable-local-rehearsal).
 
