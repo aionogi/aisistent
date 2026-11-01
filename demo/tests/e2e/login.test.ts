@@ -414,6 +414,21 @@ test("invitation acceptance requires the current session's verified matching ema
   } finally {
     stack.user.emailVerified = true;
   }
+  // The same address, not yet confirmed, is told to confirm it and not that it is another account.
+  const waiting = await unverified.get(path);
+  assert.match(waiting.body, /Potvrdite email adresu/);
+  assert.ok(waiting.body.includes(`/auth/login?returnTo=${encodeURIComponent(path)}`), "the notice offers to sign in again and come back");
+  assert.doesNotMatch(waiting.body, /Prijavljeni ste drugim nalogom|Prihvati poziv/);
+  // Once the address is confirmed, signing in again from that notice brings the accept button.
+  const confirmed = new Browser();
+  stack.user.emailVerified = false;
+  try {
+    await confirmed.get("/auth/login?returnTo=/account/");
+  } finally {
+    stack.user.emailVerified = true;
+  }
+  await confirmed.get(`/auth/login?returnTo=${encodeURIComponent(path)}`);
+  assert.match((await confirmed.get(path)).body, /Prihvati poziv/);
   // A newer verified session updates the shared profile, but the earlier
   // unverified session must not inherit its proof of email ownership.
   const verified = new Browser();
@@ -437,6 +452,7 @@ test("invitation acceptance requires the current session's verified matching ema
   assert.match((await accept(unverified)).body, /Potvrdite email adresu pre nego što prihvatite poziv/);
   const wrongUser = new Browser();
   await wrongUser.get("/auth/login?returnTo=/account/&login_hint=wrong-invitee@example.test");
+  assert.match((await wrongUser.get(path)).body, /Prijavljeni ste drugim nalogom/);
   assert.match((await accept(wrongUser)).body, /Poziv glasi na drugu email adresu/);
   assert.equal((await stack.db.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1 AND user_id <> $2", [organizationId, ownerId])).rowCount, 0);
   assert.equal((await stack.db.admin.query("SELECT accepted_at FROM app.invitations WHERE id = $1", [invitation.id])).rows[0].accepted_at, null);

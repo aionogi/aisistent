@@ -163,7 +163,7 @@ Test without a domain (it reaches only the account's own verified addresses):
 
 1. Create an account at lettermint.co in the company's name, with MFA. Create a project and copy its project token (`lm_...`; team tokens `lm_team_...` are refused).
 2. In Vercel add, for **Production** only: `LETTERMINT_API_TOKEN` with the token, and `EMAIL_FROM` with `aisistent <onboarding@lettermint.dev>`. Redeploy.
-3. On a firm's Team page, invite the address of the Lettermint account. The page says the invitation was sent, and the email arrives with a working link. Record the time and recipient in `docs/HANDOFF.md`.
+3. Signed in with another address, invite the address of the Lettermint account on a firm's Team page; a member's address is refused. The page says the invitation was sent, and the email arrives with a working link. To accept, open the link in a private window and sign in with the invited address; a new account confirms the address first through Auth0's message, then chooses "Proveri ponovo". Record the time and recipient in `docs/HANDOFF.md`.
 4. Remove both variables and redeploy: this sender refuses other addresses, so every other invitation would show a failed send and report an error.
 
 With a domain, before publishing:

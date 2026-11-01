@@ -64,13 +64,20 @@ export default async function InvitationPage({ params }: PageProps<"/invite/[tok
     return <Frame><h1 id="invite-title">Poziv nije pronađen</h1><p className={styles.lead}>Proverite da li ste otvorili ceo link ili zatražite novi poziv od vlasnika firme.</p></Frame>;
   }
 
-  const emailMatches = account.emailVerified && account.email?.toLowerCase() === preview.email;
+  const sameAddress = account.email?.toLowerCase() === preview.email;
+  const emailMatches = account.emailVerified && sameAddress;
   return (
     <Frame>
       <h1 id="invite-title">Poziv u firmu „{preview.organizationName}“</h1>
       <p className={styles.lead}>Uloga: {ROLE_TEXT[preview.role]}. Poziv glasi na <strong>{preview.email}</strong>.</p>
       {preview.status === "valid" && emailMatches && <AcceptInvitationForm action={acceptInvitationAction.bind(null, token)} />}
-      {preview.status === "valid" && !emailMatches && (
+      {preview.status === "valid" && sameAddress && !account.emailVerified && (
+        // Signing in again brings a fresh token, the only place the confirmation shows up.
+        <Notice tone="warning" title="Potvrdite email adresu" action={<a href={`/auth/login?returnTo=${returnTo}`}>Proveri ponovo</a>}>
+          Poziv glasi na vašu adresu, ali ona još nije potvrđena. Otvorite poruku za potvrdu koja je stigla na {preview.email} (proverite i spam), kliknite link u njoj, pa izaberite „Proveri ponovo“.
+        </Notice>
+      )}
+      {preview.status === "valid" && !sameAddress && (
         <Notice tone="warning" title="Prijavljeni ste drugim nalogom" action={<a href="/auth/logout">Odjava</a>}>
           {account.email ? `Trenutno ste prijavljeni kao ${account.email}${account.emailVerified ? "" : " (adresa nije potvrđena)"}.` : "Vaš nalog nema potvrđenu email adresu."} Prihvatiti može samo nalog sa adresom {preview.email}.
         </Notice>
