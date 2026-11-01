@@ -58,7 +58,7 @@ export const SUPPORT_TOPICS: SupportTopic[] = [
   {
     id: "account",
     question: "Kako da otvorim nalog?",
-    answer: "Za isprobavanje demoa nalog nije potreban. Nalozi za firme su u pripremi i još nisu otvoreni za javnost.",
+    answer: "Za isprobavanje demoa nalog nije potreban. Prijava je u gornjem meniju početne stranice, ali nalozi za firme su još u test fazi, pa ne unosite stvarne podatke klijenata.",
     keywords: ["nalog", "registr", "prijav", "=login"],
     hints: ["profil", "otvor"],
   },

@@ -261,6 +261,10 @@ Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILES
 
 ## Verification record
 
+### Sign-in link in the home page header (2026-11-02)
+
+At the user's request the home page header now has "Prijava" (`/account/`), which also takes a signed-in person straight to their firms; until now only the footer had it. On phones it sits in the opened menu, because the bar has no room. A separate sign-up button waits for publishing, while the site is a test environment. The help chat's answer about accounts said they were not open yet, which the button would contradict, so it now points to the link and says accounts are in a test phase. Local browser at 1280, 1024, 801 and 375 px: no page overflow and no console errors, and the phone link opens the account page. `npm test` 178/178, `npm run test:e2e` 26/26 with the two links asserted, `npm run typecheck` and `npm run build` passed.
+
 ### First real invitation email (2026-11-02)
 
 The user created the Lettermint account and project, set `LETTERMINT_API_TOKEN` and `EMAIL_FROM` (`onboarding@lettermint.dev`, no domain) in Vercel Production, and ran the runbook's test on the live site.

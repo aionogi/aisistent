@@ -160,6 +160,10 @@ test("signed-out visitors see the sign-in page, not account data", async () => {
   assert.equal(response.status, 200);
   assert.match(body, /Prijavite se/);
   assert.doesNotMatch(body, /Vaš nalog/);
+  // The home page leads there from its header, on wide screens and in the phone menu.
+  const home = await browser.get("/");
+  assert.match(home.body, /class="header-login" href="\/account\/"/);
+  assert.match(home.body, /class="nav-login" href="\/account\/"/);
 });
 
 test("workspace writes require MFA and current membership through the actual Server Action", async () => {

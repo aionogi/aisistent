@@ -61,6 +61,9 @@ p { line-height: 1.75; }
 .desktop-nav a:hover, .site-footer nav a:hover { color: var(--blue); }
 .header-actions { display: flex; align-items: center; gap: 20px; }
 .demo-label { font-size: 11px; color: #66738a; }
+.header-login { display: inline-flex; align-items: center; min-height: 44px; color: #4f5b70; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.header-login:hover { color: var(--blue); }
+.desktop-nav .nav-login { display: none; }
 .button { display: inline-flex; align-items: center; justify-content: center; gap: 16px; font-size: 13px; font-weight: 700; border-radius: 8px; padding: 13px 19px; min-height: 44px; border: none; transition: background .2s, transform .2s; white-space: nowrap; }
 .button:hover { transform: translateY(-2px); }
 .button-blue { color: #fff; background: var(--blue); }
@@ -254,6 +257,8 @@ p { line-height: 1.75; }
   .site-header .brand { font-size: 24px; }
   .site-header .brand svg { width: 29px; height: 29px; margin-right: 6px; }
   .header-actions { gap: 6px; }
+  .header-login { display: none; }
+  .desktop-nav .nav-login { display: flex; }
   .header-cta { font-size: 11px; padding: 10px 14px; min-height: 40px; gap: 8px; }
   .menu-button { display: block; }
   .desktop-nav { display: none; position: absolute; top: 75px; left: 0; right: 0; padding: 15px 22px; background: white; border: 1px solid var(--line); border-radius: 16px; }

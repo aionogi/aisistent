@@ -64,9 +64,11 @@ export default function Home() {
           <a href="#how-it-works" onClick={closeMenu}>Kako radi</a>
           <a href="#possibilities" onClick={closeMenu}>Mogućnosti</a>
           <a href="#demo" onClick={closeMenu}>Za vaš posao <ChevronDown size={13} aria-hidden="true" /></a>
+          <a className="nav-login" href="/account/" onClick={closeMenu}>Prijava</a>
         </nav>
         <div className="header-actions">
           <span className="demo-label">Demo verzija</span>
+          <a className="header-login" href="/account/">Prijava</a>
           <a className="button button-blue header-cta" href="#demo">Isprobaj demo <ArrowUpRight /></a>
           <button className="menu-button" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" aria-label={menuOpen ? "Zatvori meni" : "Otvori meni"} onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X  aria-hidden="true" /> : <Menu  aria-hidden="true" />}
