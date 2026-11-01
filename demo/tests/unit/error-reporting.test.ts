@@ -88,7 +88,7 @@ test("an event keeps what helps find the bug and nothing about the person or req
     },
   }));
 
-  assert.deepEqual(Object.keys(safe).filter((key) => safe[key as keyof ErrorEvent] !== undefined).sort(), ["environment", "event_id", "exception", "level", "release", "sdk", "tags", "timestamp", "transaction"]);
+  assert.deepEqual(Object.keys(safe).filter((key) => safe[key as keyof ErrorEvent] !== undefined).sort(), ["environment", "event_id", "exception", "fingerprint", "level", "release", "sdk", "tags", "timestamp", "transaction"]);
   assert.deepEqual(safe.sdk?.settings, { infer_ip: "never" }, "Sentry is told not to store the IP address");
   assert.deepEqual(safe.tags, { event: "action.failed", operation: "workspace.save" });
   assert.equal(safe.transaction, "GET /org/[organizationId]");
@@ -98,6 +98,19 @@ test("an event keeps what helps find the bug and nothing about the person or req
   assert.deepEqual(exception.stacktrace!.frames!.map((frame) => frame.filename), ["[page]", "/_next/static/chunks/a.js", ".next/server/app/page.js", ".next\\server\\chunk.js", "node_modules/pg/lib/client.js", "node:internal/process/task_queues"]);
   const serialized = JSON.stringify(safe);
   for (const secret of ["example.test", "token123", "session=abc", "203.0.113.9", "password", "const secret", "body", "\"host\"", "Users", "\"auto\"", "GlobalHandlers"]) assert.ok(!serialized.includes(secret), secret);
+});
+
+test("a handled failure stays one issue across deployments; uncaught errors keep their stack grouping", () => {
+  const handled = (chunk: string, operation: string, type = "Error") => minimalEvent(failure({
+    tags: { event: "action.failed", operation },
+    exception: { values: [{ type, value: "failed", stacktrace: { frames: [{ filename: `/var/task/.next/server/chunks/${chunk}.js`, function: "n" }] } }] },
+  })).fingerprint;
+  assert.deepEqual(handled("demo_aaa", "workspace.save"), handled("demo_bbb", "workspace.save"));
+  assert.deepEqual(handled("demo_aaa", "workspace.save"), ["action.failed", "workspace.save", "Error"]);
+  assert.notDeepEqual(handled("demo_aaa", "workspace.save"), handled("demo_aaa", "team.change"));
+  assert.notDeepEqual(handled("demo_aaa", "workspace.save"), handled("demo_aaa", "workspace.save", "TypeError"));
+  assert.deepEqual(minimalEvent(failure({ message: "auth.callback_failed", tags: { event: "auth.callback_failed", operation: "auth.callback" } })).fingerprint, ["auth.callback_failed", "auth.callback", ""]);
+  assert.equal(minimalEvent(failure({ fingerprint: ["ana@example.test"], exception: { values: [{ type: "Error" }] } })).fingerprint, undefined);
 });
 
 test("the SDK is told to collect nothing about people or requests", () => {

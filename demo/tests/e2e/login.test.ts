@@ -778,12 +778,12 @@ test("failures reach error reporting without anything about the person or the re
     await stack.db.admin.query("ALTER TABLE app.conversations_canary RENAME TO conversations");
   }
 
-  type ReportedEvent = { message?: string; tags?: Record<string, string>; transaction?: string; exception?: { values?: { value?: string; stacktrace?: unknown }[] } };
+  type ReportedEvent = { message?: string; tags?: Record<string, string>; fingerprint?: string[]; transaction?: string; exception?: { values?: { value?: string; stacktrace?: unknown }[] } };
   const events = (): ReportedEvent[] => reportedEnvelopes.flatMap((envelope) => {
     const lines = envelope.split("\n");
     return lines.flatMap((line, index) => (line.includes('"type":"event"') ? [JSON.parse(lines[index + 1]) as ReportedEvent] : []));
   });
-  const callbackReported = () => events().some((event) => event.message === "auth.callback_failed" && event.tags?.event === "auth.callback_failed" && event.tags?.operation === "auth.callback");
+  const callbackReported = () => events().some((event) => event.message === "auth.callback_failed" && event.tags?.event === "auth.callback_failed" && event.tags?.operation === "auth.callback" && event.fingerprint?.[0] === "auth.callback_failed");
   const pageReported = () => events().some((event) => event.transaction?.includes("/org/[organizationId]") && event.exception?.values?.some((value) => value.stacktrace));
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline && !(callbackReported() && pageReported())) await new Promise((resolve) => setTimeout(resolve, 200));

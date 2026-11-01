@@ -93,6 +93,9 @@ function safeException(exception: Exception): Exception {
 export function minimalEvent<T extends ErrorEvent>(event: T): T {
   const exceptions = event.exception?.values?.slice(-MAX_EXCEPTIONS).map(safeException);
   const tags = Object.entries(event.tags ?? {}).filter(([name]) => REPORTED_TAGS.includes(name));
+  // Bundle names change with each deployment, so a handled failure is grouped by what failed, not by its
+  // stack; otherwise every deployment would open a new issue and alert again. Uncaught errors keep their stack.
+  const handled = typeof event.tags?.event === "string";
   const safe: ErrorEvent = {
     type: undefined,
     event_id: event.event_id,
@@ -106,6 +109,7 @@ export function minimalEvent<T extends ErrorEvent>(event: T): T {
     ...(event.transaction ? { transaction: scrubText(event.transaction) } : {}),
     ...(event.message ? { message: scrubText(event.message) } : {}),
     ...(tags.length ? { tags: Object.fromEntries(tags) } : {}),
+    ...(handled ? { fingerprint: [String(event.tags?.event), String(event.tags?.operation ?? ""), exceptions?.at(-1)?.type ?? ""] } : {}),
     ...(exceptions ? { exception: { values: exceptions } } : {}),
   };
   return safe as T;

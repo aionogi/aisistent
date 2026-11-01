@@ -150,7 +150,7 @@ Every error-level event above, uncaught server and browser errors, and failed cl
 3. In the Sentry project's Security & Privacy settings, turn on **Prevent Storing of IP Addresses**. The app already asks for this; the setting keeps it true if the code changes.
 4. In Vercel add `NEXT_PUBLIC_SENTRY_DSN` for **Production** only, and redeploy.
 5. Test: open `https://<project>.vercel.app/auth/callback/?code=test&state=test`. It redirects to the account page with a sign-in error and creates an `auth.callback_failed` event in Sentry within a minute. The same failure is sent at most once a minute per server.
-6. Create an alert for a new issue that emails the operator, repeat step 5 after the issue is resolved, and record the time and recipient in `docs/HANDOFF.md`.
+6. Confirm the alert: a project created with "High priority issues" has a rule that emails the team on a new high priority issue. Check that the first event's email arrived and record the time and recipient in `docs/HANDOFF.md`. Handled failures keep one issue across deployments, so repeating step 5 does not alert again; to retest, use the rule's test notification under Alerts.
 
 Sentry's free plan has one user and a monthly event limit; check that its terms suit commercial use before launch.
 
