@@ -1,6 +1,6 @@
 # M3 operations runbook
 
-Status: implemented local safeguards and a passing synthetic logical restore rehearsal. No production deployment, scheduler, alert destination, managed backup or deployed restore drill has been configured. Hosting and identity remain provisional. This document is an executable checklist for the eventual staging operator, not evidence of production readiness.
+Status: implemented local safeguards and a passing synthetic logical restore rehearsal. The site runs on Vercel, Supabase and Auth0 EU with a daily cleanup cron and a confirmed Sentry alert email. No managed backup or deployed restore drill has been configured. This document is an executable checklist for the eventual staging operator, not evidence of production readiness.
 
 ## Vercel and Supabase setup
 
@@ -139,7 +139,7 @@ Before staging, name a primary and backup operator and configure a restricted lo
 - `reachedPassLimit` on two consecutive runs: inspect expiry backlog and scheduler frequency.
 - Repeated action/callback failures or a sudden sustained increase in 429s: distinguish misconfiguration, legitimate shared-IP traffic and abuse before changing budgets.
 
-Verify alerts reach an operator. Record the test timestamp and recipient in the release evidence; no alert-delivery test has yet been performed.
+Verify alerts reach an operator. Record the test timestamp and recipient in the release evidence. Sentry's alert email was confirmed on 2026-11-01 (`docs/HANDOFF.md`); the suggested alerts above are not configured yet.
 
 ### Error reporting (Sentry)
 
