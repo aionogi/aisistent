@@ -268,12 +268,12 @@ The user created the Lettermint account and project, set `LETTERMINT_API_TOKEN` 
 | Check | Evidence |
 | --- | --- |
 | Real send | At 00:07 Belgrade time the Team page reported the invitation to the Lettermint account's own address as sent, so Lettermint accepted the request, tracking off included, on the free plan |
-| Delivery | The email arrived with the firm's name, the role, the button and the fallback address as designed (the user's screenshot) |
+| Delivery | The email reached the Gmail inbox, not spam (the user's report), with the firm's name, the role, the button and the fallback address as designed (the user's screenshot). It came from Lettermint's shared sender, so this says nothing yet about the project's own domain |
 | Link | It opened the live invitation page. A new account with the invited address, not yet confirmed, could not accept, as designed. After confirming through Auth0's message, the account accepted and landed in the firm with the member role and read-only views; the Team page lists both people (the user's screenshots). Which of the notice's two ways back the user took was not recorded, so "Proveri ponovo" is proved by tests and the local browser only |
 | Bug found | That page told the account "Prijavljeni ste drugim nalogom" although the address was the same. It now asks to confirm the address and offers "Proveri ponovo", which signs in again and returns, because the session learns of a confirmation only from a fresh ID token. Another address still gets the old notice |
 | Tests | `npm test` 178/178, `npm run test:e2e` 26/26, with the acceptance test extended to this notice, to signing in again after confirming, and to the other-address notice. Local browser with the mock provider: the notice, then the accept button after "Proveri ponovo", no console errors. `npm run typecheck` and `npm run build` passed |
 | Before launch | Auth0's confirmation message is in English, comes from Auth0's default mail and shows the tenant's name. Set its template and mail provider before real customers sign up |
-| Not verified | Whether the email landed in the inbox or spam; Outlook; delivery to people outside the team, which needs a domain |
+| Not verified | Outlook; inbox placement from the project's own domain, and delivery to people outside the team, which both need a domain |
 
 The two variables must come off Vercel once the test ends: this sender refuses other addresses, so every other invitation would show a failed send.
 
