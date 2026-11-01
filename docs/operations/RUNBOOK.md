@@ -57,6 +57,7 @@ Import the GitHub repository with **Root Directory `demo`** (Next.js preset, def
 | `AUTH0_SECRET` | Generated, 32+ characters |
 | `AUTH_REQUIRE_MFA` | `false` until the tenant has an MFA factor |
 | `NEXT_PUBLIC_SENTRY_DSN` | Optional: the Sentry project's DSN; see "Error reporting (Sentry)". Read at build time, so redeploy after changing it. It is sent to browsers by design and is not a secret |
+| `LETTERMINT_API_TOKEN`, `EMAIL_FROM` | Optional: see "Invitation email (Lettermint)". The token is a secret; without both, invitations stay link-only |
 
 Never set `DATABASE_ADMIN_URL` or `DATABASE_APP_PASSWORD` in Vercel. After saving the variables, **redeploy** (variables apply to new deployments only). In the Auth0 application add `https://<project>.vercel.app/auth/callback` (callback) and `https://<project>.vercel.app/` (logout).
 
@@ -153,6 +154,27 @@ Every error-level event above, uncaught server and browser errors, and failed cl
 6. Confirm the alert: a project created with "High priority issues" has a rule that emails the team on a new high priority issue. Check that the first event's email arrived and record the time and recipient in `docs/HANDOFF.md`. Handled failures keep one issue across deployments, so repeating step 5 does not alert again; to retest, use the rule's test notification under Alerts.
 
 Sentry's free plan has one user and a monthly event limit; check that its terms suit commercial use before launch.
+
+## Invitation email (Lettermint)
+
+Invitations are emailed once `LETTERMINT_API_TOKEN` and `EMAIL_FROM` are set; without them the owner copies the link. Lettermint needs a verified domain to send to other people, so full delivery waits for a domain. The code is in `demo/lib/email/`.
+
+Test without a domain (it reaches only the account's own verified addresses):
+
+1. Create an account at lettermint.co in the company's name, with MFA. Create a project and copy its project token (`lm_...`; team tokens `lm_team_...` are refused).
+2. In Vercel add, for **Production** only: `LETTERMINT_API_TOKEN` with the token, and `EMAIL_FROM` with `aisistent <onboarding@lettermint.dev>`. Redeploy.
+3. On a firm's Team page, invite the address of the Lettermint account. The page says the invitation was sent, and the email arrives with a working link. Record the time and recipient in `docs/HANDOFF.md`.
+4. Remove both variables and redeploy: this sender refuses other addresses, so every other invitation would show a failed send and report an error.
+
+With a domain, before publishing:
+
+1. In Lettermint add a subdomain such as `mail.<domain>`, and copy the records from its DNS page exactly: two DKIM CNAMEs (`lm1._domainkey`, `lm2._domainkey`), a Return-Path CNAME and a DMARC record. In Cloudflare set the CNAMEs to "DNS only". DNS can take up to 48 hours.
+2. In Vercel set the token and `EMAIL_FROM` to `aisistent <pozivi@mail.<domain>>`, and `APP_BASE_URL` to the new address. Redeploy.
+3. Invite a person outside the team, check that the email reaches the inbox and not spam at Gmail and Outlook, and record it.
+
+The app turns open and click tracking off on every email, because click tracking would send the one-time link through the provider's tracking host. Keep it off on the route as well. A failed send, or more than 20 emails an hour from one user, leaves the invitation in place and shows the owner the link. Failures reach Sentry as `action.failed` with operation `invitation.email` and a fixed code: `credentials_rejected` means a wrong token, `message_rejected` usually a sender or recipient the account may not use. To change the token, create a new one, update Vercel, redeploy, then delete the old one.
+
+Lettermint keeps message content, including the link, for 28 days; the link expires after 7 days and works only for the invited verified address. Its free plan has 300 emails a month and one user.
 
 ## Backups and isolated restore drill
 

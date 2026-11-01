@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
-import { DEFAULT_MOCK_USER, startLocalAuthStack, type LocalAuthStack } from "../support/local-auth-stack.ts";
+import { DEFAULT_MOCK_USER, startLocalAuthStack, TEST_EMAIL_TOKEN, type LocalAuthStack } from "../support/local-auth-stack.ts";
 import { readFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { addKnowledge, createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
@@ -20,7 +20,22 @@ const CRON_SECRET = "test-only-cron-secret-0123456789abcdef";
 const REPORTING_PORT = 4591;
 const reportedEnvelopes: string[] = [];
 let reportingServer: Server;
+// Stands in for Lettermint.
+const EMAIL_PORT = 4592;
+type SentEmail = { token: string | undefined; body: { from: string; to: string[]; subject: string; text: string; html: string; settings: unknown } };
+const sentEmails: SentEmail[] = [];
+let emailStatus = 202;
+let emailServer: Server;
 before(async () => {
+  emailServer = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("end", () => {
+      sentEmails.push({ token: request.headers["x-lettermint-token"] as string | undefined, body: JSON.parse(Buffer.concat(chunks).toString("utf8")) as SentEmail["body"] });
+      response.writeHead(emailStatus, { "content-type": "application/json" }).end("{}");
+    });
+  });
+  await new Promise<void>((resolve) => emailServer.listen(EMAIL_PORT, "127.0.0.1", resolve));
   reportingServer = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -30,11 +45,12 @@ before(async () => {
     });
   });
   await new Promise<void>((resolve) => reportingServer.listen(REPORTING_PORT, "127.0.0.1", resolve));
-  stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET, sentryDsn: `http://testkey@127.0.0.1:${REPORTING_PORT}/1` });
+  stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET, sentryDsn: `http://testkey@127.0.0.1:${REPORTING_PORT}/1`, emailApiUrl: `http://127.0.0.1:${EMAIL_PORT}` });
 }, { timeout: 180_000 });
 after(async () => {
   await stack?.stop();
   await new Promise((resolve) => reportingServer?.close(resolve));
+  await new Promise((resolve) => emailServer?.close(resolve));
 });
 beforeEach(async () => {
   await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
@@ -280,7 +296,7 @@ test("the workspace step-up link signs in again with MFA and returns to the orga
     const stepUp = decodeAttribute(link);
     assert.equal(new URL(stepUp, stack.appUrl).searchParams.get("returnTo"), home);
     assert.equal(new URL(stepUp, stack.appUrl).searchParams.get("max_age"), "0");
-    assert.doesNotMatch((await browser.get(`${home}team/`)).body, /Napravi poziv/);
+    assert.doesNotMatch((await browser.get(`${home}team/`)).body, /Pošalji poziv/);
 
     // The provider now authenticates with MFA; the callback validates auth_time for max_age=0.
     stack.user.mfa = true;
@@ -288,7 +304,7 @@ test("the workspace step-up link signs in again with MFA and returns to the orga
     assert.equal(after.response.status, 200);
     assert.equal(new URL(after.url).pathname, home);
     assert.doesNotMatch(after.body, /Potvrdite prijavu za izmene/);
-    assert.match((await browser.get(`${home}team/`)).body, /Napravi poziv/);
+    assert.match((await browser.get(`${home}team/`)).body, /Pošalji poziv/);
   } finally {
     stack.user.mfa = true;
   }
@@ -432,6 +448,86 @@ test("invitation acceptance requires the current session's verified matching ema
   assert.match(accepted.response.headers.get("x-action-redirect") ?? "", new RegExp(`/org/${organizationId}/`));
   assert.deepEqual((await stack.db.admin.query("SELECT role FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [organizationId, inviteeId])).rows, [{ role: "member" }]);
   assert.ok((await stack.db.admin.query("SELECT accepted_at FROM app.invitations WHERE id = $1", [invitation.id])).rows[0].accepted_at);
+});
+
+test("an owner's invitation is emailed once with a working link, and a failed send still leaves the link", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/&login_hint=email-owner@example.test");
+  const ownerId = await userIdFor("mock|email-owner");
+  const organizationId = await createOrganization(stack.db.appPool, ownerId, "Pozivi Email Regression");
+  const path = `/org/${organizationId}/team/`;
+  const page = await owner.get(path);
+  assert.match(page.body, /Pošalji poziv/);
+  assert.doesNotMatch(page.body, /Napravi poziv/);
+  const invite = (email: string) => owner.post(path, nativeForm(page.body, "invite-email", { email, role: "admin" }));
+  const openInvitations = async (email: string) => Number((await stack.db.admin.query("SELECT count(*) FROM app.invitations WHERE organization_id = $1 AND email = $2 AND revoked_at IS NULL", [organizationId, email])).rows[0].count);
+  sentEmails.length = 0;
+
+  const sent = await invite("email-invitee@example.test");
+  assert.match(sent.body, /Poziv je poslat na email-invitee@example.test/);
+  assert.equal(sentEmails.length, 1, "exactly one email");
+  const [email] = sentEmails;
+  assert.equal(email.token, TEST_EMAIL_TOKEN);
+  assert.equal(email.body.from, "aisistent <pozivi@example.test>");
+  assert.deepEqual(email.body.to, ["email-invitee@example.test"]);
+  assert.match(email.body.subject, /Pozivi Email Regression/);
+  assert.match(email.body.text, /kao administrator/);
+  assert.deepEqual(email.body.settings, { track_opens: false, track_clicks: false });
+  const link = email.body.text.match(/http\S+\/invite\/[\w-]+\//)?.[0];
+  assert.ok(link, "the email contains the link");
+  assert.ok(link.startsWith(`${stack.appUrl}/invite/`), "the link uses the configured address");
+  assert.ok(email.body.html.includes(`href="${link}"`));
+
+  const invitee = new Browser();
+  await invitee.get("/auth/login?returnTo=/account/&login_hint=email-invitee@example.test");
+  const opened = await invitee.get(link);
+  assert.match(opened.body, /Prihvati poziv/);
+  assert.match(opened.body, /Pozivi Email Regression/);
+
+  // A request under another host name must not change the address in the email.
+  sentEmails.length = 0;
+  const alias = stack.appUrl.replace("127.0.0.1", "localhost");
+  const viaAlias = await owner.post(`${alias}${path}`, nativeForm(page.body, "invite-email", { email: "host-check@example.test", role: "member" }), { origin: alias });
+  assert.match(viaAlias.body, /Poziv je poslat na host-check@example.test/);
+  assert.equal(sentEmails.length, 1);
+  assert.ok(sentEmails[0].body.text.includes(`${stack.appUrl}/invite/`));
+  assert.ok(!sentEmails[0].body.text.includes("localhost"));
+
+  // The provider refuses: the invitation exists and the owner gets the link.
+  emailStatus = 500;
+  try {
+    const failed = await invite("email-failed@example.test");
+    assert.match(failed.body, /Poziv za email-failed@example.test je napravljen, ali email nije poslat/);
+    assert.ok(failed.body.includes(`${stack.appUrl}/invite/`), "the server renders the whole link, so the page matches when it hydrates");
+    assert.equal(await openInvitations("email-failed@example.test"), 1);
+  } finally {
+    emailStatus = 202;
+  }
+
+  // Over the hourly budget: still an invitation and a link, but no email.
+  const budget = await stack.db.admin.query("UPDATE app.rate_limit_buckets SET request_count = $1 WHERE expires_at > now() + interval '5 minutes' RETURNING bucket_key", [RATE_POLICIES["invitation.email"].limit]);
+  assert.equal(budget.rowCount, 1, "only the hourly email budget is that long");
+  sentEmails.length = 0;
+  const limited = await invite("email-limited@example.test");
+  assert.match(limited.body, /Dostignuto je ograničenje slanja/);
+  assert.equal(sentEmails.length, 0);
+  assert.equal(await openInvitations("email-limited@example.test"), 1);
+});
+
+test("a member cannot make the server send an invitation email", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?returnTo=/account/&login_hint=email-boss@example.test");
+  const organizationId = await createOrganization(stack.db.appPool, await userIdFor("mock|email-boss"), "Pozivi Member Regression");
+  const path = `/org/${organizationId}/team/`;
+  const page = await owner.get(path);
+  const member = new Browser();
+  await member.get("/auth/login?returnTo=/account/&login_hint=email-member@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, await userIdFor("mock|email-member")]);
+  assert.doesNotMatch((await member.get(path)).body, /id="invite-email"/);
+  sentEmails.length = 0;
+  const refused = await member.post(path, nativeForm(page.body, "invite-email", { email: "spam@example.test", role: "member" }));
+  assert.match(refused.body, /Samo vlasnik firme može da menja tim/);
+  assert.equal(sentEmails.length, 0);
 });
 
 test("only an owner with MFA downloads the organization export, and only from this site", async () => {
@@ -794,5 +890,7 @@ test("failures reach error reporting without anything about the person or the re
   for (const secret of [
     DEFAULT_MOCK_USER.email, DEFAULT_MOCK_USER.name, "Tajna Firma Reporting", organizationId, "canary-code", "canary-state", "__session",
     "conversations_canary", "\"cookie\"", "\"request\"", "\"user\"", "\"breadcrumbs\"", "\"extra\"", "request_path", "\"infer_ip\":\"auto\"", CRON_SECRET,
+    "email-failed@example.test", "Pozivi Email Regression", "/invite/", TEST_EMAIL_TOKEN,
   ]) assert.ok(!everything.includes(secret), `reports must not contain ${secret}`);
+  assert.ok(events().some((event) => event.tags?.operation === "invitation.email" && event.exception?.values?.some((value) => value.value === "provider_error")), "the failed send was reported by its fixed code");
 });

@@ -2,7 +2,7 @@
 
 import { Check, Copy, Send, Trash2, UserMinus, Users } from "lucide-react";
 import { useActionState, useState, useTransition } from "react";
-import type { InviteState, TeamActionResult } from "../../../app/(platform)/org/[organizationId]/(shell)/team/actions";
+import type { InviteDelivery, InviteState, TeamActionResult } from "../../../app/(platform)/org/[organizationId]/(shell)/team/actions";
 import type { MemberRole } from "../../../lib/db/context";
 import ConfirmDialog from "../ConfirmDialog";
 import { FieldMessage, Notice } from "../FormControls";
@@ -29,12 +29,21 @@ function peopleLabel(count: number): string {
   return `${count} ${lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14) ? "osobe" : "osoba"}`;
 }
 
-const dateFormat = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+// A fixed zone, so the server (UTC on Vercel) and the browser render the same text.
+const dateFormat = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Belgrade" });
 
-function InviteForm({ invite }: { invite: TeamActions["invite"] }) {
+const DELIVERY_NOTICES: Record<InviteDelivery, { tone: "success" | "warning"; title: (email: string) => string; note: string }> = {
+  sent: { tone: "success", title: (email) => `Poziv je poslat na ${email}`, note: "Ako email ne stigne, pošaljite ga sami." },
+  off: { tone: "success", title: (email) => `Poziv za ${email}`, note: "Slanje emaila još nije povezano." },
+  failed: { tone: "warning", title: (email) => `Poziv za ${email} je napravljen, ali email nije poslat`, note: "Pošaljite ga sami." },
+  limited: { tone: "warning", title: (email) => `Poziv za ${email} je napravljen, ali email nije poslat`, note: "Dostignuto je ograničenje slanja za ovaj sat, pa ga pošaljite sami." },
+};
+
+function InviteForm({ invite, emailEnabled }: { invite: TeamActions["invite"]; emailEnabled: boolean }) {
   const [state, formAction, pending] = useActionState(invite, { error: null, invitation: null });
+  const notice = state.invitation && DELIVERY_NOTICES[state.invitation.delivery];
   const [copied, setCopied] = useState(false);
-  const link = state.invitation ? `${typeof window === "undefined" ? "" : window.location.origin}${state.invitation.path}` : "";
+  const link = state.invitation?.link ?? "";
 
   async function copy() {
     try {
@@ -48,7 +57,7 @@ function InviteForm({ invite }: { invite: TeamActions["invite"] }) {
   return (
     <section className={styles.panel} aria-labelledby="invite-title">
       <h2 id="invite-title">Pozovite člana</h2>
-      <p className={styles.lead}>Napravićemo link za poziv. Pošaljite ga osobi; može ga iskoristiti samo nalog sa potvrđenom adresom na koju glasi poziv.</p>
+      <p className={styles.lead}>{emailEnabled ? "Poslaćemo poziv na ovu adresu" : "Napravićemo link za poziv. Pošaljite ga osobi"}; može ga iskoristiti samo nalog sa potvrđenom adresom na koju glasi poziv.</p>
       <form action={formAction} className={styles.inviteForm} noValidate>
         <div className={forms.field}>
           <label htmlFor="invite-email" className={forms.label}>Email adresa</label>
@@ -63,13 +72,13 @@ function InviteForm({ invite }: { invite: TeamActions["invite"] }) {
             <option value="admin">Administrator (izmene)</option>
           </select>
         </div>
-        <button type="submit" className={`${forms.primaryButton} ${styles.submit}`} disabled={pending}><Send size={15} aria-hidden="true" />{pending ? "Pravim poziv…" : "Napravi poziv"}</button>
+        <button type="submit" className={`${forms.primaryButton} ${styles.submit}`} disabled={pending}><Send size={15} aria-hidden="true" />{emailEnabled ? (pending ? "Šaljem poziv…" : "Pošalji poziv") : (pending ? "Pravim poziv…" : "Napravi poziv")}</button>
       </form>
-      {state.invitation && (
+      {state.invitation && notice && (
         <div role="status">
-          <Notice tone="success" title={`Poziv za ${state.invitation.email}`} action={<button type="button" onClick={copy}>{copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}{copied ? "Kopirano" : "Kopiraj link"}</button>}>
+          <Notice tone={notice.tone} title={notice.title(state.invitation.email)} action={<button type="button" onClick={copy}>{copied ? <Check size={15} aria-hidden="true" /> : <Copy size={15} aria-hidden="true" />}{copied ? "Kopirano" : "Kopiraj link"}</button>}>
             <span className={styles.link}>{link}</span>
-            Link važi do {dateFormat.format(new Date(state.invitation.expiresAt))} i prikazuje se samo sada. Slanje emaila još nije povezano.
+            Link važi do {dateFormat.format(new Date(state.invitation.expiresAt))} i prikazuje se samo sada. {notice.note}
           </Notice>
         </div>
       )}
@@ -77,11 +86,12 @@ function InviteForm({ invite }: { invite: TeamActions["invite"] }) {
   );
 }
 
-export default function TeamView({ currentUserId, role, canChange, members, invitations, actions }: {
+export default function TeamView({ currentUserId, role, canChange, emailEnabled, members, invitations, actions }: {
   currentUserId: string;
   role: MemberRole;
   /** False for owners whose session still needs the MFA step-up; the shell notice explains it. */
   canChange: boolean;
+  emailEnabled: boolean;
   members: MemberRow[];
   invitations: InvitationRow[];
   actions: TeamActions;
@@ -144,7 +154,7 @@ export default function TeamView({ currentUserId, role, canChange, members, invi
         <p className={styles.note}>Vlasnik: tim i sve izmene. Administrator: podešavanje i baza znanja. Član: samo pregled.</p>
       </section>
 
-      {canChange && <InviteForm invite={actions.invite} />}
+      {canChange && <InviteForm invite={actions.invite} emailEnabled={emailEnabled} />}
 
       {isOwner && invitations.length > 0 && (
         <section className={styles.panel} aria-labelledby="invitations-title">

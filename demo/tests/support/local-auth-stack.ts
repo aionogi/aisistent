@@ -10,6 +10,7 @@ const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 export type MockUser = { sub: string; email: string; name: string; emailVerified: boolean; mfa: boolean };
 
 export const DEFAULT_MOCK_USER: MockUser = { sub: "mock|ana", email: "ana@example.test", name: "Ana Test", emailVerified: true, mfa: true };
+export const TEST_EMAIL_TOKEN = "lm_test_only_token";
 
 export type LocalAuthStack = {
   appUrl: string;
@@ -41,7 +42,7 @@ async function waitForHttp(url: string, server: ChildProcess, timeoutMs: number)
  * `next dev` configured for both. Development only — the Auth0 SDK refuses
  * the insecure (http) provider when NODE_ENV is production.
  */
-export async function startLocalAuthStack(options: { appPort: number; issuerPort: number; user?: MockUser; quiet?: boolean; cronSecret?: string; sentryDsn?: string }): Promise<LocalAuthStack> {
+export async function startLocalAuthStack(options: { appPort: number; issuerPort: number; user?: MockUser; quiet?: boolean; cronSecret?: string; sentryDsn?: string; emailApiUrl?: string }): Promise<LocalAuthStack> {
   const db = await startTestDatabase();
   const user: MockUser = { ...(options.user ?? DEFAULT_MOCK_USER) };
 
@@ -93,6 +94,7 @@ export async function startLocalAuthStack(options: { appPort: number; issuerPort
       // No ingress in this local stack: requests deliberately share the fallback bucket.
       RATE_LIMIT_IP_HEADER: "",
       ...(options.sentryDsn ? { NEXT_PUBLIC_SENTRY_DSN: options.sentryDsn } : {}),
+      ...(options.emailApiUrl ? { LETTERMINT_API_URL: options.emailApiUrl, LETTERMINT_API_TOKEN: TEST_EMAIL_TOKEN, EMAIL_FROM: "aisistent <pozivi@example.test>" } : {}),
       NEXT_TELEMETRY_DISABLED: "1",
     },
     stdio: options.quiet ? "ignore" : "inherit",

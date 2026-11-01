@@ -6,6 +6,7 @@ import { mfaRequired } from "../../../../../../lib/auth/auth0.ts";
 import { ForbiddenError, withOrganization } from "../../../../../../lib/db/context.ts";
 import { getPool } from "../../../../../../lib/db/pool.ts";
 import { listInvitations, listMembers } from "../../../../../../lib/db/team.ts";
+import { emailConfig } from "../../../../../../lib/email/lettermint.ts";
 import { changeRoleAction, inviteMemberAction, removeMemberAction, revokeInvitationAction } from "./actions.ts";
 
 export const metadata: Metadata = { title: "Tim — aisistent" };
@@ -33,6 +34,7 @@ export default async function TeamPage({ params }: PageProps<"/org/[organization
       currentUserId={account.userId}
       role={data.role}
       canChange={data.role === "owner" && (account.mfa || !mfaRequired())}
+      emailEnabled={emailConfig() !== null}
       members={data.members.map((member) => ({ ...member, joinedAt: member.joinedAt.toISOString() }))}
       invitations={data.invitations.map((invitation) => ({
         id: invitation.id,

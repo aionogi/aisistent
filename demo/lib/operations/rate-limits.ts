@@ -14,6 +14,8 @@ export const RATE_POLICIES = {
   "organization.create": { limit: 5, seconds: 3600 },
   "workspace.save": { limit: 90, seconds: 60 },
   "team.change": { limit: 30, seconds: 60 },
+  // Each one sends an email to an address of the caller's choosing.
+  "invitation.email": { limit: 20, seconds: 3600 },
   "invitation.accept": { limit: 20, seconds: 60 },
   "organization.export": { limit: 10, seconds: 3600 },
   "organization.delete": { limit: 10, seconds: 3600 },
