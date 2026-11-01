@@ -12,7 +12,7 @@ The user requires Next.js and Node.js. Python is permitted only for a demonstrab
 
 ## Product Purpose
 
-The supplied concept is an AI assistant for business calls and messages. The proposed initial audience is small and medium businesses in Serbia; audience details and phased capabilities remain planning assumptions in `ai-asistent-plan.md`.
+The supplied concept is an AI assistant for business calls and messages. The audience is small and medium businesses on the Balkans: the user named Serbia, Bulgaria, North Macedonia and Croatia (2026-11-01), with possible expansion across Europe if the product succeeds. Audience details and phased capabilities remain planning assumptions in `ai-asistent-plan.md`.
 
 ## Operating Context
 
@@ -22,7 +22,7 @@ The user confirmed that the merchant company is based in Serbia. The product wil
 
 - The product name is **aisistent**, written in lowercase.
 - The user selected https://www.call0.ai/ as website inspiration.
-- Serbian UI copy is retained from the source plan as an assumption, separately from the confirmed English code requirement.
+- Serbian UI copy is retained from the source plan as an assumption, separately from the confirmed English code requirement. Other Balkan markets will need their own languages.
 
 ## Capabilities and Constraints
 
@@ -38,4 +38,4 @@ The user explicitly requested a website demo first, deferring monthly recurring 
 
 ## Open Decisions
 
-Payment provider approval and commercial terms, final pricing and currencies, trial/grace rules, retention periods, recovery targets, and final brand assets remain open. No visual build workflow preference has been recorded.
+Payment provider approval and commercial terms, final pricing and currencies, trial/grace rules, retention periods, recovery targets, the order of markets and their languages, and final brand assets remain open. No visual build workflow preference has been recorded.

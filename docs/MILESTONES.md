@@ -92,6 +92,8 @@ CI follow-up: the inactive workflow template now installs PostgreSQL 17 client t
 
 ## M4 — Live AI and telephony
 
+Market note (2026-11-01): the market is the Balkans, so the assistant's languages and each firm's time zone must not be fixed to Serbia (R19 and R20 in `security/m3-evidence.md`).
+
 Goal: conduct bounded, authorized live calls, preserve useful conversation outcomes, and answer visitors' questions on the aisistent website through an AI support chat.
 
 - [ ] Select approved AI/speech and telephony providers and record their operational constraints.
@@ -125,6 +127,8 @@ The landing page's "Chatbot za sajt — Uskoro" card announces a different, late
 This phase may require a Node.js worker and queue. Add those processes when the workload needs them; a Python pipeline requires separate justification.
 
 ## M5 — Pricing and subscriptions
+
+Market note (2026-11-01): pricing and payment choices must account for several currencies and for EU VAT, because the market includes Bulgaria and Croatia.
 
 Goal: support reliable monthly billing for the confirmed Serbian merchant.
 
