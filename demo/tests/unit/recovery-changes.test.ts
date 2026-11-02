@@ -25,6 +25,8 @@ test("restore differences name the object, the property and both values, without
     "functions app.extra(): only in the copy",
   ]);
   assert.deepEqual(describeChanges(live, live), []);
+  // Objects are matched by name, so a provider that sorts differently reports nothing.
+  assert.deepEqual(describeChanges({ ...live, functions: [...live.functions].reverse() }, live), []);
 });
 
 test("a long list of restore differences is cut short", () => {
