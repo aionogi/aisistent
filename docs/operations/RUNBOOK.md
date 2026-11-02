@@ -155,6 +155,32 @@ Every error-level event above, uncaught server and browser errors, and failed cl
 
 Sentry's free plan has one user and a monthly event limit; check that its terms suit commercial use before launch.
 
+## Two-step sign-in (Auth0 MFA)
+
+The app asks for the second factor only before changes: owners and admins without it see read-only pages and a "Dvofaktorska potvrda" link, which signs in again with `acr_values=http://schemas.openid.net/pape/policies/2007/06/multi-factor` and `max_age=0`. Members who only read are never asked. The session counts as MFA when the ID token's `amr` contains `mfa`. Auth0 does not act on `acr_values` by itself, so a post-login Action does it.
+
+1. Auth0, **Security → Multi-factor Auth**: turn on **One-time Password**, and **Recovery Code** if offered. Leave the policy on **Never**; with **Always** everyone, readers included, would enter a code at every sign-in.
+2. **Actions → Library → Create Action → Create Custom Action**: name `Dvostepena potvrda za izmene`, trigger **Login / Post Login**, the offered runtime. Replace the editor's code with the code below and choose **Deploy**.
+3. **Actions → Triggers → post-login**: drag the Action between **Start** and **Complete** and choose **Apply** ("All changes are live"). Until then it never runs.
+4. Test before requiring it. Open `/auth/login?acr_values=http%3A%2F%2Fschemas.openid.net%2Fpape%2Fpolicies%2F2007%2F06%2Fmulti-factor&max_age=0&returnTo=%2Faccount%2F` on the site and sign in as an owner: Auth0 asks for the password, shows a QR code for the authenticator app, then a recovery code. The account page then shows "Dvofaktorska prijava".
+5. Set `AUTH_REQUIRE_MFA=true` for Production in Vercel and redeploy. Check that an owner signed in normally sees read-only pages and the step-up link, that the link brings editing back, and that a member sees no change.
+
+```js
+// Asks for the second factor only when the app requests it, before changes.
+exports.onExecutePostLogin = async (event, api) => {
+  const MFA = "http://schemas.openid.net/pape/policies/2007/06/multi-factor";
+  if (event.transaction?.acr_values?.includes(MFA)) {
+    api.multifactor.enable("any", { allowRememberBrowser: false });
+  }
+};
+```
+
+`allowRememberBrowser` stays `false`: a remembered browser skips the challenge, the new ID token would carry no `mfa`, and the owner would be sent back to the step-up link again and again.
+
+A QR code or recovery code must never be photographed, sent or stored next to the password. If one was exposed, reset that user's factors in Auth0 (**User Management → Users**, the user, multi-factor section) and enroll again through the step-up link; the exact dashboard label was not confirmed. Turning `AUTH_REQUIRE_MFA` off again restores password-only editing at once, so a factor problem never locks owners out of their data.
+
+Auth0's pricing lists MFA factors as not available on the Free plan, and a new tenant gets a trial of paid features. The docs do not say whether one-time passwords keep working when the trial ends. Before relying on the requirement after the trial, check the factor page or ask Auth0, or move to a paid plan before launch. If factors stop, only the step-up sign-in is affected: the Action acts only when the app asks for MFA.
+
 ## Invitation email (Lettermint)
 
 Invitations are emailed once `LETTERMINT_API_TOKEN` and `EMAIL_FROM` are set; without them the owner copies the link. Lettermint needs a verified domain to send to other people, so full delivery waits for a domain. The code is in `demo/lib/email/`.
