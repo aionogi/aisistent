@@ -272,7 +272,9 @@ The user turned on One-time Password (and a recovery code) in the EU tenant, lef
 | With the Action | Auth0 asked for the password, showed the enrollment QR code, accepted the code and showed a recovery code. The owner's account page then showed "Dvofaktorska prijava", so the ID token carried `amr` with `mfa` and the app recognised it (the user's screenshots) |
 | Exposure | The user sent screenshots of one enrollment QR code and of the owner's recovery code into the agent conversation. The QR code's enrollment was told to be abandoned; the owner's factors should be reset and enrolled again before real data |
 | Plan | The dashboard shows a trial of paid features with 17 days left, ending around 2026-11-19. Auth0's pricing lists MFA factors as not available on Free and does not say what happens after a trial |
-| Not verified | `AUTH_REQUIRE_MFA=true` on the live site: read-only pages for an owner signed in normally, the step-up link bringing editing back, a member unaffected; sign-in with the recovery code; what happens to factors after the trial |
+| Requirement on | The user set `AUTH_REQUIRE_MFA=true` (a Vercel secret) and redeployed. An owner signed in normally got the account page's notice that creating a firm needs the second factor |
+| Bugs found | (1) The disabled "Napravi firmu" button and field looked enabled, because the primary button and fields had no disabled style; they are grey now. (2) The account label "Bez dvofaktorske prijave" read as if the account had no factor, while it describes the current sign-in; it now says "Ova prijava: bez dvofaktorske potvrde" or "Ova prijava: sa dvofaktorskom potvrdom". Checked locally with the mock provider in both states; `npm test` 178/178 (one earlier run failed the `team-concurrency` file once, not reproduced in three reruns), `npm run test:e2e` 26/26, `npm run build` passed |
+| Not verified | The step-up link bringing editing back on the live site, and a member unaffected; sign-in with the recovery code; what happens to factors after the trial |
 
 ### Sign-in link in the home page header (2026-11-02)
 

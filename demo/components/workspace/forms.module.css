@@ -15,6 +15,7 @@
 .field textarea { resize: vertical; min-height: 88px; }
 .field input::placeholder, .field textarea::placeholder, .serviceField input::placeholder { color: #62718b; }
 .field input:hover, .field textarea:hover, .serviceField input:hover, .timeRange input:hover { border-color: #b9c5da; }
+.field input:disabled, .field textarea:disabled, .field input:disabled:hover, .field textarea:disabled:hover { background: var(--surface); border-color: var(--line); color: #7c879a; }
 .field input:focus-visible, .field textarea:focus-visible, .serviceField input:focus-visible, .timeRange input:focus-visible {
   outline: 3px solid #93b5ff; outline-offset: 1px; border-color: var(--blue);
 }
@@ -61,6 +62,7 @@
 }
 .primaryButton { background: var(--blue); color: #fff; }
 .primaryButton:hover { background: var(--blue-dark); }
+.primaryButton:disabled, .primaryButton:disabled:hover { color: #7c879a; background: var(--surface); border-color: var(--line); }
 .secondaryButton { background: #fff; color: var(--blue-dark); border-color: #d5def0; justify-self: start; }
 .secondaryButton:hover { background: #f3f6fd; border-color: #c2cfe8; }
 .secondaryButton:disabled { color: #7c879a; background: var(--surface); border-color: var(--line); }

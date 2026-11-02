@@ -222,7 +222,7 @@ test("sign-in creates the user, an encrypted server-side session, and an HttpOnl
   assert.match(body, /Vaš nalog/);
   assert.match(body, /Ana Test/);
   assert.match(body, /Email potvrđen/);
-  assert.match(body, /Dvofaktorska prijava/);
+  assert.match(body, /Ova prijava: sa dvofaktorskom potvrdom/);
 
   const sessionHeader = browser.setCookieHeaders.find((header) => header.startsWith("__session="));
   assert.ok(sessionHeader, "session cookie set");
@@ -275,7 +275,7 @@ test("without MFA the account page asks for a step-up before creating organizati
   try {
     const browser = new Browser();
     const { body } = await browser.get("/auth/login?returnTo=/account/");
-    assert.match(body, /Bez dvofaktorske prijave/);
+    assert.match(body, /Ova prijava: bez dvofaktorske potvrde/);
     assert.match(body, /potrebna je prijava sa dvofaktorskom potvrdom/);
     assert.match(body, /acr_values=http%3A%2F%2Fschemas\.openid\.net%2Fpape%2Fpolicies%2F2007%2F06%2Fmulti-factor/);
   } finally {

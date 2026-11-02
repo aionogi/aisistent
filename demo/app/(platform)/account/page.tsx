@@ -97,8 +97,8 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
             ? <span className={styles.chip}><CircleCheck size={13} aria-hidden="true" />Email potvrđen</span>
             : <span className={`${styles.chip} ${styles.chipWarn}`}><CircleAlert size={13} aria-hidden="true" />Email nije potvrđen</span>}
           {account.mfa
-            ? <span className={styles.chip}><ShieldCheck size={13} aria-hidden="true" />Dvofaktorska prijava</span>
-            : <span className={`${styles.chip} ${styles.chipWarn}`}><CircleAlert size={13} aria-hidden="true" />Bez dvofaktorske prijave</span>}
+            ? <span className={styles.chip}><ShieldCheck size={13} aria-hidden="true" />Ova prijava: sa dvofaktorskom potvrdom</span>
+            : <span className={`${styles.chip} ${styles.chipWarn}`}><CircleAlert size={13} aria-hidden="true" />Ova prijava: bez dvofaktorske potvrde</span>}
         </div>
       </section>
 
