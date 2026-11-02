@@ -4,6 +4,8 @@
 
 The runner is pinned to `ubuntu-24.04`, whose [published image inventory](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md#postgresql) currently includes PostgreSQL 16. The recovery test requires version 17. The template follows the [official PostgreSQL Ubuntu repository setup](https://www.postgresql.org/download/linux/ubuntu/), using a scoped signing key and `noble-pgdg`, and installs only `postgresql-client-17`. `PG_CLIENT_BIN_DIR=/usr/lib/postgresql/17/bin` selects the matching tools explicitly. Temporary test servers still come from the locked `embedded-postgres` dependency; no database service, application secrets or external database URL are needed.
 
+`npm test`, `npm run test:e2e` and `npm run test:recovery` go through `demo/scripts/test/run-tests.ts`. Node's test runner reports success when its patterns match no files, so the script fails instead, and on GitHub Actions it adds a notice such as "180 of 180 passed". Run logs need a signed-in account, but these notices are public through the check-run annotations API, so a run can be read without logs.
+
 `npm run test:recovery` is a required step: missing tools, the wrong major version or a restore failure fail the job. Do not skip it or add `continue-on-error`. When changing the Ubuntu release, update its package-suite name as well and verify client-tool availability. No backup archive is uploaded as a CI artifact.
 
 The agent's GitHub credential can push source but not workflow files: on 2026-11-02 GitHub again refused `.github/workflows/demo-checks.yml` because the token lacks the `workflow` scope. No account permissions were changed.

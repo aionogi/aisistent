@@ -11,14 +11,14 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "node --test \"tests/unit/**/*.test.ts\" \"tests/db/**/*.test.ts\"",
+    "test": "node scripts/test/run-tests.ts \"tests/unit/**/*.test.ts\" \"tests/db/**/*.test.ts\"",
     "db:migrate": "node scripts/db/migrate.ts",
     "setup:supabase": "node scripts/db/supabase-setup.ts",
     "ops:cleanup": "node scripts/operations/cleanup.ts",
     "dev:local-auth": "node scripts/dev/local-auth.ts",
     "dev:auth0": "node scripts/dev/auth0-local.ts",
-    "test:e2e": "node --test \"tests/e2e/**/*.test.ts\"",
-    "test:recovery": "node --test \"tests/recovery/**/*.test.ts\""
+    "test:e2e": "node scripts/test/run-tests.ts \"tests/e2e/**/*.test.ts\"",
+    "test:recovery": "node scripts/test/run-tests.ts \"tests/recovery/**/*.test.ts\""
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.32.1",
