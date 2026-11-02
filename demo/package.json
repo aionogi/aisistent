@@ -15,6 +15,7 @@
     "db:migrate": "node scripts/db/migrate.ts",
     "setup:supabase": "node scripts/db/supabase-setup.ts",
     "drill:restore": "node scripts/db/restore-drill.ts",
+    "drill:restore:serve": "node scripts/db/restore-drill.ts --serve",
     "ops:cleanup": "node scripts/operations/cleanup.ts",
     "dev:local-auth": "node scripts/dev/local-auth.ts",
     "dev:auth0": "node scripts/dev/auth0-local.ts",

@@ -241,7 +241,7 @@ Supabase's Free plan has no automatic backups and no point-in-time recovery: its
 - It lists the audit events written on the live database after the snapshot; those in step 6 must be reapplied after a real restore.
 - It deletes the archives and the temporary database, also when a check fails, and prints a summary and one line of evidence without secrets or content for `docs/HANDOFF.md`.
 
-`npm run drill:restore -- --serve` keeps the restored copy and opens it at `http://127.0.0.1:4320` with the real Auth0 tenant (AUTH0_* in the same file or `.env.auth0.local`; Allowed Callback URLs must include `http://127.0.0.1:4320/auth/callback` and Allowed Logout URLs `http://127.0.0.1:4320/`). Signing in there is the full OIDC check on a restored database. Email and error reporting stay off; Ctrl+C deletes the copy. Stop any other `next dev` in that folder first.
+`npm run drill:restore:serve` (the same as `npm run drill:restore -- --serve`, which PowerShell can garble) keeps the restored copy and opens it at `http://127.0.0.1:4320` with the real Auth0 tenant (AUTH0_* in the same file or `.env.auth0.local`; Allowed Callback URLs must include `http://127.0.0.1:4320/auth/callback` and Allowed Logout URLs `http://127.0.0.1:4320/`). Signing in there is the full OIDC check on a restored database. Email and error reporting stay off; Ctrl+C deletes the copy. Stop any other `next dev` in that folder first.
 
 Never run the drill from a folder that syncs to the cloud with the archives inside: they go to the system's temporary folder and are deleted at the end. Record the result in `docs/HANDOFF.md`.
 

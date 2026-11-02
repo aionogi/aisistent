@@ -10,7 +10,7 @@
 // the environment, or on PATH. Values are never printed.
 //
 //   npm run drill:restore              checks, then deletes everything
-//   npm run drill:restore -- --serve   also opens the restored copy at
+//   npm run drill:restore:serve        also opens the restored copy at
 //                                      http://127.0.0.1:4320 to sign in with
 //                                      your Auth0 tenant; Ctrl+C deletes it
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
