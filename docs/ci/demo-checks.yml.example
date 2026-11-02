@@ -24,7 +24,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: demo
@@ -68,3 +68,5 @@ jobs:
         run: npm run test:e2e
       - name: Build
         run: npm run build
+      - name: Known vulnerabilities in production dependencies
+        run: npm audit --omit=dev --audit-level=high
