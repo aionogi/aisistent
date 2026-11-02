@@ -11,7 +11,7 @@ import { ensureAppLogin, migrate } from "../../lib/db/migrator.ts";
 import { createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
 import { startTestDatabase, type TestDatabase } from "../db/harness.ts";
 import { checkClientTools, executable } from "./postgres-tools.ts";
-import { dataSnapshot, granteesOf, securitySnapshot } from "./snapshots.ts";
+import { dataSnapshot, describeChanges, granteesOf, securitySnapshot } from "./snapshots.ts";
 
 const execute = promisify(execFile);
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
@@ -103,10 +103,6 @@ async function expectForbidden(work: Promise<unknown>, check: string): Promise<v
     throw error;
   }
   throw new DrillError(`${check}: access was granted.`);
-}
-
-function differences(actual: Record<string, unknown[]>, expected: Record<string, unknown[]>): string[] {
-  return Object.keys(expected).filter((key) => !isDeepStrictEqual(actual[key], expected[key]));
 }
 
 const kb = (bytes: number) => `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -215,8 +211,8 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
     const restoredData = await dataSnapshot(target.admin);
     const changedTables = data.filter((table, index) => !isDeepStrictEqual(table, restoredData[index])).map(({ table }) => table);
     if (changedTables.length || restoredData.length !== data.length) throw new DrillError(`Restored data differs from the snapshot: ${changedTables.join(", ") || "different tables"}.`);
-    const changedRules = differences(await securitySnapshot(target.admin), security);
-    if (changedRules.length) throw new DrillError(`Restored access rules differ from the live database: ${changedRules.join(", ")}.`);
+    const changedRules = describeChanges(await securitySnapshot(target.admin), security);
+    if (changedRules.length) throw new DrillError(`Restored access rules differ from the live database:\n  ${changedRules.join("\n  ")}`);
 
     const files = (await readdir(options.migrationsDir)).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort();
     const expected = await Promise.all(files.map(async (name) => ({ version: name.replace(/\.sql$/, ""), checksum: digest(await readFile(path.join(options.migrationsDir, name))) })));
