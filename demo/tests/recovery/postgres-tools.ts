@@ -7,7 +7,7 @@ const execute = promisify(execFile);
 type Tool = "pg_dump" | "pg_restore";
 
 /** Client tools are a local prerequisite; the rehearsal never downloads executables. */
-function executable(tool: Tool): string {
+export function executable(tool: Tool): string {
   const directory = process.env.PG_CLIENT_BIN_DIR ?? process.env.PG_BIN_DIR;
   const name = `${tool}${process.platform === "win32" ? ".exe" : ""}`;
   if (!directory) return name;

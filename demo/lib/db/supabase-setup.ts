@@ -58,6 +58,15 @@ export function normalizeAppUrl(value: string): string {
 
 export const generateSecret = () => randomBytes(32).toString("base64url");
 
+/** Explains the connection failures people actually hit; driver messages hold no passwords. */
+export function connectionHint(message: string): string {
+  if (/password authentication failed/i.test(message)) return " Check SUPABASE_DB_PASSWORD (Supabase -> Database settings can reset it).";
+  if (/tenant or user not found/i.test(message)) return " Copy the address again from Supabase -> Connect -> Session pooler.";
+  if (/UNABLE_TO_VERIFY|self.signed|unable to verify|certificate/i.test(message)) return " Check that SUPABASE_CA_CERT_FILE is this project's certificate.";
+  if (/ENOTFOUND|EAI_AGAIN|ETIMEDOUT|timeout/i.test(message)) return " Check your internet connection and the address.";
+  return "";
+}
+
 export type ExistingSecrets = { appPassword?: string; rateLimitSecret?: string; cronSecret?: string; auth0Secret?: string };
 
 /** Secrets from an earlier run, so running the setup again does not change what Vercel already holds. */

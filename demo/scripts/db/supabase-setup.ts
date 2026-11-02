@@ -10,7 +10,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
-import { formatEnvFile, generateSecret, normalizeAppUrl, prepareDatabase, readExistingSecrets, sessionPooler, SetupError, transactionPoolerUrl, vercelVariables } from "../../lib/db/supabase-setup.ts";
+import { connectionHint, formatEnvFile, generateSecret, normalizeAppUrl, prepareDatabase, readExistingSecrets, sessionPooler, SetupError, transactionPoolerUrl, vercelVariables } from "../../lib/db/supabase-setup.ts";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const settingsFile = path.join(projectDir, ".env.supabase.local");
@@ -31,15 +31,6 @@ VERCEL_APP_URL='https://<project>.vercel.app'
 # AUTH0_CLIENT_ID='<Client ID>'
 # AUTH0_CLIENT_SECRET='<Client Secret>'
 `;
-
-/** Explains the failures people actually hit; driver messages hold no passwords. */
-function hint(message: string): string {
-  if (/password authentication failed/i.test(message)) return " Check SUPABASE_DB_PASSWORD (Supabase -> Database settings can reset it).";
-  if (/tenant or user not found/i.test(message)) return " Copy the address again from Supabase -> Connect -> Session pooler.";
-  if (/UNABLE_TO_VERIFY|self.signed|unable to verify|certificate/i.test(message)) return " Check that SUPABASE_CA_CERT_FILE is this project's certificate.";
-  if (/ENOTFOUND|EAI_AGAIN|ETIMEDOUT|timeout/i.test(message)) return " Check your internet connection and the address.";
-  return "";
-}
 
 try {
   if (!existsSync(settingsFile)) {
@@ -95,6 +86,6 @@ Next:
 } catch (error) {
   const message = (error as Error).message;
   const fromDriver = !(error instanceof SetupError) || /could not connect/.test(message);
-  console.error(`\n${message}${fromDriver ? hint(message) : ""}\n`);
+  console.error(`\n${message}${fromDriver ? connectionHint(message) : ""}\n`);
   process.exitCode = 1;
 }

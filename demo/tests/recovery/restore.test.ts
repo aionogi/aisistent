@@ -14,49 +14,10 @@ import { acceptInvitation, createInvitation, previewInvitation, removeMember, re
 import { consumeRateLimit } from "../../lib/operations/store.ts";
 import { MIGRATIONS_DIR, startTestDatabase } from "../db/harness.ts";
 import { checkClientTools, runDatabaseTool } from "./postgres-tools.ts";
+import { dataSnapshot, securitySnapshot } from "./snapshots.ts";
 
 const digest = (value: string | Buffer) => createHash("sha256").update(value).digest("hex");
 const secret = () => randomBytes(32).toString("hex");
-
-async function dataSnapshot(client: pg.Client) {
-  const { rows: tables } = await client.query<{ schema: string; name: string }>(
-    `SELECT schemaname AS schema, tablename AS name FROM pg_tables
-     WHERE schemaname = 'app' OR (schemaname = 'public' AND tablename = 'schema_migrations')
-     ORDER BY schemaname, tablename`,
-  );
-  const snapshot = [];
-  for (const { schema, name } of tables) {
-    const qualified = `${client.escapeIdentifier(schema)}.${client.escapeIdentifier(name)}`;
-    const { rows } = await client.query<{ row: string }>(`SELECT to_jsonb(t)::text AS row FROM ${qualified} t ORDER BY to_jsonb(t)::text COLLATE "C"`);
-    snapshot.push({ table: `${schema}.${name}`, count: rows.length, sha256: digest(JSON.stringify(rows)) });
-  }
-  return snapshot;
-}
-
-/** Compare ownership, ACLs, RLS policies, function bodies, constraints and indexes before any repair. */
-async function securitySnapshot(client: pg.Client) {
-  // pg_restore may replace an explicitly owner-only ACL with NULL (the same default privileges).
-  const queries = {
-    relations: `SELECT c.relname, c.relkind, c.relrowsecurity, c.relforcerowsecurity,
-      pg_get_userbyid(c.relowner) AS owner,
-      CASE WHEN c.relkind IN ('r', 'p', 'v', 'm', 'f') THEN coalesce(c.relacl, acldefault('r', c.relowner))::text
-           WHEN c.relkind = 'S' THEN coalesce(c.relacl, acldefault('S', c.relowner))::text
-           ELSE c.relacl::text END AS acl
-      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'app' ORDER BY c.relname`,
-    schema: `SELECT nspname, pg_get_userbyid(nspowner) AS owner, nspacl::text FROM pg_namespace WHERE nspname = 'app'`,
-    policies: `SELECT * FROM pg_policies WHERE schemaname = 'app' ORDER BY tablename, policyname`,
-    functions: `SELECT p.oid::regprocedure::text AS signature, pg_get_functiondef(p.oid) AS definition,
-      pg_get_userbyid(p.proowner) AS owner, p.proacl::text
-      FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'app' ORDER BY signature`,
-    constraints: `SELECT c.conrelid::regclass::text AS relation, c.conname, pg_get_constraintdef(c.oid) AS definition
-      FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'app' ORDER BY relation, c.conname`,
-    indexes: `SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = 'app' ORDER BY tablename, indexname`,
-  };
-  const result: Record<string, unknown[]> = {};
-  for (const [key, sql] of Object.entries(queries)) result[key] = (await client.query(sql)).rows;
-  return result;
-}
 
 test("isolated logical recovery preserves data and tenant controls, then invalidates restored access", { timeout: 180_000 }, async (t) => {
   const started = Date.now();

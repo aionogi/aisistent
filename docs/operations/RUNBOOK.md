@@ -231,6 +231,22 @@ The test prints only versions, snapshot time, archive checksum, table counts and
 
 ### Managed-environment drill
 
+Supabase's Free plan has no automatic backups and no point-in-time recovery: its pricing page (read 2026-11-02) lists automatic backups as "Not included" on Free, 7 days on Pro and 14 on Team, and PITR as an add-on from Pro at "$100 per month per 7 days retention". Restoring to a new project is for paid plans only. Until the project moves to a paid plan, the only copies of the live data are the ones taken here, and the drill keeps none.
+
+`npm run drill:restore` (`demo/scripts/db/restore-drill.ts`, checks in `demo/tests/recovery/drill.ts`) runs steps 1 to 6 below on a trusted computer, from a checkout of the deployed release. It reads `demo/.env.supabase.local`, the file `npm run setup:supabase` uses (created as a template when missing): `SUPABASE_SESSION_POOLER_URL`, `SUPABASE_DB_PASSWORD`, `SUPABASE_CA_CERT_FILE` and `PG_CLIENT_BIN_DIR` (PostgreSQL 17's `pg_dump` and `pg_restore`). It prints no values. What it does:
+
+- In one read-only transaction it exports a snapshot, records row counts and SHA-256 digests of every application table, the access rules (owners compared as "the owner", privileges, policies, functions, constraints, indexes), and takes two custom-format archives with `pg_dump --snapshot`: the `app` schema and `public.schema_migrations`. The live database is never changed, and the connection is TLS with the project's certificate (`verify-full`).
+- It restores them with `pg_restore --no-owner --exit-on-error --single-transaction` into a new PostgreSQL 17 database on the computer, with fresh `aisistent_runtime` and `aisistent_app` roles and a new password. Roles the provider granted privileges to are created first as NOLOGIN, so their privileges come back as they were; the result names them, because the app grants only `aisistent_runtime`.
+- It checks that data and access rules match the snapshot, that the migrations match this checkout and need nothing, that the app login is restricted (no owner role, no turning off RLS, no direct reading of sessions or request limits) and sees no rows without a user, that every member reaches their firm while an outsider and members of other firms are refused, then removes restored sessions and invitation links, and saves a new synthetic firm.
+- It lists the audit events written on the live database after the snapshot; those in step 6 must be reapplied after a real restore.
+- It deletes the archives and the temporary database, also when a check fails, and prints a summary and one line of evidence without secrets or content for `docs/HANDOFF.md`.
+
+`npm run drill:restore -- --serve` keeps the restored copy and opens it at `http://127.0.0.1:4320` with the real Auth0 tenant (AUTH0_* in the same file or `.env.auth0.local`; Allowed Callback URLs must include `http://127.0.0.1:4320/auth/callback` and Allowed Logout URLs `http://127.0.0.1:4320/`). Signing in there is the full OIDC check on a restored database. Email and error reporting stay off; Ctrl+C deletes the copy. Stop any other `next dev` in that folder first.
+
+Never run the drill from a folder that syncs to the cloud with the archives inside: they go to the system's temporary folder and are deleted at the end. Record the result in `docs/HANDOFF.md`.
+
+The manual procedure, for other providers or a full backup:
+
 For a PostgreSQL logical backup, use a protected PostgreSQL service/passfile configuration for a backup identity with access to the full database. Never place passwords in commands, chat or committed files. Example commands using configured service names:
 
 ```sh
