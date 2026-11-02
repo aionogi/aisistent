@@ -88,7 +88,7 @@ Checkpoint 16 prepares the Vercel and Supabase deployment: region and daily clea
 
 Checkpoint 15 adds knowledge import from one public web page with SSRF controls and a checkbox preview for every import. A quadratic duplicate-key regex found during testing is fixed. 126 unit/database, 21 HTTP and 6 recovery tests pass locally.
 
-CI follow-up: the inactive workflow template now installs PostgreSQL 17 client tools and requires the recovery rehearsal. Static/script-syntax validation is recorded in [CI setup](ci/README.md); workflow activation and a successful GitHub run remain pending. This does not close M3.
+CI: the workflow is active on GitHub since 2026-11-02 and runs every suite, including the recovery rehearsal with PostgreSQL 17 clients, on each change to the app; the first runs passed with 180, 6 and 26 tests ([CI setup](ci/README.md)). This does not close M3.
 
 ## M4 — Live AI and telephony
 
