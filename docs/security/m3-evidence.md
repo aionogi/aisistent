@@ -6,6 +6,8 @@ Status values: **Done locally** (implemented and tested against real PostgreSQL 
 
 ## Requirements and evidence
 
+Review follow-up, 2026-11-03: six findings after `bb96fa5` were fixed locally. Setup imports require MFA; HTTP imports close discarded response bodies; quoted multi-line CSV is parsed correctly; temporary database administrators use independent random credentials. Recovery compares the exact snapshot's audit IDs with current events to catch lower-ID late commits, and conversation deletions trigger reconciliation. Regression evidence is in `supabase-setup`, `url-import`, `knowledge-import`, `harness` and `recovery/drill` tests; see the newest [handoff record](../HANDOFF.md#verification-record) for actual suite results. The fixes do not establish a production backup/cutover policy or independently revalidate live provider settings.
+
 | Requirement | Status | Evidence | Gap |
 | --- | --- | --- | --- |
 | Managed identity, verified email | Done locally | Auth0 SDK v4 (`lib/auth/auth0.ts`); organization creation and invitation acceptance require a verified email from the current session (e2e "invitation acceptance requires the current session's verified matching email…") | Real Auth0 tenant, Universal Login, email delivery |

@@ -70,9 +70,28 @@ export function questionKey(question: string): string {
 export type RawRecord = { line: number; question: string; answer: string };
 
 function detectDelimiter(text: string): string {
-  const firstLine = text.split("\n").find((line) => line.trim()) ?? "";
-  const unquoted = firstLine.replace(/"[^"]*"/g, "");
-  const counts = [";", ",", "\t"].map((delimiter) => ({ delimiter, count: unquoted.split(delimiter).length - 1 }));
+  const counts = [";", ",", "\t"].map((delimiter) => ({ delimiter, count: 0 }));
+  let quoted = false;
+  let hasContent = false;
+  // Inspect one complete logical record, not a physical line: the first
+  // quoted field may contain newlines and competing separator characters.
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (char === '"') {
+      hasContent = true;
+      if (quoted && text[index + 1] === '"') index++;
+      else quoted = !quoted;
+    } else if (!quoted) {
+      if (char === "\n") {
+        if (hasContent) break;
+        for (const candidate of counts) candidate.count = 0;
+      } else {
+        if (char.trim()) hasContent = true;
+        const candidate = counts.find(({ delimiter }) => char === delimiter);
+        if (candidate) candidate.count++;
+      }
+    }
+  }
   const best = counts.sort((a, b) => b.count - a.count)[0];
   return best.count > 0 ? best.delimiter : ",";
 }

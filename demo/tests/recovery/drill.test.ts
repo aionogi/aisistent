@@ -3,17 +3,26 @@ import { randomBytes } from "node:crypto";
 import { existsSync, readdirSync } from "node:fs";
 import os from "node:os";
 import { test } from "node:test";
+import pg from "pg";
 import type { SessionData } from "@auth0/nextjs-auth0/types";
 import { PostgresSessionStore } from "../../lib/auth/session-store.ts";
 import { withOrganization } from "../../lib/db/context.ts";
+import { deleteConversation, recordConversation } from "../../lib/db/conversations.ts";
 import { createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
-import { acceptInvitation, createInvitation, removeMember } from "../../lib/db/team.ts";
+import { acceptInvitation, createInvitation } from "../../lib/db/team.ts";
 import { MIGRATIONS_DIR, startTestDatabase } from "../db/harness.ts";
 import { DrillError, formatDrillReport, runRestoreDrill } from "./drill.ts";
 
 test("the restore drill copies the live data into an isolated database, checks it and leaves no archive behind", { timeout: 300_000 }, async (t) => {
   const source = await startTestDatabase();
-  t.after(() => source.stop());
+  const pendingRemoval = new pg.Client({ connectionString: source.adminUrl });
+  pendingRemoval.on("error", () => {});
+  let removalConnected = false;
+  t.after(async () => {
+    if (removalConnected) await pendingRemoval.query("ROLLBACK").catch(() => {});
+    await pendingRemoval.end().catch(() => {});
+    await source.stop();
+  });
   // Like a provider that grants its own roles: the copy must keep that privilege as it is.
   await source.admin.query("CREATE ROLE drill_provider_role NOLOGIN");
   await source.admin.query("GRANT SELECT ON public.schema_migrations TO drill_provider_role");
@@ -36,12 +45,30 @@ test("the restore drill copies the live data into an isolated database, checks i
     internal: { sid: "synthetic-drill-session", createdAt: Math.floor(Date.now() / 1000) },
   };
   await new PostgresSessionStore(source.appPool, randomBytes(32).toString("hex")).set(randomBytes(32).toString("hex"), session);
+  const conversationId = await recordConversation(source.admin, orgB, {
+    channel: "message", outcome: "answered", startedAt: new Date(),
+    messages: [{ speaker: "customer", body: "Synthetic transcript" }],
+  });
+
+  // Audit IDs are allocated before commit. The snapshot sees a later event
+  // but not this pending removal, which must still be reported after commit.
+  await pendingRemoval.connect();
+  removalConnected = true;
+  await pendingRemoval.query("BEGIN");
+  await pendingRemoval.query("SELECT set_config('app.user_id', $1, true), set_config('app.organization_id', $2, true)", [alice, orgA]);
+  await pendingRemoval.query("SELECT app.remove_member($1)", [mila]);
+  const removalId = (await pendingRemoval.query("SELECT max(id)::text AS id FROM app.audit_events WHERE action = 'member.remove'")).rows[0].id;
+  const higherId = (await source.admin.query("INSERT INTO app.audit_events (action, result) VALUES ('workspace.save', 'success') RETURNING id::text AS id")).rows[0].id;
+  assert.ok(BigInt(higherId) > BigInt(removalId));
+  assert.equal((await source.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [orgA, mila])).rowCount, 1);
 
   const { report, target } = await runRestoreDrill({
     sourceUrl: source.adminUrl,
     migrationsDir: MIGRATIONS_DIR,
-    // A removal after the snapshot: the restore would bring Mila back, so the drill must list it.
-    afterDump: () => withOrganization(source.appPool, { userId: alice, organizationId: orgA }, (client) => removeMember(client, mila)),
+    afterDump: async () => {
+      await pendingRemoval.query("COMMIT");
+      assert.equal(await withOrganization(source.appPool, { userId: bob, organizationId: orgB }, (client) => deleteConversation(client, conversationId)), true);
+    },
   });
   assert.equal(target, undefined);
   assert.equal(existsSync(report.artifactDir), false, "the archives are deleted");
@@ -54,7 +81,9 @@ test("the restore drill copies the live data into an isolated database, checks i
   assert.equal(report.isolationChecks, 3 + 2 * 3 + 3);
   assert.equal(report.removedSessions, 1);
   assert.equal(report.removedInvitations, 2);
-  assert.deepEqual(report.postSnapshot, [{ action: "member.remove", count: 1 }]);
+  assert.deepEqual(report.postSnapshot, [{ action: "conversation.delete", count: 1 }, { action: "member.remove", count: 1 }]);
+  assert.equal((await source.admin.query("SELECT 1 FROM app.memberships WHERE organization_id = $1 AND user_id = $2", [orgA, mila])).rowCount, 0);
+  assert.equal(report.tables.find(({ table }) => table === "app.conversations")?.count, 1, "the snapshot would revive the deleted conversation");
   assert.equal(report.archives.length, 2);
   assert.ok(report.archives.every(({ bytes, sha256 }) => bytes > 0 && /^[0-9a-f]{64}$/.test(sha256)));
   assert.match(report.server, /^17\./);
@@ -62,9 +91,11 @@ test("the restore drill copies the live data into an isolated database, checks i
   const printed = formatDrillReport(report, false);
   assert.match(printed, /Restore drill passed/);
   assert.match(printed, /roles besides aisistent_runtime hold privileges on the app's objects: drill_provider_role/);
-  assert.match(printed, /After the snapshot: member\.remove 1\.\n  A real restore would undo these/);
+  assert.match(printed, /After the snapshot: conversation\.delete 1, member\.remove 1\.\n  A real restore would undo these/);
+  assert.match(formatDrillReport({ ...report, postSnapshot: [{ action: "conversation.delete", count: 1 }] }, false), /A real restore would undo these: reapply them/,
+    "a conversation deletion alone requires reconciliation, without relying on another kind of change");
   assert.match(printed, /So is its temporary database/);
-  for (const secret of [new URL(source.adminUrl).password, "alice@example.test", "Alpha answer", "Drill Alpha", report.artifactDir]) {
+  for (const secret of [new URL(source.adminUrl).password, "alice@example.test", "Alpha answer", "Drill Alpha", "Synthetic transcript", conversationId, orgA, mila, report.artifactDir]) {
     assert.ok(!printed.includes(secret), "the printed report holds no password, address, content or local path");
   }
 });

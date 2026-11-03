@@ -56,11 +56,11 @@ test("the production address is https and host only", () => {
 
 const input = { databaseUrl: "postgresql://aisistent_app.abc:pw@host.pooler.supabase.com:6543/postgres", caCert: PEM, appBaseUrl: "https://a.vercel.app", rateLimitSecret: "rate-secret", cronSecret: "cron-secret", auth0Secret: "auth-secret" };
 
-test("Vercel gets the runtime variables only, never owner credentials", () => {
+test("Vercel gets runtime variables with MFA required, never owner credentials", () => {
   const without = vercelVariables(input);
   assert.deepEqual(Object.keys(without).sort(), ["APP_BASE_URL", "AUTH0_SECRET", "AUTH_REQUIRE_MFA", "CRON_SECRET", "DATABASE_CA_CERT", "DATABASE_POOL_MAX", "DATABASE_URL", "RATE_LIMIT_IP_HEADER", "RATE_LIMIT_SECRET"]);
   assert.equal(without.RATE_LIMIT_IP_HEADER, "x-forwarded-for");
-  assert.equal(without.AUTH_REQUIRE_MFA, "false");
+  assert.equal(without.AUTH_REQUIRE_MFA, "true");
   const withAuth0 = vercelVariables({ ...input, auth0: { domain: "t.eu.auth0.com", clientId: "id", clientSecret: "secret" } });
   assert.equal(withAuth0.AUTH0_DOMAIN, "t.eu.auth0.com");
   for (const variables of [without, withAuth0]) {
@@ -73,6 +73,7 @@ test("the env file survives a round trip, including the multi-line certificate",
   const text = formatEnvFile(vercelVariables(input));
   assert.equal(text.trim().split("\n").length, 9, "one line per variable");
   const parsed = parseEnv(text);
+  assert.equal(parsed.AUTH_REQUIRE_MFA, "true", "importing generated production settings must keep MFA required");
   assert.equal(parsed.DATABASE_URL, input.databaseUrl);
   assert.equal(parsed.CRON_SECRET, "cron-secret");
   // Parsers either expand \n or keep it; connectionOptions accepts both.

@@ -52,7 +52,7 @@ export type DrillReport = {
 };
 
 /** Changes after the snapshot that a restore would undo, so they must be reapplied before reopening traffic. */
-export const RECONCILE_ACTIONS = ["invitation.accept", "invitation.revoke", "member.leave", "member.remove", "member.role_change", "organization.delete"];
+export const RECONCILE_ACTIONS = ["invitation.accept", "invitation.revoke", "member.leave", "member.remove", "member.role_change", "organization.delete", "conversation.delete"];
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
 const RLS_TABLES = ["users", "organizations", "memberships", "assistant_configs", "knowledge_entries", "audit_events", "invitations"];
@@ -159,14 +159,14 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
     const source = new pg.Client(sourceOptions());
     await source.connect();
     const archives = [path.join(artifactDir, "app.dump"), path.join(artifactDir, "migrations.dump")];
-    let info: { snapshot: string; at: Date; version: string; audit_id: string | null };
+    let info: { snapshot: string; at: Date; version: string };
     let data: Awaited<ReturnType<typeof dataSnapshot>>;
     let security: Awaited<ReturnType<typeof securitySnapshot>>;
     const dumpStarted = Date.now();
     try {
       // One exported snapshot: the digests and both archives describe the same moment.
       await source.query("BEGIN ISOLATION LEVEL REPEATABLE READ, READ ONLY");
-      info = (await source.query("SELECT pg_export_snapshot() AS snapshot, now() AS at, current_setting('server_version') AS version, (SELECT max(id)::text FROM app.audit_events) AS audit_id")).rows[0];
+      info = (await source.query("SELECT pg_export_snapshot() AS snapshot, now() AS at, current_setting('server_version') AS version")).rows[0];
       data = await dataSnapshot(source);
       security = await securitySnapshot(source);
       const env = toolEnv(sourceUrl, caFile);
@@ -213,6 +213,12 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
     if (changedTables.length || restoredData.length !== data.length) throw new DrillError(`Restored data differs from the snapshot: ${changedTables.join(", ") || "different tables"}.`);
     const changedRules = describeChanges(await securitySnapshot(target.admin), security);
     if (changedRules.length) throw new DrillError(`Restored access rules differ from the live database:\n  ${changedRules.join("\n  ")}`);
+
+    // Sequence IDs follow allocation order, not commit order. A transaction
+    // absent from the snapshot can commit later with an ID below its visible
+    // maximum. Compare membership in the verified snapshot instead, before
+    // any test writes add events to the restored copy. These IDs stay private.
+    const snapshotAuditIds = (await target.admin.query<{ id: string }>("SELECT id::text AS id FROM app.audit_events")).rows.map(({ id }) => id);
 
     const files = (await readdir(options.migrationsDir)).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort();
     const expected = await Promise.all(files.map(async (name) => ({ version: name.replace(/\.sql$/, ""), checksum: digest(await readFile(path.join(options.migrationsDir, name))) })));
@@ -292,7 +298,7 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
     await live.connect();
     let postSnapshot: { action: string; count: number }[];
     try {
-      postSnapshot = (await live.query("SELECT action, count(*)::int AS count FROM app.audit_events WHERE id > $1 GROUP BY action ORDER BY action", [info.audit_id ?? "0"])).rows;
+      postSnapshot = (await live.query("SELECT action, count(*)::int AS count FROM app.audit_events WHERE NOT (id = ANY($1::bigint[])) GROUP BY action ORDER BY action", [snapshotAuditIds])).rows;
     } finally {
       await live.end().catch(() => {});
     }

@@ -155,12 +155,14 @@ function requestOnce(url: URL, policy: FetchPolicy, signal: AbortSignal): Promis
       const status = response.statusCode ?? 0;
       const location = response.headers.location;
       if (REDIRECTS.has(status) && location) {
-        response.resume();
+        // The body is unused and may never end. Close this connection before
+        // following the redirect instead of draining it outside the byte cap.
+        response.destroy();
         resolve({ redirect: location });
         return;
       }
       if (status !== 200) {
-        response.resume();
+        response.destroy();
         reject(new FetchFailure("http_status", status));
         return;
       }

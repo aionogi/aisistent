@@ -117,7 +117,8 @@ export function vercelVariables(input: VercelInput): Record<string, string> {
     CRON_SECRET: input.cronSecret,
     APP_BASE_URL: input.appBaseUrl,
     AUTH0_SECRET: input.auth0Secret,
-    AUTH_REQUIRE_MFA: "false",
+    // Generated production imports must never turn privileged-write MFA off.
+    AUTH_REQUIRE_MFA: "true",
     ...(input.auth0 ? { AUTH0_DOMAIN: input.auth0.domain, AUTH0_CLIENT_ID: input.auth0.clientId, AUTH0_CLIENT_SECRET: input.auth0.clientSecret } : {}),
   };
 }

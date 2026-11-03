@@ -195,3 +195,48 @@ test("status, type, size, compression and time limits", async () => {
   await new Promise((resolve) => closed.close(resolve));
   assert.deepEqual(await fetchPublicPage(`http://site.test:${closedPort}/`, local()), { ok: false, error: "unreachable" });
 });
+
+test("unused error and redirect bodies close even when the server keeps streaming", async (t) => {
+  for (const responseKind of ["error", "redirect", "blocked-redirect"] as const) {
+    await t.test(responseKind, async (t) => {
+      let closed!: () => void;
+      const bodyClosed = new Promise<void>((resolve) => { closed = resolve; });
+      const streaming = createServer((request, response) => {
+        if (request.url === "/page") {
+          response.writeHead(200, { "content-type": "text/plain" });
+          response.end("Imported page");
+          return;
+        }
+        response.writeHead(responseKind === "error" ? 404 : 302, {
+          "content-type": "text/html",
+          ...(responseKind === "error" ? {} : { location: responseKind === "redirect" ? "/page" : "file:///etc/passwd" }),
+        });
+        response.write("unused body");
+        const interval = setInterval(() => response.write("more body"), 10);
+        response.once("close", () => { clearInterval(interval); closed(); });
+      });
+      await new Promise<void>((resolve) => streaming.listen(0, "127.0.0.1", resolve));
+      t.after(async () => {
+        streaming.closeAllConnections();
+        await new Promise<void>((resolve) => streaming.close(() => resolve()));
+      });
+      const streamingPort = (streaming.address() as AddressInfo).port;
+      const result = await fetchPublicPage(`http://site.test:${streamingPort}/stream`, local({ timeoutMs: 5_000, maxBytes: 64 }));
+      if (responseKind === "error") assert.deepEqual(result, { ok: false, error: "http_status", status: 404 });
+      else if (responseKind === "blocked-redirect") assert.deepEqual(result, { ok: false, error: "unsupported_scheme" });
+      else assert.ok(result.ok && result.page.text === "Imported page");
+
+      // The import has already returned. Waiting for its former deadline must
+      // not be needed to close a discarded response (it has no body-size cap).
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          bodyClosed,
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Unused response kept streaming after the import returned.")), 2_000); }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+    });
+  }
+});

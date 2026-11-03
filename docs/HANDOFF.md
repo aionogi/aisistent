@@ -1,8 +1,10 @@
 # Development handoff
 
-Updated: 2026-10-28.
+Updated: 2026-11-03.
 
 ## Current objective
+
+**Latest checkpoint — review fixes after `bb96fa5` (2026-11-03):** all six reported review findings are addressed: production setup requires MFA, discarded HTTP responses close immediately, CSV delimiter detection follows quoted logical records, temporary database administrator credentials are random per cluster, and recovery detects audit events absent from the actual snapshot and warns about conversation deletions. No migrations or provider configuration changes are required. Earlier checkpoint descriptions below are historical; use this section and the newest verification record for current work.
 
 **Platform decided (2026-10-28):** Vercel (Hobby while the site is built, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt used only as a database, Auth0 EU; Lettermint (replaced Resend on 2026-11-01), Cloudflare DNS and Sentry; PostHog later; no Upstash or Pinecone; private storage when uploads start. Details, constraints and sources: [m3-platform-options.md](architecture/m3-platform-options.md#decision-2026-10-28). The accounts exist. The Vercel project (`https://aisistent-jsxx.vercel.app`) runs in `fra1`, and the Supabase database has all migrations (2026-10-31). The deployed app's variables are set, and sign-in, saved data and the cleanup route work on the deployed site (2026-10-31).
 
@@ -260,6 +262,16 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### Review fixes after `bb96fa5` (2026-11-03)
+
+- Production setup now emits `AUTH_REQUIRE_MFA=true` even when secrets are reused from an older setup file. Unit coverage checks the generated variables and the parsed import file. The user reported setting the live Vercel value to true; this checkpoint does not independently verify or modify that deployment.
+- Redirect and non-200 web-import responses destroy their unused connection. Tests use indefinitely streaming responses and require prompt closure for errors, allowed redirects and rejected redirects. Existing SSRF, timeout and body limits remain enforced.
+- CSV separator detection scans a complete logical record, respecting quoted newlines, separators and escaped quotes. Regression fixtures cover headerless semicolon CSV and TSV with multi-line questions.
+- Every temporary cluster gets independent random superuser and migration-owner passwords. Tests reject the old public passwords and another cluster's owner credential, verify working owner/app connections, and check that the initdb password file is gone. The restore drill already generates its app password independently.
+- Recovery captures audit IDs from the restored, digest-verified snapshot before any local test mutation. Its final read-only source query counts events absent from that exact set. A real PostgreSQL regression holds a lower-ID member removal open while a higher-ID event commits, takes the snapshot, then commits the removal and deletes a conversation. Both must be reported; a conversation deletion alone must trigger reconciliation. Reports exclude target IDs and transcript content.
+- Validation: `npm run typecheck`, `npm test` **193/193**, `npm run test:recovery` **9/9**, `npm run test:e2e` **26/26**, `npm run build` and `git diff --check` passed locally. Recovery used PostgreSQL 17.11 clients and synthetic databases; HTTP used the mock identity provider. No dependency or migration changes; the installed lockfile dependencies from the preceding review were reused. UI code did not change, so no new browser/visual checks were needed.
+- These fixes improve the local drill, not automated production cutover: stop writes and reconcile authoritative changes through cutover before enabling traffic. Commits after the drill's final query are outside its report. No live database, real credentials or new browser/UI checks were used.
 
 ### Supabase's API roles and a migrations-only command (2026-11-03)
 

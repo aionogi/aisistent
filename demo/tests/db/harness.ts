@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
@@ -115,9 +116,16 @@ export async function startTestDatabase(options: { migrate?: boolean; appPasswor
   const workDir = await mkdtemp(path.join(os.tmpdir(), "aisistent-pgdata-"));
   const dataDir = path.join(workDir, "data");
   const passwordFile = path.join(workDir, "pw");
-  const superPassword = "superuser-test-password";
-  await writeFile(passwordFile, superPassword);
-  await run(binaries.initdb, ["-D", dataDir, "-U", "postgres", "--auth=scram-sha-256", `--pwfile=${passwordFile}`, "-E", "UTF8", "--locale=C"]);
+  // The recovery drill can restore real data here: every cluster needs its
+  // own administrator credentials, even though the server only binds locally.
+  const superPassword = randomBytes(32).toString("base64url");
+  const ownerPassword = randomBytes(32).toString("base64url");
+  await writeFile(passwordFile, superPassword, { mode: 0o600 });
+  try {
+    await run(binaries.initdb, ["-D", dataDir, "-U", "postgres", "--auth=scram-sha-256", `--pwfile=${passwordFile}`, "-E", "UTF8", "--locale=C"]);
+  } finally {
+    await rm(passwordFile, { force: true });
+  }
 
   const port = await freePort();
   // Ctrl+C in a terminal can stop this server before this process: the error
@@ -129,11 +137,11 @@ export async function startTestDatabase(options: { migrate?: boolean; appPasswor
 
   const superuser = new pg.Client(superuserConfig);
   await superuser.connect();
-  await superuser.query("CREATE ROLE render_owner LOGIN CREATEROLE PASSWORD 'owner-test-password'");
+  await superuser.query(`CREATE ROLE render_owner LOGIN CREATEROLE PASSWORD ${superuser.escapeLiteral(ownerPassword)}`);
   await superuser.query("CREATE DATABASE aisistent_test OWNER render_owner");
   await superuser.end();
 
-  const adminUrl = `postgresql://render_owner:owner-test-password@127.0.0.1:${port}/aisistent_test`;
+  const adminUrl = `postgresql://render_owner:${encodeURIComponent(ownerPassword)}@127.0.0.1:${port}/aisistent_test`;
   const admin = new pg.Client({ connectionString: adminUrl });
   // A dropped idle connection must not crash the process before stop() cleans up.
   admin.on("error", () => {});

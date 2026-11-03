@@ -22,8 +22,8 @@ From `demo/` in an up-to-date checkout, this does steps 3 and 4 above, the migra
 1. Run `npm run setup:supabase` once. It creates `demo/.env.supabase.local` (git-ignored) as a template.
 2. Fill in the session pooler address as Supabase shows it, the database password, the path to the certificate, and the Vercel address; add the Auth0 values if you have them (or keep them in `.env.auth0.local`).
 3. Run the command again. It applies the migrations, sets up `aisistent_app`, connects through the transaction pooler as that login with the verified certificate, and writes `demo/.env.vercel.local`. Existing secrets are reused when that file already exists, so running it again is safe (for example after adding Auth0 values or a migration).
-4. In Vercel use **Import .env** with that file, Production only, then redeploy.
-5. Once the checks below pass, delete both files. They hold secrets, and a project folder inside OneDrive syncs them to the cloud. Without `.env.vercel.local` the next run generates new secrets, which must be imported again.
+4. Configure Auth0's MFA factor and post-login Action ("Two-step sign-in" below), then in Vercel use **Import .env** with that file, Production only, and redeploy. Generated production settings always require MFA (`AUTH_REQUIRE_MFA=true`), including regenerated settings; imports must not disable an existing requirement.
+5. Once the checks below pass, delete both files. They hold secrets, and a project folder inside OneDrive syncs them to the cloud. Without `.env.vercel.local` setup refuses to replace an existing login; `setup:supabase:new-secrets` explicitly rotates its secrets.
 
 Secret values are never printed. The manual steps below do the same thing.
 
@@ -59,7 +59,7 @@ Import the GitHub repository with **Root Directory `demo`** (Next.js preset, def
 | `APP_BASE_URL` | `https://<project>.vercel.app` (the production address, no trailing slash) |
 | `AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET` | From the Auth0 application |
 | `AUTH0_SECRET` | Generated, 32+ characters |
-| `AUTH_REQUIRE_MFA` | `false` until the tenant has an MFA factor |
+| `AUTH_REQUIRE_MFA` | `true`; configure the Auth0 factor and post-login Action before enabling privileged writes |
 | `NEXT_PUBLIC_SENTRY_DSN` | Optional: the Sentry project's DSN; see "Error reporting (Sentry)". Read at build time, so redeploy after changing it. It is sent to browsers by design and is not a secret |
 | `LETTERMINT_API_TOKEN`, `EMAIL_FROM` | Optional: see "Invitation email (Lettermint)". The token is a secret; without both, invitations stay link-only |
 
@@ -244,10 +244,12 @@ Supabase's Free plan has no automatic backups and no point-in-time recovery: its
 - In one read-only transaction it exports a snapshot, records row counts and SHA-256 digests of every application table, the access rules (owners compared as "the owner", privileges, policies, functions, constraints, indexes), and takes two custom-format archives with `pg_dump --snapshot`: the `app` schema and `public.schema_migrations`. The live database is never changed, and the connection is TLS with the project's certificate (`verify-full`).
 - It restores them with `pg_restore --no-owner --exit-on-error --single-transaction` into a new PostgreSQL 17 database on the computer, with fresh `aisistent_runtime` and `aisistent_app` roles and a new password. Roles the provider granted privileges to are created first as NOLOGIN, so their privileges come back as they were; the result names them, because the app grants only `aisistent_runtime`.
 - It checks that data and access rules match the snapshot, that the migrations match this checkout and need nothing, that the app login is restricted (no owner role, no turning off RLS, no direct reading of sessions or request limits) and sees no rows without a user, that every member reaches their firm while an outsider and members of other firms are refused, then removes restored sessions and invitation links, and saves a new synthetic firm.
-- It lists the audit events written on the live database after the snapshot; those in step 6 must be reapplied after a real restore.
+- It lists live audit events absent from the verified snapshot using exact event IDs, including transactions that allocated lower IDs before the snapshot but committed afterward. Only action counts are printed. Changes in step 6, including conversation deletions, must be reapplied after a real restore. The report covers commits visible at its final query; stop writes and reconcile again through cutover before reopening traffic.
 - It deletes the archives and the temporary database, also when a check fails, and prints a summary and one line of evidence without secrets or content for `docs/HANDOFF.md`.
 
 `npm run drill:restore:serve` (the same as `npm run drill:restore -- --serve`, which PowerShell can garble) keeps the restored copy and opens it at `http://127.0.0.1:4320` with the real Auth0 tenant (AUTH0_* in the same file or `.env.auth0.local`; Allowed Callback URLs must include `http://127.0.0.1:4320/auth/callback` and Allowed Logout URLs `http://127.0.0.1:4320/`). Signing in there is the full OIDC check on a restored database. Email and error reporting stay off; Ctrl+C deletes the copy. If a run ever ends abnormally, check the system's temporary folder for `aisistent-pgdata-*` folders and delete them (PowerShell: `Remove-Item -Recurse -Force "$env:TEMP\aisistent-pgdata-*"` while no drill, `dev:auth0` or test is running), because they can hold the restored copy. Stop any other `next dev` in that folder first.
+
+Every temporary cluster generates independent random superuser and migration-owner passwords; a restore drill also generates its app password. Public test credentials cannot access the restored data. The initdb password file is removed immediately after initialization.
 
 Never run the drill from a folder that syncs to the cloud with the archives inside: they go to the system's temporary folder and are deleted at the end. Record the result in `docs/HANDOFF.md`.
 
@@ -275,6 +277,7 @@ For each drill:
 4. Check `schema_migrations` checksums against the matching source release before applying later migrations. Verify tables, indexes, functions, RLS policies and grants. `aisistent_app` must be non-owner and unable to bypass RLS or assume the owner role.
 5. Remove restored login sessions and invitations in the isolated target before enabling traffic, and generate fresh application/identity secrets. Restoring old sessions could revive a session revoked after the backup. Use test identities and synthetic organization records for the drill.
 6. Reconcile membership removals, role changes and identity revocations made **after** the snapshot against an authoritative source outside that backup before reopening traffic. Session/invitation invalidation does not reconcile restored membership rights. Then connect a separate test app to the restored target. Verify two organizations cannot cross-read/write, removed members remain denied, configuration and knowledge agree with the snapshot, and fresh sign-in plus save works. Record row counts/checksums without copying customer content into logs. Also reapply organization deletions and departures made after the snapshot: `organization.delete` events (no organization, target = the deleted id) and `member.leave` events in the live database, if it is still readable, or in another authoritative record. A restore must not bring a deleted organization back.
+   Reapply manual conversation deletions (`conversation.delete`) as well, using the authoritative event's target ID. A restored transcript must not undo a deletion request. The drill warns by action count; an operator still reconciles actual targets, including changes committed after the drill's final query, while writes are stopped for cutover.
 7. Once files exist, separately restore an object snapshot and reconcile authorized object references and actual file bytes. This is not implemented yet.
 8. Record finish time, observed data loss, recovery duration, failures and accountable owner. Destroy the isolated environment through the approved provider procedure after retaining sanitized evidence. Only then mark the drill passed.
 

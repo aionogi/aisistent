@@ -1,6 +1,6 @@
 # Delivery milestones
 
-Updated: 2026-10-28.
+Updated: 2026-11-03.
 
 The user requested a demo first, followed by security, then pricing and recurring revenue. The phases below preserve that order. No delivery dates or provider commitments are assigned.
 
@@ -51,6 +51,8 @@ The M1 landing dashboard preview was left intact; the workspace reuses its visua
 ## M3 — Persistent platform and production security
 
 Goal: support real organizations and data through the requested Next.js/Node.js stack.
+
+Review follow-up (2026-11-03, after `bb96fa5`): six findings fixed with regression coverage: MFA enabled in generated production settings, prompt closure of unused HTTP bodies, quoted multi-line CSV parsing, fresh temporary administrator credentials, snapshot-aware recovery change detection, and reconciliation warnings for deleted conversations. Latest local unit/database checks: 193/193; recovery: 9/9. No migrations are needed. M3 remains open pending the existing deployment, backup-policy and provider gates.
 
 - [ ] Record hosting, managed identity, database, and private storage decisions. *(Decided 2026-10-28 in [m3-platform-options.md](architecture/m3-platform-options.md#decision-2026-10-28): Vercel (Hobby during development, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt as a database only, Auth0 EU. Private storage is still open, so this item stays unchecked.)*
 - [ ] Replace static-only deployment with a suitable Node.js deployment when server features are introduced. *(Vercel project deployed by the user and running in Frankfurt; the Supabase database has all migrations since 2026-10-31, the deployed app's connection to it is not verified yet; `demo/vercel.json` (region `fra1`, daily cleanup cron), CSP and security headers. Database and sign-in on the deployment are not verified yet.)*

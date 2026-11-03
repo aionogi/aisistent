@@ -24,6 +24,20 @@ test("CSV without a header keeps the first row, ignores blank rows and extra col
   assert.deepEqual(result.skipped.map(({ line, reason }) => [line, reason]), [[3, "missing_question"], [4, "missing_answer"]]);
 });
 
+test("delimiter detection reads the full first quoted record, including newlines and escaped quotes", () => {
+  const semicolon = parse('\t \t \t\n \n"Da li radite,\ni subotom?";Da, od 9 do 15.\n');
+  assert.deepEqual(pairs(semicolon), [["Da li radite, i subotom?", "Da, od 9 do 15."]]);
+  assert.deepEqual(semicolon.skipped, []);
+
+  const escaped = parse('"Da li kažete ""zdravo;\nponovo""?";"Da, naravno."\n');
+  assert.deepEqual(pairs(escaped), [['Da li kažete "zdravo; ponovo"?', "Da, naravno."]]);
+  assert.deepEqual(escaped.skipped, []);
+
+  const tab = parse('"Da li radite,\ni subotom?"\t"Da; od 9 do 15."\n', "pitanja.tsv");
+  assert.deepEqual(pairs(tab), [["Da li radite, i subotom?", "Da; od 9 do 15."]]);
+  assert.deepEqual(tab.skipped, []);
+});
+
 test("tab-separated text files are read as tables; other text files as question/answer blocks", () => {
   assert.deepEqual(pairs(parse("Pitanje\tOdgovor\nRadno vreme?\tOd 9 do 20 h.\n", "izvoz.txt")), [["Radno vreme?", "Od 9 do 20 h."]]);
 
