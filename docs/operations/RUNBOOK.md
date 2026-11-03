@@ -29,7 +29,11 @@ Secret values are never printed. The manual steps below do the same thing.
 
 ### Migrations (from a trusted computer, never in the Vercel build)
 
-Already done if you used `npm run setup:supabase`. PowerShell, from `demo/` in an up-to-date checkout:
+For a commit that adds a migration, run `npm run migrate:supabase` from `demo/` in an up-to-date checkout. It reads the three Supabase entries of `demo/.env.supabase.local`, applies new migrations as the owner, and changes nothing else: not the `aisistent_app` password, not a secret, no file, so Vercel needs no update. Do not rerun `npm run setup:supabase` for that: without `.env.vercel.local` it would make a new app password and new secrets, and it now stops instead when the login already exists. `npm run setup:supabase:new-secrets` replaces them on purpose; import the new file into Vercel and redeploy at once.
+
+Every migration run, whichever command starts it, also takes away the privileges Supabase's API roles (`anon`, `authenticated`, `service_role`) hold on the `app` schema, its tables, sequences and routines, and `public.schema_migrations`. Supabase grants them by default on objects its `postgres` role creates; the app uses only `aisistent_runtime`. Where the roles do not exist the step does nothing. The restore drill lists every grantee, so it shows whether any came back.
+
+The manual way, already done if you used `npm run setup:supabase`. PowerShell, from `demo/` in an up-to-date checkout:
 
 ```powershell
 $env:DATABASE_ADMIN_URL = "<session pooler URL>"

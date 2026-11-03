@@ -17,7 +17,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseEnv } from "node:util";
-import { connectionHint, sessionPooler, SetupError } from "../../lib/db/supabase-setup.ts";
+import { connectionHint, SetupError, supabaseConnection } from "../../lib/db/supabase-setup.ts";
 import { DrillError, formatDrillReport, runRestoreDrill } from "../../tests/recovery/drill.ts";
 import { Auth0SettingsError, readAuth0Settings, runAppWithAuth0 } from "../dev/auth0-app.ts";
 
@@ -51,20 +51,14 @@ try {
   }
   const settings = parseEnv(readFileSync(settingsFile, "utf8"));
   const value = (key: string) => settings[key]?.trim() ?? "";
-  const unfilled = ["SUPABASE_SESSION_POOLER_URL", "SUPABASE_CA_CERT_FILE"].filter((key) => !value(key) || value(key).includes("<"));
-  if (value("SUPABASE_DB_PASSWORD").startsWith("<")) unfilled.push("SUPABASE_DB_PASSWORD");
-  if (unfilled.length) throw new SetupError(`Fill in ${unfilled.join(", ")} in ${settingsFile}.`);
-  const pooler = sessionPooler(value("SUPABASE_SESSION_POOLER_URL"), value("SUPABASE_DB_PASSWORD"));
-  if (!existsSync(value("SUPABASE_CA_CERT_FILE"))) throw new SetupError("SUPABASE_CA_CERT_FILE: the file was not found. Check the path.");
-  const caCert = readFileSync(value("SUPABASE_CA_CERT_FILE"), "utf8").trim();
-  if (!caCert.startsWith("-----BEGIN CERTIFICATE-----")) throw new SetupError("SUPABASE_CA_CERT_FILE is not a PEM certificate (it should start with -----BEGIN CERTIFICATE-----).");
+  const { adminUrl, caCert } = supabaseConnection(settings, settingsFile);
   const toolDir = process.env.PG_CLIENT_BIN_DIR || (value("PG_CLIENT_BIN_DIR").includes("<") ? "" : value("PG_CLIENT_BIN_DIR"));
   if (toolDir) process.env.PG_CLIENT_BIN_DIR = toolDir;
   // Read before the drill, so a missing Auth0 setting does not waste a copy.
   const auth0 = serve ? readAuth0Settings([settingsFile, auth0File], appUrl) : undefined;
 
   const { report, target } = await runRestoreDrill({
-    sourceUrl: pooler.adminUrl,
+    sourceUrl: adminUrl,
     caCert,
     migrationsDir: path.join(projectDir, "db/migrations"),
     log: (line) => console.log(line),

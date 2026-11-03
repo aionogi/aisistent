@@ -6,6 +6,11 @@
 // files are git-ignored. Secret values are never printed.
 //
 //   npm run setup:supabase
+//
+// To apply later migrations without touching the app login or the secrets,
+// use npm run migrate:supabase. Without .env.vercel.local this command stops
+// rather than replace the live password, unless run as
+// npm run setup:supabase:new-secrets.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +21,7 @@ const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 const settingsFile = path.join(projectDir, ".env.supabase.local");
 const auth0File = path.join(projectDir, ".env.auth0.local");
 const outputFile = path.join(projectDir, ".env.vercel.local");
+const newSecrets = process.argv.includes("--new-secrets");
 
 const TEMPLATE = `# Settings for npm run setup:supabase. Git ignores this file. Keep the single quotes.
 # Supabase -> Connect -> Session pooler, exactly as shown:
@@ -52,12 +58,12 @@ try {
   const auth0Values = ["AUTH0_DOMAIN", "AUTH0_CLIENT_ID", "AUTH0_CLIENT_SECRET"].map(value);
   const auth0 = auth0Values.every((item) => item && !item.includes("<")) ? { domain: auth0Values[0].replace(/^https:\/\//i, "").replace(/\/+$/, ""), clientId: auth0Values[1], clientSecret: auth0Values[2] } : undefined;
 
-  const existing = readExistingSecrets(existsSync(outputFile) ? readFileSync(outputFile, "utf8") : null);
+  const existing = newSecrets ? {} : readExistingSecrets(existsSync(outputFile) ? readFileSync(outputFile, "utf8") : null);
   const appPassword = existing.appPassword ?? generateSecret();
   const databaseUrl = transactionPoolerUrl(pooler, appPassword);
 
   console.log("Applying migrations and checking the connections…");
-  const report = await prepareDatabase({ adminUrl: pooler.adminUrl, appUrl: databaseUrl, appPassword, caCert, migrationsDir: path.join(projectDir, "db/migrations") });
+  const report = await prepareDatabase({ adminUrl: pooler.adminUrl, appUrl: databaseUrl, appPassword, caCert, migrationsDir: path.join(projectDir, "db/migrations"), refuseExistingLogin: !existing.appPassword && !newSecrets });
 
   writeFileSync(outputFile, formatEnvFile(vercelVariables({
     databaseUrl,
@@ -73,7 +79,8 @@ try {
 Database ready.
   Migrations: ${report.applied.length} applied, ${report.alreadyApplied} already in place.
   PostgreSQL: ${report.postgresMajor}${report.postgresMajor === 17 ? "" : " (the app is developed and tested on 17; tell your developer)"}.
-  App login: aisistent_app connected through the transaction pooler with a verified certificate; statement timeout ${report.statementTimeout}.
+  App login: aisistent_app connected through the transaction pooler with a verified certificate; statement timeout ${report.statementTimeout}.${report.revokedFrom.length ? `
+  Supabase's API roles hold no privileges on the app: checked ${report.revokedFrom.join(", ")}.` : ""}
   Wrote: ${outputFile}
 
 Next:
@@ -82,7 +89,7 @@ Next:
   3. In the Auth0 application add ${appBaseUrl}/auth/callback (Allowed Callback URLs) and ${appBaseUrl}/ (Allowed Logout URLs).` : `
   3. Auth0 values are missing, so sign-in stays off. Add AUTH0_DOMAIN, AUTH0_CLIENT_ID and AUTH0_CLIENT_SECRET to ${path.basename(settingsFile)} and run this command again (the other secrets stay the same).`}
   Then delete ${path.basename(settingsFile)} and ${path.basename(outputFile)}, or keep them only until the checks pass: they hold secrets, and a OneDrive folder syncs them to the cloud.
-  Running this command without ${path.basename(outputFile)} generates new secrets, which you would import again.`);
+  For later migrations use npm run migrate:supabase: it changes no password or secret and needs only ${path.basename(settingsFile)}.`);
 } catch (error) {
   const message = (error as Error).message;
   const fromDriver = !(error instanceof SetupError) || /could not connect/.test(message);

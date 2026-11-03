@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import pg from "pg";
 import { APP_LOGIN_ROLE, connectionOptions } from "./config.ts";
@@ -34,6 +35,19 @@ export function sessionPooler(rawUrl: string, password = ""): SessionPooler {
   if (!projectRef) throw new SetupError("SUPABASE_SESSION_POOLER_URL must use the user postgres.<project-ref>, as shown in the Connect dialog.");
   if (!url.password) throw new SetupError("SUPABASE_SESSION_POOLER_URL has no password: set SUPABASE_DB_PASSWORD or include it in the address.");
   return { adminUrl: url.toString(), projectRef };
+}
+
+/** The owner connection and the CA certificate from the settings file's three Supabase entries. */
+export function supabaseConnection(settings: Record<string, string | undefined>, file: string): { adminUrl: string; caCert: string } {
+  const value = (key: string) => settings[key]?.trim() ?? "";
+  const unfilled = ["SUPABASE_SESSION_POOLER_URL", "SUPABASE_CA_CERT_FILE"].filter((key) => !value(key) || value(key).includes("<"));
+  if (value("SUPABASE_DB_PASSWORD").startsWith("<")) unfilled.push("SUPABASE_DB_PASSWORD");
+  if (unfilled.length) throw new SetupError(`Fill in ${unfilled.join(", ")} in ${file}.`);
+  const { adminUrl } = sessionPooler(value("SUPABASE_SESSION_POOLER_URL"), value("SUPABASE_DB_PASSWORD"));
+  if (!existsSync(value("SUPABASE_CA_CERT_FILE"))) throw new SetupError("SUPABASE_CA_CERT_FILE: the file was not found. Check the path.");
+  const caCert = readFileSync(value("SUPABASE_CA_CERT_FILE"), "utf8").trim();
+  if (!caCert.startsWith("-----BEGIN CERTIFICATE-----")) throw new SetupError("SUPABASE_CA_CERT_FILE is not a PEM certificate (it should start with -----BEGIN CERTIFICATE-----).");
+  return { adminUrl, caCert };
 }
 
 /** The application's address: same host, transaction pooler port, restricted login with its project suffix. */
@@ -115,9 +129,38 @@ export function formatEnvFile(variables: Record<string, string>): string {
     .join("\n") + "\n";
 }
 
-export type DatabaseReport = { applied: string[]; alreadyApplied: number; postgresMajor: number; statementTimeout: string };
+export type MigrationReport = { applied: string[]; alreadyApplied: number; revokedFrom: string[]; postgresMajor: number };
+export type DatabaseReport = MigrationReport & { statementTimeout: string };
 
-type PrepareOptions = { adminUrl: string; appUrl: string; appPassword: string; caCert?: string; migrationsDir: string; attempts?: number; retryDelayMs?: number };
+const postgresMajorOf = async (client: pg.Client) => Math.floor(Number((await client.query("SHOW server_version_num")).rows[0].server_version_num) / 10_000);
+
+/**
+ * Applies new migrations as the owner and nothing else: the app login, its
+ * password and every secret stay as they are, so the live site keeps working.
+ */
+export async function migrateDatabase({ adminUrl, caCert, migrationsDir }: { adminUrl: string; caCert?: string; migrationsDir: string }): Promise<MigrationReport> {
+  const admin = new pg.Client({ ...connectionOptions(adminUrl, caCert ? { DATABASE_CA_CERT: caCert } : {}), application_name: "aisistent-migrate", connectionTimeoutMillis: 15_000 });
+  await admin.connect();
+  try {
+    const postgresMajor = await postgresMajorOf(admin);
+    const result = await migrate(admin, migrationsDir);
+    return { applied: result.applied, alreadyApplied: result.skipped.length, revokedFrom: result.revokedFrom, postgresMajor };
+  } finally {
+    await admin.end();
+  }
+}
+
+type PrepareOptions = {
+  adminUrl: string;
+  appUrl: string;
+  appPassword: string;
+  caCert?: string;
+  migrationsDir: string;
+  /** Stop before changing anything when the app login exists: its password is about to be replaced. */
+  refuseExistingLogin?: boolean;
+  attempts?: number;
+  retryDelayMs?: number;
+};
 
 /**
  * Applies migrations as the owner, sets up the restricted login, then proves
@@ -125,18 +168,25 @@ type PrepareOptions = { adminUrl: string; appUrl: string; appPassword: string; c
  * the role's timeouts in effect. The pooler can take a moment to learn a new
  * login, so that last connection is retried.
  */
-export async function prepareDatabase({ adminUrl, appUrl, appPassword, caCert, migrationsDir, attempts = 6, retryDelayMs = 5_000 }: PrepareOptions): Promise<DatabaseReport> {
+export async function prepareDatabase({ adminUrl, appUrl, appPassword, caCert, migrationsDir, refuseExistingLogin = false, attempts = 6, retryDelayMs = 5_000 }: PrepareOptions): Promise<DatabaseReport> {
   const env = caCert ? { DATABASE_CA_CERT: caCert } : {};
   const admin = new pg.Client({ ...connectionOptions(adminUrl, env), application_name: "aisistent-setup", connectionTimeoutMillis: 15_000 });
   await admin.connect();
   let applied: string[];
   let alreadyApplied: number;
+  let revokedFrom: string[];
   let postgresMajor: number;
   try {
-    postgresMajor = Math.floor(Number((await admin.query("SHOW server_version_num")).rows[0].server_version_num) / 10_000);
+    if (refuseExistingLogin && (await admin.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [APP_LOGIN_ROLE])).rowCount) {
+      throw new SetupError(`The database already has the ${APP_LOGIN_ROLE} login, but .env.vercel.local is missing, so this run would give it a new password and make new secrets. The live site would lose its database until Vercel gets them. Nothing was changed.
+  To apply new migrations only: npm run migrate:supabase
+  To replace the password and secrets on purpose: npm run setup:supabase:new-secrets, then import the new file into Vercel and redeploy at once.`);
+    }
+    postgresMajor = await postgresMajorOf(admin);
     const result = await migrate(admin, migrationsDir);
     applied = result.applied;
     alreadyApplied = result.skipped.length;
+    revokedFrom = result.revokedFrom;
     await ensureAppLogin(admin, appPassword);
   } finally {
     await admin.end();
@@ -154,7 +204,7 @@ export async function prepareDatabase({ adminUrl, appUrl, appPassword, caCert, m
       );
       const row = rows[0];
       if (row?.login !== APP_LOGIN_ROLE || row.superuser || row.bypass_rls) throw new SetupError("The application address did not connect as the restricted aisistent_app login.");
-      return { applied, alreadyApplied, postgresMajor, statementTimeout: row.statement_timeout };
+      return { applied, alreadyApplied, revokedFrom, postgresMajor, statementTimeout: row.statement_timeout };
     } catch (error) {
       if (error instanceof SetupError) throw error;
       lastError = error;

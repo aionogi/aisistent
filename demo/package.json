@@ -14,6 +14,8 @@
     "test": "node scripts/test/run-tests.ts \"tests/unit/**/*.test.ts\" \"tests/db/**/*.test.ts\"",
     "db:migrate": "node scripts/db/migrate.ts",
     "setup:supabase": "node scripts/db/supabase-setup.ts",
+    "setup:supabase:new-secrets": "node scripts/db/supabase-setup.ts --new-secrets",
+    "migrate:supabase": "node scripts/db/migrate-supabase.ts",
     "drill:restore": "node scripts/db/restore-drill.ts",
     "drill:restore:serve": "node scripts/db/restore-drill.ts --serve",
     "ops:cleanup": "node scripts/operations/cleanup.ts",

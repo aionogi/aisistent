@@ -7,7 +7,32 @@ import { APP_LOGIN_ROLE, RUNTIME_ROLE } from "./config.ts";
 /** Arbitrary constant; serializes concurrent migration runs (for example two deploys). */
 const MIGRATION_LOCK_ID = 7_302_024_001;
 
-export type MigrationResult = { applied: string[]; skipped: string[] };
+export type MigrationResult = { applied: string[]; skipped: string[]; revokedFrom: string[] };
+
+/** Roles Supabase creates for its Data API and grants privileges by default; the app never uses them. */
+export const PROVIDER_API_ROLES = ["anon", "authenticated", "service_role"];
+
+/**
+ * Takes away every privilege the provider's API roles hold on the app's
+ * schema, its objects and the migration history. It runs after every
+ * migration run, so objects that later migrations create, and that the
+ * provider's default privileges grant to those roles, are covered too. Where
+ * the roles do not exist (local databases, CI) it does nothing.
+ */
+async function revokeProviderRoles(client: Client): Promise<string[]> {
+  const { rows } = await client.query<{ rolname: string }>("SELECT rolname FROM pg_roles WHERE rolname = ANY($1) ORDER BY rolname", [PROVIDER_API_ROLES]);
+  for (const { rolname } of rows) {
+    const role = client.escapeIdentifier(rolname);
+    for (const statement of [
+      `REVOKE ALL ON ALL TABLES IN SCHEMA app FROM ${role}`,
+      `REVOKE ALL ON ALL SEQUENCES IN SCHEMA app FROM ${role}`,
+      `REVOKE ALL ON ALL ROUTINES IN SCHEMA app FROM ${role}`,
+      `REVOKE ALL ON SCHEMA app FROM ${role}`,
+      `REVOKE ALL ON TABLE public.schema_migrations FROM ${role}`,
+    ]) await client.query(statement);
+  }
+  return rows.map(({ rolname }) => rolname);
+}
 
 type MigrationFile = { version: string; sql: string; checksum: string };
 
@@ -22,9 +47,10 @@ async function readMigrations(directory: string): Promise<MigrationFile[]> {
 /**
  * Applies pending SQL migrations in order, each in its own transaction, as the
  * database owner. Refuses to continue if an applied migration file has changed.
+ * Then removes any privileges of the provider's API roles (see above).
  */
 export async function migrate(client: Client, directory: string): Promise<MigrationResult> {
-  const result: MigrationResult = { applied: [], skipped: [] };
+  const result: MigrationResult = { applied: [], skipped: [], revokedFrom: [] };
   await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_ID]);
   try {
     await client.query(`CREATE TABLE IF NOT EXISTS public.schema_migrations (
@@ -55,6 +81,7 @@ export async function migrate(client: Client, directory: string): Promise<Migrat
         throw new Error(`Migration ${migration.version} failed: ${(error as Error).message}`, { cause: error });
       }
     }
+    result.revokedFrom = await revokeProviderRoles(client);
     return result;
   } finally {
     await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_ID]);
