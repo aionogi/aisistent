@@ -142,6 +142,8 @@ Before staging, name a primary and backup operator and configure a restricted lo
 
 Verify alerts reach an operator. Record the test timestamp and recipient in the release evidence. Sentry's alert email was confirmed on 2026-11-01 (`docs/HANDOFF.md`); the suggested alerts above are not configured yet.
 
+Supabase's log overview shows mostly errors even when the app is healthy (2026-11-03: 113 of 117 Postgres entries in an hour). About every 30 seconds Supabase's own API service (PostgREST) fails to load `schema "pg_pgrst_no_exposed_schemas" does not exist` (SQLSTATE 3F000), and Supabase's management checks get 503 from `/rest-admin/v1/ready`. That is the placeholder Supabase uses when the Data API exposes no schemas, which is how this project is set up, so it confirms the Data API is off. These entries are not the app's and need no action; look for the app's own errors (its queries, `aisistent_app` connections) instead.
+
 ### Error reporting (Sentry)
 
 Every error-level event above, uncaught server and browser errors, and failed cleanup go to Sentry once `NEXT_PUBLIC_SENTRY_DSN` is set. What may leave the app is defined in `demo/lib/observability/reporting.ts`; change the allowlist only with its tests, and read a real payload after upgrading the SDK, because its defaults collect everything.
