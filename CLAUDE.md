@@ -1,5 +1,7 @@
 # Claude handoff
 
+Latest checkpoint (2026-11-03): encrypted backup/retention/verification and a separate freshness watchdog are implemented (`npm run ops:backup`, `ops:backup:keys`, `ops:backup:check`, `ops:backup:verify`). Read `docs/operations/BACKUPS.md` and the newest handoff record before using them. No real backup schedule, offsite destination/upload adapter, policy or alert delivery is active. Next: obtain the user's destination/plan choice, finish actual backup activation/restore proof, then missed-cleanup monitoring, MFA continuity and onboarding in the authorized order. Do not skip activation and claim M3 complete. The user confirmed live MFA works after `f0c8595`.
+
 Latest review follow-up (2026-11-03, after `bb96fa5`): all six review findings are fixed. Generated Vercel imports require MFA, unused HTTP bodies close, quoted multi-line CSV works, temporary database admin credentials are random, and recovery detects events absent from the actual snapshot (including lower-ID late commits) and warns about conversation deletions. No migration is required. Use the newest `docs/HANDOFF.md` validation record; earlier checkpoint counts below are historical. Production cutover still requires stopping writes and reconciling changes through cutover, beyond the drill's final query.
 
 Read `AGENTS.md`, `docs/HANDOFF.md`, `docs/MILESTONES.md`, `PRODUCT.md`, and `demo/DESIGN.md` before implementation. Those files are the shared source of truth for every coding agent.

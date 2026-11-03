@@ -52,6 +52,8 @@ The M1 landing dashboard preview was left intact; the workspace reuses its visua
 
 Goal: support real organizations and data through the requested Next.js/Node.js stack.
 
+Backup follow-up (2026-11-03): trusted-worker commands for encrypted consistent PostgreSQL copies, safe retention, offline restore verification and an independent missing/stale-copy watchdog are implemented and tested with synthetic data ([activation guide](operations/BACKUPS.md)). The offsite destination/plan, policy, worker schedule, actual backup/restore and delivered alerts are pending operator configuration. This is tooling readiness, not production backup coverage; M3 stays open.
+
 Review follow-up (2026-11-03, after `bb96fa5`): six findings fixed with regression coverage: MFA enabled in generated production settings, prompt closure of unused HTTP bodies, quoted multi-line CSV parsing, fresh temporary administrator credentials, snapshot-aware recovery change detection, and reconciliation warnings for deleted conversations. Latest local unit/database checks: 193/193; recovery: 9/9. No migrations are needed. M3 remains open pending the existing deployment, backup-policy and provider gates.
 
 - [ ] Record hosting, managed identity, database, and private storage decisions. *(Decided 2026-10-28 in [m3-platform-options.md](architecture/m3-platform-options.md#decision-2026-10-28): Vercel (Hobby during development, a paid plan before commercial use), Supabase PostgreSQL in Frankfurt as a database only, Auth0 EU. Private storage is still open, so this item stays unchecked.)*

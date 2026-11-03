@@ -39,6 +39,8 @@ The separate `npm run test:recovery` command rehearses synthetic database recove
 
 ## Project map
 
+Encrypted backup tooling and a separate freshness watchdog are ready for a trusted worker. [Backup setup](docs/operations/BACKUPS.md) covers keys, retention, verification and the remaining offsite/scheduler/alert activation. These commands do not establish live backup coverage by themselves.
+
 | Path | Purpose |
 | --- | --- |
 | `demo/app/` | Landing page, shared styles, layout, and metadata |

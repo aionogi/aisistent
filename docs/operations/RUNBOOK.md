@@ -210,6 +210,8 @@ Lettermint keeps message content, including the link, for 28 days; the link expi
 
 ## Backups and isolated restore drill
 
+Trusted-worker encrypted backup commands and the independent backup freshness check are now available: see [Encrypted backups and watchdog](BACKUPS.md). This tooling has synthetic tests, but it does not activate a real backup schedule, destination or alert. Keep the activation checklist open until those are configured and verified. The drill below still checks restores without retaining its temporary copies.
+
 Choose and record recovery point/time objectives, backup frequency, retention, encryption and access ownership before real data. Managed point-in-time recovery and an independently accessible encrypted backup are deployment decisions still pending. A database backup does not include future object-storage files.
 
 ### Repeatable local rehearsal

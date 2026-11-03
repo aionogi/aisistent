@@ -6,6 +6,8 @@ Status values: **Done locally** (implemented and tested against real PostgreSQL 
 
 ## Requirements and evidence
 
+Backup tooling follow-up (2026-11-03): age public-recipient streaming encryption, exact-snapshot export, atomic completed-copy publication, validated per-source retention, offline isolated restore and a read-only independent freshness watchdog now have synthetic regression coverage. See [BACKUPS.md](../operations/BACKUPS.md) for setup/limits and [the handoff](../HANDOFF.md#verification-record) for actual checks. R7 remains open until an approved offsite destination, backup policy and schedule are activated and a real encrypted copy is independently restored. Missed-run alert delivery and cleanup-cron freshness monitoring remain open under R8.
+
 Review follow-up, 2026-11-03: six findings after `bb96fa5` were fixed locally. Setup imports require MFA; HTTP imports close discarded response bodies; quoted multi-line CSV is parsed correctly; temporary database administrators use independent random credentials. Recovery compares the exact snapshot's audit IDs with current events to catch lower-ID late commits, and conversation deletions trigger reconciliation. Regression evidence is in `supabase-setup`, `url-import`, `knowledge-import`, `harness` and `recovery/drill` tests; see the newest [handoff record](../HANDOFF.md#verification-record) for actual suite results. The fixes do not establish a production backup/cutover policy or independently revalidate live provider settings.
 
 | Requirement | Status | Evidence | Gap |

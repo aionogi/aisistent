@@ -20,6 +20,7 @@ const digest = (value: string | Buffer) => createHash("sha256").update(value).di
 export class DrillError extends Error {}
 
 export type DrillOptions = {
+  toolsDirectory?: string;
   /** Owner connection to the live database; read only, never changed. */
   sourceUrl: string;
   /** The provider's CA certificate (PEM). Required unless the database is on this computer. */
@@ -75,9 +76,9 @@ function toolEnv(url: URL, caFile?: string): NodeJS.ProcessEnv {
   };
 }
 
-async function runTool(tool: "pg_dump" | "pg_restore", env: NodeJS.ProcessEnv, args: string[]): Promise<string> {
+async function runTool(tool: "pg_dump" | "pg_restore", env: NodeJS.ProcessEnv, args: string[], toolsDirectory?: string): Promise<string> {
   try {
-    const { stderr } = await execute(executable(tool), ["--no-password", ...args], { env, timeout: 600_000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 });
+    const { stderr } = await execute(executable(tool, toolsDirectory), ["--no-password", ...args], { env, timeout: 600_000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 });
     return stderr.trim();
   } catch (error) {
     const detail = String((error as { stderr?: string }).stderr || (error as Error).message).split(env.PGPASSWORD || "\u0000").join("***").trim();
@@ -146,7 +147,7 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
   const log = options.log ?? (() => {});
   const sourceUrl = new URL(options.sourceUrl);
   if (!LOCAL_HOSTS.has(sourceUrl.hostname) && !options.caCert) throw new DrillError("A database on another computer needs its CA certificate, so the copy travels over a verified connection.");
-  const clientTools = await checkClientTools();
+  const clientTools = await checkClientTools(options.toolsDirectory);
   const artifactDir = await mkdtemp(path.join(os.tmpdir(), "aisistent-drill-"));
   const caFile = options.caCert ? path.join(artifactDir, "ca.crt") : undefined;
   if (caFile) await writeFile(caFile, `${options.caCert!.replace(/\\n/g, "\n").trim()}\n`);
@@ -171,8 +172,8 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
       security = await securitySnapshot(source);
       const env = toolEnv(sourceUrl, caFile);
       // pg_dump selects either schemas or tables, so the migration history is a second archive.
-      warnings.push(await runTool("pg_dump", env, ["--format=custom", `--snapshot=${info.snapshot}`, "--schema=app", `--file=${archives[0]}`]));
-      warnings.push(await runTool("pg_dump", env, ["--format=custom", `--snapshot=${info.snapshot}`, "--table=public.schema_migrations", `--file=${archives[1]}`]));
+      warnings.push(await runTool("pg_dump", env, ["--format=custom", `--snapshot=${info.snapshot}`, "--schema=app", `--file=${archives[0]}`], options.toolsDirectory));
+      warnings.push(await runTool("pg_dump", env, ["--format=custom", `--snapshot=${info.snapshot}`, "--table=public.schema_migrations", `--file=${archives[1]}`], options.toolsDirectory));
       await source.query("COMMIT");
     } finally {
       await source.end().catch(() => {});
@@ -200,7 +201,7 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
     const restoreStarted = Date.now();
     const targetUrl = new URL(target.adminUrl);
     for (const file of archives) {
-      warnings.push(await runTool("pg_restore", toolEnv(targetUrl), ["--no-owner", "--exit-on-error", "--single-transaction", `--dbname=${decodeURIComponent(targetUrl.pathname.slice(1))}`, file]));
+      warnings.push(await runTool("pg_restore", toolEnv(targetUrl), ["--no-owner", "--exit-on-error", "--single-transaction", `--dbname=${decodeURIComponent(targetUrl.pathname.slice(1))}`, file], options.toolsDirectory));
     }
     const restoreMs = Date.now() - restoreStarted;
     for (const [index, file] of archives.entries()) {

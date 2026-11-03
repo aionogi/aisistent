@@ -12,6 +12,8 @@ Install dependencies with `npm ci`, then run `npm run dev`. Local address: `http
 
 ## Demo behavior
 
+Trusted-worker backup commands (`ops:backup`, `ops:backup:keys`, `ops:backup:check`, `ops:backup:verify`) create standard age-encrypted copies, enforce explicit retention and check missing/stale backups. They require separate configuration and never use web credentials implicitly. No production backup job or offsite transfer is active; follow [the activation guide](../docs/operations/BACKUPS.md).
+
 - Landing page (`/`): four industry-specific text conversation simulations with pause, resume, and replay; a dashboard preview with a local-only FAQ editor (entries reset when switching away from its tab or reloading); mobile navigation and expandable FAQ answers.
 - Onboarding (`/onboarding/`): five guided steps for industry, business details and services, working hours, assistant behavior, and a final review.
 - Workspace (`/workspace/`): overview, example conversations built from the configuration, an assistant settings editor, and a knowledge base editor.

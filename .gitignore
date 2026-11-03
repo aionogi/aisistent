@@ -40,6 +40,9 @@ logs/
 # Database recovery artifacts (never commit data snapshots)
 *.dump
 *.backup
+*.age
+backup-identity.txt
+backup-recipient.txt
 
 # Antigravity / AI tools
 .gemini/

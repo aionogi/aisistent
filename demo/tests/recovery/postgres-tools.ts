@@ -7,19 +7,18 @@ const execute = promisify(execFile);
 type Tool = "pg_dump" | "pg_restore";
 
 /** Client tools are a local prerequisite; the rehearsal never downloads executables. */
-export function executable(tool: Tool): string {
-  const directory = process.env.PG_CLIENT_BIN_DIR ?? process.env.PG_BIN_DIR;
+export function executable(tool: Tool, directory = process.env.PG_CLIENT_BIN_DIR ?? process.env.PG_BIN_DIR): string {
   const name = `${tool}${process.platform === "win32" ? ".exe" : ""}`;
   if (!directory) return name;
   if (!path.isAbsolute(directory)) throw new Error("PG_CLIENT_BIN_DIR / PG_BIN_DIR must be an absolute directory.");
   return path.join(directory, name);
 }
 
-export async function checkClientTools(): Promise<string[]> {
+export async function checkClientTools(directory?: string): Promise<string[]> {
   const versions: string[] = [];
   for (const tool of ["pg_dump", "pg_restore"] as const) {
     try {
-      const { stdout } = await execute(executable(tool), ["--version"], { timeout: 10_000, windowsHide: true });
+      const { stdout } = await execute(executable(tool, directory), ["--version"], { timeout: 10_000, windowsHide: true });
       assert.match(stdout, new RegExp(`^${tool} \\(PostgreSQL\\) 17\\.`));
       versions.push(stdout.trim());
     } catch (cause) {
