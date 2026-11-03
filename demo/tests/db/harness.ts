@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -23,6 +23,21 @@ function freePort(): Promise<number> {
   });
 }
 
+// Servers still running when this process exits, for example after an
+// uncaught error: they are stopped and their data removed, because a
+// temporary database can hold a restored copy of real data.
+const running = new Map<ChildProcess, string>();
+process.once("exit", () => {
+  for (const [server, workDir] of running) {
+    if (server.exitCode === null && server.signalCode === null) server.kill();
+    try {
+      rmSync(workDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    } catch {
+      // Left for the operating system's temporary-file cleanup.
+    }
+  }
+});
+
 export type TestDatabase = {
   adminUrl: string;
   appUrl: string;
@@ -30,6 +45,8 @@ export type TestDatabase = {
   admin: pg.Client;
   /** Pool for the restricted application login, as the web server uses it. */
   appPool: pg.Pool;
+  /** Where the server's data lives; stop() removes it. */
+  workDir: string;
   stop: () => Promise<void>;
 };
 
@@ -103,7 +120,10 @@ export async function startTestDatabase(options: { migrate?: boolean; appPasswor
   await run(binaries.initdb, ["-D", dataDir, "-U", "postgres", "--auth=scram-sha-256", `--pwfile=${passwordFile}`, "-E", "UTF8", "--locale=C"]);
 
   const port = await freePort();
+  // Ctrl+C in a terminal can stop this server before this process: the error
+  // handlers below and stop() allow for that, so the data is still removed.
   const server = spawn(binaries.postgres, ["-D", dataDir, "-p", String(port), "-c", "listen_addresses=127.0.0.1", "-c", `unix_socket_directories=${process.platform === "win32" ? "" : workDir}`], { stdio: "ignore" });
+  running.set(server, workDir);
   const superuserConfig = { host: "127.0.0.1", port, user: "postgres", password: superPassword, database: "postgres" };
   await waitForServer(superuserConfig, server);
 
@@ -115,6 +135,8 @@ export async function startTestDatabase(options: { migrate?: boolean; appPasswor
 
   const adminUrl = `postgresql://render_owner:owner-test-password@127.0.0.1:${port}/aisistent_test`;
   const admin = new pg.Client({ connectionString: adminUrl });
+  // A dropped idle connection must not crash the process before stop() cleans up.
+  admin.on("error", () => {});
   await admin.connect();
   if (options.migrate !== false) {
     await migrate(admin, MIGRATIONS_DIR);
@@ -123,19 +145,25 @@ export async function startTestDatabase(options: { migrate?: boolean; appPasswor
 
   const appUrl = `postgresql://${APP_LOGIN_ROLE}:${encodeURIComponent(appPassword)}@127.0.0.1:${port}/aisistent_test`;
   const appPool = new pg.Pool({ connectionString: appUrl, max: 4 });
+  appPool.on("error", () => {});
 
   return {
     adminUrl,
     appUrl,
     admin,
     appPool,
+    workDir,
     stop: async () => {
-      await appPool.end();
-      await admin.end();
-      const exited = new Promise((resolve) => server.once("exit", resolve));
-      server.kill();
-      await exited;
-      await rm(workDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      await appPool.end().catch(() => {});
+      await admin.end().catch(() => {});
+      // The server may already be gone; then there is no exit event left to wait for.
+      if (server.exitCode === null && server.signalCode === null) {
+        const exited = new Promise((resolve) => server.once("exit", resolve));
+        server.kill();
+        await exited;
+      }
+      running.delete(server);
+      await rm(workDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
     },
   };
 }
