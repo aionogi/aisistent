@@ -4,6 +4,8 @@ Updated: 2026-11-14.
 
 ## Current objective
 
+**Latest checkpoint — suggestions stay suggestions (2026-11-14, after PR #1 merged):** at the user's request the UX rule is now: nothing is entered on the person's behalf. Empty fields show only a placeholder, and industry recommendations are applied with a click. A firm that has not saved yet starts from `createEmptyOrganizationDraft` (no working days, empty times, no greeting; tone, topics and the unknown-answer rule keep neutral defaults because a choice always holds a value). `chooseIndustry` now fills in only the business name, from the firm's own name. The industry's typical hours appear as a suggestion with "Primeni ovo radno vreme". Its usual tone and topics for the team are marked "Preporučeno" without being selected. The greeting field's placeholder shows an example with the firm's name, and "Predloži pozdrav prema tonu" fills it. The hours and behavior steps are therefore unfinished until the person acts. The demo is unchanged. Next: the user wants to keep developing the workspace; ask which area comes next (options in the final message of this session).
+
 **Latest checkpoint — new firms start empty (2026-11-14):** in a real organization, choosing an industry (onboarding and the Asistent page) no longer writes the demo's invented business, services, address, website and answers into the firm. `chooseIndustry` (`lib/workspace/templates.ts`) sets the industry, starts the business name from the firm's name when it is empty, and moves only settings still at their previous suggestion (hours, tone, topics for the team, an unchanged suggested greeting) to the new industry's suggestion; nothing the person entered is replaced, so no confirmation is needed. Typical services (names only, the person adds the duration) and typical customer questions (the person writes each answer) are offered as pale azure suggestion pills in the business form and on the knowledge page (`lib/workspace/suggestions.ts`); the knowledge page's "Vrati primere za delatnost" stays in the demo only. The demo still fills its full example. The onboarding header of a real firm now says "Podaci firme" instead of "Demo · primer podataka" (a pre-existing mislabel found in the browser check). Firms created earlier may still hold the example; their overview keeps flagging it ("Još stoji primer"), and nothing changes their stored data automatically. Pushed to PR [aionogi/aisistent#1](https://github.com/aionogi/aisistent/pull/1) together with the sign-in entry.
 
 **Latest checkpoint — sign-in opens the real workspace (2026-11-14):** the user handed backup activation to another person and asked to develop the workspace, starting with sign-in landing in the person's own firm instead of the demo. Sign-in now returns to a new entry page, `/app/` (`app/(platform)/app/page.tsx`, rules in `lib/workspace/entry.ts`): no firm → a welcome page with the create form (then onboarding, as before); one firm → `/org/<id>/`; several → the firm last opened on this device, otherwise a choice page. The last firm is remembered in the `aisistent_last_org` cookie (only the id, 90 days, `SameSite=Lax`, `Secure` on HTTPS), written in the browser by `RememberOrganization` when a firm's page is shown (the proxy cannot tell prefetches from visits), used only when it matches a current membership read from the database, and cleared by the proxy on `/auth/logout`. The home page's "Prijava" links go to `/app/`; the footer's demo link now reads "Demo radni prostor". In a firm, the sidebar card opens a menu with the person's firms, "Nova firma", "Nalog" and "Odjava" (also on phones, where the account had been unreachable from the workspace). No migration, Auth0, Vercel or Supabase change is needed; the Auth0 callback URL is unchanged. Next workspace step to propose: new firms start empty instead of with industry examples. See the verification record.
@@ -270,6 +272,26 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### Suggestions stay suggestions (2026-11-14)
+
+- Unit (`tests/unit/industry-suggestions.test.ts`, now 7 tests):
+  - an unsaved firm's draft has no open days, empty times and no greeting, and is storable;
+  - the industry choice changes only `industry` and an empty business name;
+  - switching industry keeps everything entered;
+  - typical hours are suggested until applied, and none for "other";
+  - tone and topics are recommended but never selected;
+  - service and question suggestions are unchanged.
+- HTTP: the onboarding test now starts from the organization draft; 30/30 pass.
+- Browser (Playwright Chromium against `npm run dev:local-auth`, 1280 px and 390 px), a new "Auto-servis" firm:
+  - hours started with no open days, and the step refused to continue until set;
+  - "Primeni ovo radno vreme" applied Mon–Fri 08:00–17:00 and Sat 08:00–14:00, moved focus to the first day, and the suggestion then disappeared;
+  - the greeting was empty with a placeholder naming the firm, and the suggestion button filled it;
+  - "Professional" stayed selected while "Kratak i jasan", "Pitanja o cenama i ponudama" and "Posebni zahtevi" were marked "Preporučeno";
+  - no overflow and no console errors.
+  - The run caught the suggestion button stretching across the box, which is now fixed (199 px wide on both widths).
+- Validation: `npm run typecheck`; `npm test` **236/236**; `npm run test:e2e` **30/30**; `npm run build`; `git diff --check`. No migration.
+- Limitations: no screen reader test. Firms that already saved keep their stored hours and greeting.
 
 ### New firms start empty (2026-11-14)
 

@@ -1,5 +1,5 @@
 import { parseDraft } from "./storage.ts";
-import { createEmptyDraft, DAY_IDS } from "./templates.ts";
+import { createEmptyOrganizationDraft, DAY_IDS } from "./templates.ts";
 import type { KnowledgeEntry, WorkspaceDraft } from "./types.ts";
 import { LIMITS } from "./validation.ts";
 
@@ -36,7 +36,8 @@ export function toStoredConfig(draft: WorkspaceDraft): StoredConfig {
  * recover instead of showing corrupted values.
  */
 export function draftFromStored(config: unknown, knowledge: Array<Pick<KnowledgeEntry, "id" | "question" | "answer">>, updatedAt: Date | null): WorkspaceDraft | null {
-  if (config === null) return { ...createEmptyDraft(), knowledge: knowledge.map(({ id, question, answer }) => ({ id, question, answer })), updatedAt: updatedAt?.toISOString() ?? null };
+  // A firm that has not saved yet starts with nothing entered on its behalf.
+  if (config === null) return { ...createEmptyOrganizationDraft(), knowledge: knowledge.map(({ id, question, answer }) => ({ id, question, answer })), updatedAt: updatedAt?.toISOString() ?? null };
   if (typeof config !== "object" || Array.isArray(config)) return null;
   return parseDraft({
     ...(config as Record<string, unknown>),

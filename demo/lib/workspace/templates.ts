@@ -222,52 +222,58 @@ function sameHours(a: Record<DayId, DayHours>, b: Record<DayId, DayHours>): bool
   return DAY_IDS.every((day) => a[day].open === b[day].open && a[day].from === b[day].from && a[day].to === b[day].to);
 }
 
-function sameTopics(a: HandoffTopic[], b: HandoffTopic[]): boolean {
-  return a.length === b.length && a.every((topic) => b.includes(topic));
+/**
+ * The starting draft of a real organization. Nothing is entered on the
+ * person's behalf: no working days, no times and no greeting. Choices that
+ * always hold a value (tone, topics for the team, the unknown-answer rule)
+ * keep the neutral defaults of `createEmptyDraft`.
+ */
+export function createEmptyOrganizationDraft(): WorkspaceDraft {
+  const draft = createEmptyDraft();
+  const closed: DayHours = { open: false, from: "", to: "" };
+  return { ...draft, hours: Object.fromEntries(DAY_IDS.map((day) => [day, { ...closed }])) as Record<DayId, DayHours> };
 }
 
 /**
  * Chooses the industry of a real organization. Unlike the demo's example, it
- * writes nothing invented about the business: the business name starts from
- * the organization's name when it is still empty, and only settings still at
- * their previous suggestion (hours, tone, topics for the team, a suggested
- * greeting) take the new industry's suggestion. Anything the person entered
- * stays. Services and answers are offered separately as suggestions
- * (lib/workspace/suggestions.ts) for the person to accept.
+ * fills in nothing but the business name, and only from the organization's
+ * own name while that field is still empty: the person already gave it.
+ * Everything else stays as entered. The industry's typical hours, tone,
+ * topics for the team, services and customer questions are offered as
+ * suggestions the person applies (lib/workspace/suggestions.ts).
  */
 export function chooseIndustry(draft: WorkspaceDraft, industry: IndustryId, organizationName?: string): WorkspaceDraft {
-  const next = templates[industry];
-  const empty = createEmptyDraft();
-  const previous = draft.industry ? templates[draft.industry] : { hours: empty.hours, tone: empty.assistant.tone, handoffTopics: empty.assistant.handoffTopics };
   // Organization names share the business name's 60-character limit.
   const businessName = draft.business.name.trim() ? draft.business.name : (organizationName ?? "").trim().slice(0, 60);
-  const assistantName = draft.assistant.name.trim() || DEFAULT_ASSISTANT_NAME;
-  const toneUntouched = draft.assistant.tone === previous.tone;
-  const tone = toneUntouched ? next.tone : draft.assistant.tone;
-  const greeting = draft.assistant.greeting.trim();
-  const greetingUntouched = !greeting || greeting === suggestGreeting(draft.assistant.tone, draft.business.name, assistantName);
-  return {
-    ...draft,
-    industry,
-    business: { ...draft.business, name: businessName },
-    hours: sameHours(draft.hours, previous.hours) ? structuredClone(next.hours) : draft.hours,
-    assistant: {
-      ...draft.assistant,
-      tone,
-      handoffTopics: sameTopics(draft.assistant.handoffTopics, previous.handoffTopics) ? [...next.handoffTopics] : draft.assistant.handoffTopics,
-      greeting: greetingUntouched ? (businessName.trim() ? suggestGreeting(tone, businessName, assistantName) : "") : draft.assistant.greeting,
-    },
-  };
+  return { ...draft, industry, business: { ...draft.business, name: businessName } };
 }
 
-/** Typical services and customer questions of an industry, offered as suggestions without durations or answers. */
-export function industrySuggestions(industry: IndustryId | null): { services: string[]; questions: string[] } {
-  if (!industry) return { services: [], questions: [] };
+export type IndustrySuggestions = {
+  services: string[];
+  questions: string[];
+  /** Null for "other", whose template holds only neutral defaults. */
+  hours: Record<DayId, DayHours> | null;
+  tone: AssistantTone | null;
+  handoffTopics: HandoffTopic[];
+};
+
+/** What an industry typically uses, offered as suggestions: services without durations, questions without answers. */
+export function industrySuggestions(industry: IndustryId | null): IndustrySuggestions {
+  if (!industry) return { services: [], questions: [], hours: null, tone: null, handoffTopics: [] };
   const template = templates[industry];
+  const specific = industry !== "other";
   return {
     services: template.services.map((service) => service.name).filter(Boolean),
     questions: template.knowledge.map((entry) => entry.question),
+    hours: specific ? structuredClone(template.hours) : null,
+    tone: specific ? template.tone : null,
+    handoffTopics: specific ? [...template.handoffTopics] : [],
   };
+}
+
+/** True when two weeks have the same open days and times. */
+export function hoursEqual(a: Record<DayId, DayHours>, b: Record<DayId, DayHours>): boolean {
+  return sameHours(a, b);
 }
 
 /** True while the business details, services and hours are still the example for the chosen industry. */

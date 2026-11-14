@@ -55,7 +55,7 @@ export default function IndustryPicker({ errors, showErrors }: { errors: FieldEr
       <legend className={styles.legend}>Delatnost</legend>
       <p className={styles.legendHint}>{isDemo
         ? "Primer podataka za izabranu delatnost možete kasnije menjati u svakom koraku."
-        : "Prema delatnosti predlažemo radno vreme, ton i česte usluge. Podatke o poslu upisujete vi; sve se može menjati kasnije."}</p>
+        : "Prema delatnosti predlažemo radno vreme, ton, česte usluge i pitanja klijenata. Ništa se ne upisuje umesto vas: predlog primenjujete jednim klikom."}</p>
       <div className={styles.industryGrid}>
         {industryIds.map((industry, index) => {
           const Icon = INDUSTRY_ICONS[industry];

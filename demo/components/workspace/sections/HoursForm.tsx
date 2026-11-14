@@ -1,8 +1,10 @@
 "use client";
 
-import { Copy } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
-import { DAY_IDS, DAY_LABELS } from "../../../lib/workspace/templates";
+import { summarizeHours } from "../../../lib/workspace/format";
+import { suggestedHours } from "../../../lib/workspace/suggestions";
+import { DAY_IDS, DAY_LABELS, INDUSTRY_LABELS } from "../../../lib/workspace/templates";
 import type { DayHours, DayId } from "../../../lib/workspace/types";
 import type { FieldErrors } from "../../../lib/workspace/validation";
 import { useDraft } from "../DraftProvider";
@@ -20,6 +22,16 @@ export default function HoursForm({ errors, showErrors }: { errors: FieldErrors;
   const setDay = (day: DayId, patch: Partial<DayHours>) =>
     updateDraft((current) => ({ ...current, hours: { ...current.hours, [day]: { ...current.hours[day], ...patch } } }));
 
+  const suggestion = suggestedHours(draft);
+
+  /** Replaces the week with the industry's typical hours, chosen by the person, then left for them to adjust. */
+  function applySuggestedHours() {
+    if (!suggestion) return;
+    updateDraft((current) => ({ ...current, hours: structuredClone(suggestion) }));
+    setStatus("Primenjeno je uobičajeno radno vreme. Proverite ga i prilagodite svom poslu.");
+    window.setTimeout(() => document.getElementById(fieldId("hours"))?.focus(), 0);
+  }
+
   function copyMondayToWeekdays() {
     updateDraft((current) => {
       const monday = current.hours.mon;
@@ -34,6 +46,15 @@ export default function HoursForm({ errors, showErrors }: { errors: FieldErrors;
     <fieldset className={styles.fieldset} aria-describedby={groupError ? `${fieldId("hours")}-error` : undefined}>
       <legend className={styles.legend}>Radno vreme</legend>
       <p className={styles.legendHint}>Asistent prema ovome odgovara na pitanja o radnom vremenu i predlaže termine.</p>
+      {suggestion && draft.industry && (
+        <div className={styles.suggestions}>
+          <p className={styles.suggestionsLabel}>
+            Uobičajeno radno vreme za delatnost „{INDUSTRY_LABELS[draft.industry].label}“:{" "}
+            <strong>{summarizeHours(suggestion).filter((group) => group.open).map((group) => `${group.days} ${group.hours}`).join(", ")}</strong>
+          </p>
+          <button type="button" className={styles.suggestionChip} onClick={applySuggestedHours}><Check size={14} aria-hidden="true" />Primeni ovo radno vreme</button>
+        </div>
+      )}
       <div className={styles.hoursToolbar}>
         <button type="button" className={styles.secondaryButton} onClick={copyMondayToWeekdays}><Copy size={15} aria-hidden="true" />Primeni ponedeljak na radne dane</button>
         <p className={styles.inlineStatus} role="status">{status}</p>

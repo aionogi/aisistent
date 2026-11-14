@@ -9,7 +9,7 @@ import { withOrganization } from "../../lib/db/context.ts";
 import { recordConversation } from "../../lib/db/conversations.ts";
 import { createInvitation } from "../../lib/db/team.ts";
 import { toStoredConfig } from "../../lib/workspace/persistence.ts";
-import { applyIndustryTemplate, chooseIndustry, createEmptyDraft } from "../../lib/workspace/templates.ts";
+import { applyIndustryTemplate, chooseIndustry, createEmptyDraft, createEmptyOrganizationDraft } from "../../lib/workspace/templates.ts";
 
 // Full sign-in round trip through the real Auth0 SDK, proxy, session store,
 // and database, with a mock OpenID Connect provider standing in for Auth0.
@@ -905,7 +905,7 @@ test("a firm's onboarding is labeled as its own data and suggests instead of inv
   assert.match(industry, /podatke o svom poslu upisujete u sledećem koraku/);
 
   // What the industry step stores for a real firm: the firm's name and suggested settings, nothing invented.
-  const chosen = chooseIndustry(createEmptyDraft(), "salon", "Zoranin salon");
+  const chosen = chooseIndustry(createEmptyOrganizationDraft(), "salon", "Zoranin salon");
   await withOrganization(stack.db.appPool, { userId, organizationId }, (client) =>
     saveWorkspace(client, { config: toStoredConfig(chosen) as unknown as Record<string, unknown>, knowledge: chosen.knowledge, expectedRevision: 0 }));
   const business = (await owner.get(`/org/${organizationId}/onboarding/business/`)).body;
