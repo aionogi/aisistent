@@ -4,6 +4,8 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { MemberRole } from "../../lib/db/context.ts";
 import type { UrlImportResult } from "../../lib/workspace/knowledge-import.ts";
 
+export type OrganizationChoice = { id: string; name: string; role: MemberRole };
+
 /**
  * Where the shared workspace screens are running:
  * - `demo`: example data in this browser tab (`/workspace/`, `/onboarding/`);
@@ -15,8 +17,12 @@ export type WorkspaceEnvironment = {
   basePath: string;
   /** Onboarding root without a trailing slash. */
   onboardingBasePath: string;
+  /** The organization shown, in `organization` mode. */
+  organizationId?: string;
   organizationName?: string;
   role?: MemberRole;
+  /** Every organization the signed-in person belongs to, for switching between them. */
+  organizations?: OrganizationChoice[];
   /** Set by the server when this privileged session needs MFA before editing. */
   stepUpPath?: string;
   /** Server Action that reads a public web page for the knowledge import; organizations only. */

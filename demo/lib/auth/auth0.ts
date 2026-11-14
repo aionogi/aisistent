@@ -5,10 +5,11 @@ import { getPool } from "../db/pool.ts";
 import { provisionUser } from "../db/repositories.ts";
 import { PostgresSessionStore, SESSION_DURATIONS } from "./session-store.ts";
 import { logEvent } from "../operations/logging.ts";
+import { APP_HOME_PATH } from "../workspace/entry.ts";
 
 const REQUIRED_ENV = ["AUTH0_DOMAIN", "AUTH0_CLIENT_ID", "AUTH0_CLIENT_SECRET", "AUTH0_SECRET", "APP_BASE_URL"] as const;
 
-/** Where the user lands after signing in, and where failures are reported. */
+/** The account page, where sign-in failures are reported. */
 export const ACCOUNT_PATH = "/account/";
 
 const globalForAuth = globalThis as typeof globalThis & { aisistentAuth0?: Auth0Client | null };
@@ -29,16 +30,19 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   return payload ? (JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Record<string, unknown>) : {};
 }
 
-/** Resolves `returnTo` to a path on this site; anything pointing elsewhere falls back to the account page. */
+/**
+ * Resolves `returnTo` to a path on this site; anything missing or pointing
+ * elsewhere falls back to the entry page, which opens the user's own workspace.
+ */
 export function safeReturnPath(value: string | undefined, base: string): string {
-  if (!value) return ACCOUNT_PATH;
+  if (!value) return APP_HOME_PATH;
   try {
     const origin = new URL(base).origin;
     const target = new URL(value, origin);
-    if (target.origin !== origin || value.startsWith("//") || value.includes("\\")) return ACCOUNT_PATH;
+    if (target.origin !== origin || value.startsWith("//") || value.includes("\\")) return APP_HOME_PATH;
     return `${target.pathname}${target.search}`;
   } catch {
-    return ACCOUNT_PATH;
+    return APP_HOME_PATH;
   }
 }
 
@@ -58,7 +62,7 @@ function createClient(): Auth0Client | null {
     allowInsecureRequests: process.env.NODE_ENV !== "production" && process.env.AUTH0_ALLOW_INSECURE_LOCAL === "true",
     // No offline_access: the app does not call Auth0 APIs, so no refresh token is stored.
     authorizationParameters: { scope: "openid profile email" },
-    signInReturnToPath: ACCOUNT_PATH,
+    signInReturnToPath: APP_HOME_PATH,
     session: {
       rolling: true,
       absoluteDuration: SESSION_DURATIONS.absolute,

@@ -160,10 +160,6 @@ test("signed-out visitors see the sign-in page, not account data", async () => {
   assert.equal(response.status, 200);
   assert.match(body, /Prijavite se/);
   assert.doesNotMatch(body, /Vaš nalog/);
-  // The home page leads there from its header, on wide screens and in the phone menu.
-  const home = await browser.get("/");
-  assert.match(home.body, /class="header-login" href="\/account\/"/);
-  assert.match(home.body, /class="nav-login" href="\/account\/"/);
 });
 
 test("workspace writes require MFA and current membership through the actual Server Action", async () => {
@@ -318,6 +314,74 @@ test("returnTo cannot send the user to another site", async () => {
   const browser = new Browser();
   const { url } = await browser.get("/auth/login?returnTo=https://evil.example/steal");
   assert.equal(new URL(url).origin, new URL(stack.appUrl).origin);
+});
+
+test("the home page's sign-in leads to the entry page, which sends signed-out visitors to sign in", async () => {
+  // On wide screens, in the phone menu and in the footer.
+  const home = await new Browser().get("/");
+  assert.match(home.body, /class="header-login" href="\/app\/"/);
+  assert.match(home.body, /class="nav-login" href="\/app\/"/);
+  assert.match(home.body, /<a href="\/app\/">Prijava<\/a>/);
+  const signedOut = await fetch(new URL("/app/", stack.appUrl), { redirect: "manual" });
+  assert.equal(signedOut.status, 307);
+  const location = new URL(signedOut.headers.get("location")!, stack.appUrl);
+  assert.equal(location.pathname, "/auth/login");
+  assert.equal(location.searchParams.get("returnTo"), "/app/");
+});
+
+test("after sign-in a person without a firm is asked to create one, never shown the demo", async () => {
+  const browser = new Browser();
+  // No returnTo, and an attempt to leave the site: both land on the entry page.
+  for (const login of ["/auth/login?login_hint=nova@example.test", "/auth/login?login_hint=nova@example.test&returnTo=https://evil.example/steal"]) {
+    const { url, body, response } = await browser.get(login);
+    assert.equal(response.status, 200);
+    assert.equal(new URL(url).pathname, "/app/");
+    assert.match(body, /Dobro došli, Nova Test/);
+    assert.match(body, /id="organization-name"/);
+    assert.doesNotMatch(body, /Primer podataka/);
+  }
+});
+
+test("one firm opens directly; with several the one last opened here opens, otherwise the person chooses", async () => {
+  const browser = new Browser();
+  await browser.get("/auth/login?login_hint=vesna@example.test");
+  const userId = await userIdFor("mock|vesna");
+  const first = await createOrganization(stack.db.appPool, userId, "Vesnin salon");
+  const single = await browser.get("/app/");
+  assert.equal(new URL(single.url).pathname, `/org/${first}/`);
+  assert.match(single.body, /Vesnin salon/);
+  assert.match(single.body, /Podaci firme/);
+
+  // Someone else's firm never appears, not even through a forged cookie.
+  const anaId = await provisionUser(stack.db.appPool, { subject: "mock|ana", email: "ana@example.test", displayName: "Ana Test" });
+  const foreign = await createOrganization(stack.db.appPool, anaId, "Anina tajna firma");
+  const second = await createOrganization(stack.db.appPool, userId, "Vesnina klinika");
+  const choice = await browser.get("/app/");
+  assert.equal(new URL(choice.url).pathname, "/app/");
+  assert.match(choice.body, /Izaberite firmu/);
+  assert.match(choice.body, new RegExp(`href="/org/${first}/"`));
+  assert.match(choice.body, new RegExp(`href="/org/${second}/"`));
+  for (const remembered of [foreign, "not-an-id"]) {
+    browser.cookies.set("aisistent_last_org", remembered);
+    const page = await browser.get("/app/");
+    assert.equal(new URL(page.url).pathname, "/app/");
+    assert.doesNotMatch(page.body, /Anina tajna firma/);
+  }
+  browser.cookies.set("aisistent_last_org", second);
+  const remembered = await browser.get("/app/");
+  assert.equal(new URL(remembered.url).pathname, `/org/${second}/`);
+
+  // The workspace menu switches between the person's own firms and signs out.
+  assert.match(remembered.body, /Vaše firme/);
+  assert.match(remembered.body, new RegExp(`href="/org/${first}/"[^>]*>.*?Vesnin salon`));
+  assert.match(remembered.body, new RegExp(`href="/org/${second}/"[^>]*aria-current="true"`));
+  assert.match(remembered.body, /href="\/auth\/logout"/);
+  assert.doesNotMatch(remembered.body, /Anina tajna firma/);
+
+  // Signing out forgets the firm on this device.
+  await browser.get("/auth/logout");
+  assert.ok(browser.setCookieHeaders.some((header) => /^aisistent_last_org=;.*Max-Age=0/i.test(header)), "logout clears the remembered firm");
+  assert.equal(browser.cookies.get("aisistent_last_org"), undefined);
 });
 
 test("the client-side access token endpoint is disabled", async () => {

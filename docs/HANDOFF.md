@@ -1,8 +1,10 @@
 # Development handoff
 
-Updated: 2026-11-03.
+Updated: 2026-11-14.
 
 ## Current objective
+
+**Latest checkpoint — sign-in opens the real workspace (2026-11-14):** the user handed backup activation to another person and asked to develop the workspace, starting with sign-in landing in the person's own firm instead of the demo. Sign-in now returns to a new entry page, `/app/` (`app/(platform)/app/page.tsx`, rules in `lib/workspace/entry.ts`): no firm → a welcome page with the create form (then onboarding, as before); one firm → `/org/<id>/`; several → the firm last opened on this device, otherwise a choice page. The last firm is remembered in the `aisistent_last_org` cookie (only the id, 90 days, `SameSite=Lax`, `Secure` on HTTPS), written in the browser by `RememberOrganization` when a firm's page is shown (the proxy cannot tell prefetches from visits), used only when it matches a current membership read from the database, and cleared by the proxy on `/auth/logout`. The home page's "Prijava" links go to `/app/`; the footer's demo link now reads "Demo radni prostor". In a firm, the sidebar card opens a menu with the person's firms, "Nova firma", "Nalog" and "Odjava" (also on phones, where the account had been unreachable from the workspace). No migration, Auth0, Vercel or Supabase change is needed; the Auth0 callback URL is unchanged. Next workspace step to propose: new firms start empty instead of with industry examples. See the verification record.
 
 **Latest checkpoint — encrypted backup tooling and watchdog (2026-11-03):** the user authorized the sequence backups → monitoring → MFA continuity → onboarding. `ops:backup`, `ops:backup:keys`, `ops:backup:check` and `ops:backup:verify` are implemented for a trusted worker. Standard age encryption uses a public recipient on the worker and an offline recovery identity; a single PostgreSQL snapshot streams straight to ciphertext, publishes atomically, and prunes only validated expired copies while preserving a per-source minimum. The independent watchdog detects missing/stale/hash-invalid copies. See [BACKUPS.md](operations/BACKUPS.md) for commands, policy variables and activation gates. No real backup destination, scheduler, upload adapter or alert delivery is configured: a storage/plan choice and operator-owned credentials are still required before activation. Do not claim that production is now backed up.
 
@@ -266,6 +268,15 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### Sign-in opens the real workspace (2026-11-14)
+
+- Entry decision in `lib/workspace/entry.ts` (pure, unit-tested): no membership → create; one → open; several → the remembered id only when it is a current membership (case-insensitive UUID), otherwise choose. Malformed, foreign or stale cookie values never open a firm; the organization layout still checks membership and RLS on every request.
+- `safeReturnPath` and `signInReturnToPath` now default to `/app/`; off-site `returnTo` values also land there. Login failures still go to `/account/?status=login-failed`. `/account/` keeps account settings and its firm list; both pages share `AccountFrame` and `OrganizationList` (plain links, so another firm's page is never prefetched). The session-expired notice in the workspace links to `/app/`.
+- The proxy appends the cookie deletion to the identity SDK's logout response; the route is compared without its trailing slash (`trailingSlash: true` makes it `/auth/logout/`, which the first test run caught).
+- Validation (Linux cloud container): `npm run typecheck`; `npm test` **229/229** (5 new entry tests); `npm run test:e2e` **29/29** (3 new: the home page and signed-out `/app/` redirect, a new person without a firm after sign-in including an off-site `returnTo`, one firm / several with remembered, foreign and malformed cookies, the sidebar's firm list without another user's firm, and logout clearing the cookie); `npm run build` passed. PostgreSQL refuses to run as root, so the database and HTTP suites ran as the unprivileged `nobody` user, the HTTP suite from a copy of `demo/` it could write to. `npm run test:recovery` was not run: no migration or session/authorization rule changed.
+- Browser check (Playwright Chromium against `npm run dev:local-auth`, 1280×800 and 390×844): home "Prijava" → `/app/` welcome; creating a firm opens onboarding and sets the cookie about 100 ms after the page shows; a second firm from `/account/` becomes the remembered one and `/app/` opens it; the firm menu opens with Enter from the keyboard and switches firms; without the cookie `/app/` shows the choice; the phone header shows the firm menu; no horizontal overflow on any checked page; logout from the menu clears the cookie; no console errors. No screen reader test was done.
+- Limitations: the remembered firm is per device and browser, not per account. The cookie is a functional preference holding only an id; mention it when a privacy notice or cookie list is written. The live site was not changed or checked from this session; the change reaches it after the user merges and Vercel deploys.
 
 ### Encrypted backups and an independent watchdog (2026-11-03)
 

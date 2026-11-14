@@ -64,11 +64,11 @@ export default function Home() {
           <a href="#how-it-works" onClick={closeMenu}>Kako radi</a>
           <a href="#possibilities" onClick={closeMenu}>Mogućnosti</a>
           <a href="#demo" onClick={closeMenu}>Za vaš posao <ChevronDown size={13} aria-hidden="true" /></a>
-          <a className="nav-login" href="/account/" onClick={closeMenu}>Prijava</a>
+          <a className="nav-login" href="/app/" onClick={closeMenu}>Prijava</a>
         </nav>
         <div className="header-actions">
           <span className="demo-label">Demo verzija</span>
-          <a className="header-login" href="/account/">Prijava</a>
+          <a className="header-login" href="/app/">Prijava</a>
           <a className="button button-blue header-cta" href="#demo">Isprobaj demo <ArrowUpRight /></a>
           <button className="menu-button" type="button" aria-expanded={menuOpen} aria-controls="main-navigation" aria-label={menuOpen ? "Zatvori meni" : "Otvori meni"} onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X  aria-hidden="true" /> : <Menu  aria-hidden="true" />}
@@ -197,7 +197,7 @@ export default function Home() {
 
       <footer className="site-footer container">
         <div><a href="#" aria-label="aisistent početna"><Brand /></a><p>Za posao koji ne staje kada telefon zazvoni.</p></div>
-        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><Link href="/workspace/">Radni prostor</Link><a href="#questions">Pitanja</a><a href="/account/">Prijava</a></nav>
+        <nav aria-label="Navigacija u podnožju"><a href="#how-it-works">Kako radi</a><a href="#demo">Isprobajte demo</a><Link href="/workspace/">Demo radni prostor</Link><a href="#questions">Pitanja</a><a href="/app/">Prijava</a></nav>
         <div className="footer-bottom"><span>© {new Date().getFullYear()} aisistent</span><span>Interaktivni prototip · Bez stvarnih poziva i naplate</span><a href="#main">Na vrh <ArrowDown size={13} aria-hidden="true" /></a></div>
       </footer>
       <SupportChat />

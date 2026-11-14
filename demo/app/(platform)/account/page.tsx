@@ -1,23 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ChevronRight, CircleAlert, CircleCheck, LogIn, LogOut, ShieldCheck } from "lucide-react";
-import Brand from "../../../components/Brand";
+import { CircleAlert, CircleCheck, LogIn, ShieldCheck } from "lucide-react";
+import AccountFrame from "../../../components/account/AccountFrame";
 import CreateOrganizationForm from "../../../components/account/CreateOrganizationForm";
+import OrganizationList from "../../../components/account/OrganizationList";
 import SignOutEverywhereForm from "../../../components/account/SignOutEverywhereForm";
-import SupportChat from "../../../components/support/SupportChat";
 import styles from "../../../components/account/account.module.css";
 import { Notice } from "../../../components/workspace/FormControls";
 import { getCurrentAccount } from "../../../lib/auth/account.ts";
 import { getAuth0, MFA_STEP_UP_PATH, mfaRequired } from "../../../lib/auth/auth0.ts";
 import { withUser } from "../../../lib/db/context.ts";
 import { getPool } from "../../../lib/db/pool.ts";
-import { listMemberships, type Membership } from "../../../lib/db/repositories.ts";
+import { listMemberships } from "../../../lib/db/repositories.ts";
 import { listMySessions } from "../../../lib/db/sessions.ts";
+import { APP_HOME_PATH } from "../../../lib/workspace/entry.ts";
 import { signOutEverywhereAction } from "./actions.ts";
 
 export const metadata: Metadata = { title: "Nalog — aisistent" };
-
-const ROLE_LABELS: Record<Membership["role"], string> = { owner: "Vlasnik", admin: "Administrator", member: "Član" };
 
 // Server-rendered, so the zone is explicit: the server may run in UTC.
 const sessionTime = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Belgrade" });
@@ -29,53 +27,33 @@ const STATUS_MESSAGES: Record<string, { tone: "success" | "warning"; text: strin
   "organization-deleted": { tone: "success", text: "Firma i njeni podaci su trajno obrisani." },
 };
 
-function Frame({ children, signedIn }: { children: React.ReactNode; signedIn: boolean }) {
-  return (
-    <div className={styles.page}>
-      <header className={styles.topbar}>
-        <a href="/" className={styles.brandLink} aria-label="aisistent početna"><Brand /></a>
-        <div className={styles.topbarActions}>
-          <span className={styles.envBadge}>Test okruženje</span>
-          {/* Plain links: auth routes must not be prefetched. */}
-          {signedIn && <a href="/auth/logout" className={styles.textLink}><LogOut size={15} aria-hidden="true" />Odjava</a>}
-        </div>
-      </header>
-      <main id="main" className={styles.main}>{children}</main>
-      <footer className={styles.footer}>
-        Test okruženje za razvoj. Ne unosite stvarne podatke klijenata dok platforma ne prođe bezbednosne provere.
-      </footer>
-      <SupportChat />
-    </div>
-  );
-}
-
 export default async function AccountPage({ searchParams }: PageProps<"/account">) {
   const { status } = await searchParams;
   const message = typeof status === "string" ? STATUS_MESSAGES[status] : undefined;
 
   if (!getAuth0()) {
     return (
-      <Frame signedIn={false}>
+      <AccountFrame signedIn={false}>
         <section className={styles.card} aria-labelledby="account-title">
           <h1 id="account-title">Prijava još nije podešena</h1>
           <p className={styles.lead}>Na ovom serveru nisu postavljeni podaci za Auth0 i bazu podataka. Demo radni prostor sa primerima i dalje radi bez prijave.</p>
           <a href="/workspace/" className={styles.primaryLink}>Otvori demo radni prostor</a>
         </section>
-      </Frame>
+      </AccountFrame>
     );
   }
 
   const account = await getCurrentAccount();
   if (!account) {
     return (
-      <Frame signedIn={false}>
+      <AccountFrame signedIn={false}>
         {message && <Notice tone={message.tone}>{message.text}</Notice>}
         <section className={styles.card} aria-labelledby="account-title">
           <h1 id="account-title">Prijavite se</h1>
           <p className={styles.lead}>Prijava se obavlja preko Auth0. Posle prijave možete da napravite svoju firmu i podesite asistenta.</p>
-          <a href="/auth/login?returnTo=/account/" className={styles.primaryLink}><LogIn size={16} aria-hidden="true" />Prijava</a>
+          <a href={`/auth/login?returnTo=${APP_HOME_PATH}`} className={styles.primaryLink}><LogIn size={16} aria-hidden="true" />Prijava</a>
         </section>
-      </Frame>
+      </AccountFrame>
     );
   }
 
@@ -84,7 +62,7 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
   const needsMfa = mfaRequired() && !account.mfa;
 
   return (
-    <Frame signedIn>
+    <AccountFrame signedIn>
       {message && <Notice tone={message.tone}>{message.text}</Notice>}
       <section className={styles.card} aria-labelledby="account-title">
         <h1 id="account-title">Vaš nalog</h1>
@@ -106,22 +84,11 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
         <h2 id="organizations-title">Vaše firme</h2>
         {memberships.length === 0
           ? <p className={styles.empty}>Još niste član nijedne firme.</p>
-          : (
-            <ul className={styles.organizations}>
-              {memberships.map((membership) => (
-                <li key={membership.organizationId}>
-                  <Link href={`/org/${membership.organizationId}/`} className={styles.organizationLink}>
-                    <strong>{membership.organizationName}</strong>
-                    <span className={styles.role}>{ROLE_LABELS[membership.role]}<ChevronRight size={16} aria-hidden="true" /></span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          : <OrganizationList memberships={memberships} />}
         <p className={styles.note}>Otvorite firmu da biste podesili asistenta i bazu znanja. Podaci se čuvaju za firmu; demo radni prostor i dalje koristi samo primere iz pregledača.</p>
       </section>
 
-      <section className={styles.card} aria-labelledby="create-title">
+      <section id="nova-firma" className={styles.card} aria-labelledby="create-title">
         <h2 id="create-title">Nova firma</h2>
         {!account.emailVerified && <Notice tone="warning">Potvrdite email adresu preko poruke koju vam je poslao Auth0, pa se ponovo prijavite.</Notice>}
         {needsMfa && (
@@ -148,6 +115,6 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
         <p className={styles.note}>Ako ne prepoznajete neku prijavu ili ste izgubili uređaj, odjavite se sa svih uređaja, pa se ponovo prijavite ovde. Ako sumnjate da je neko saznao vašu lozinku, promenite je. Ne čuvamo podatke o uređaju ni lokaciji, samo vreme prijave.</p>
         <SignOutEverywhereForm action={signOutEverywhereAction} />
       </section>
-    </Frame>
+    </AccountFrame>
   );
 }
