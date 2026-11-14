@@ -4,6 +4,7 @@ import { BookOpen, Check, FileUp, PencilLine, Plus, Search, SearchX, Trash2, X }
 import { useRef, useState, type FormEvent } from "react";
 import { questionKey, type ImportedEntry } from "../../../lib/workspace/knowledge-import";
 import { MAX_KNOWLEDGE_ENTRIES } from "../../../lib/workspace/persistence";
+import { suggestedQuestions } from "../../../lib/workspace/suggestions";
 import { applyIndustryTemplate, createId } from "../../../lib/workspace/templates";
 import type { KnowledgeEntry } from "../../../lib/workspace/types";
 import { LIMITS, validateKnowledgeEntry, type FieldErrors } from "../../../lib/workspace/validation";
@@ -13,6 +14,7 @@ import { TextField } from "../FormControls";
 import KnowledgeImport, { answersLabel } from "../KnowledgeImport";
 import { EmptyState, PageHeader } from "../PageParts";
 import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
+import forms from "../forms.module.css";
 import styles from "../pages.module.css";
 
 type Editor = { mode: "add" } | { mode: "edit"; id: string };
@@ -35,17 +37,20 @@ export default function KnowledgeView() {
 
   const normalizedQuery = query.trim().toLocaleLowerCase("sr-Latn");
   const visible = draft.knowledge.filter((entry) => !normalizedQuery || `${entry.question} ${entry.answer}`.toLocaleLowerCase("sr-Latn").includes(normalizedQuery));
-  const templateAvailable = draft.industry && draft.industry !== "other";
+  // The demo restores its invented examples; an organization gets questions only and writes its own answers.
+  const templateAvailable = isDemo && draft.industry && draft.industry !== "other";
+  const questionSuggestions = isDemo || readOnly || draft.knowledge.length >= MAX_KNOWLEDGE_ENTRIES ? [] : suggestedQuestions(draft);
 
-  function openEditor(next: Editor) {
+  /** Opens the editor; a suggested question arrives filled in, so focus goes to the answer. */
+  function openEditor(next: Editor, suggestedQuestion?: string) {
     setImporting(false);
     const entry = next.mode === "edit" ? draft.knowledge.find((item) => item.id === next.id) : undefined;
     setEditor(next);
-    setQuestion(entry?.question ?? "");
+    setQuestion(entry?.question ?? suggestedQuestion ?? "");
     setAnswer(entry?.answer ?? "");
     setErrors({});
     setStatus("");
-    window.setTimeout(() => document.getElementById("field-knowledge-question")?.focus(), 0);
+    window.setTimeout(() => document.getElementById(suggestedQuestion ? "field-knowledge-answer" : "field-knowledge-question")?.focus(), 0);
   }
 
   function closeEditor() {
@@ -139,6 +144,21 @@ export default function KnowledgeView() {
           onCancel={closeImport}
           importFromUrl={environment.importFromUrl}
         />
+      )}
+
+      {questionSuggestions.length > 0 && !importing && editor?.mode !== "add" && (
+        <section className={forms.suggestions} aria-labelledby="question-suggestions-title">
+          <p id="question-suggestions-title" className={forms.suggestionsLabel}>Pitanja koja klijenti u vašoj delatnosti često postavljaju. Izaberite pitanje i upišite svoj odgovor.</p>
+          <ul>
+            {questionSuggestions.map((suggestion) => (
+              <li key={suggestion}>
+                <button type="button" className={forms.suggestionChip} onClick={() => openEditor({ mode: "add" }, suggestion)} aria-label={`Odgovori na pitanje: ${suggestion}`}>
+                  <Plus size={14} aria-hidden="true" />{suggestion}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {editor?.mode === "add" && form}

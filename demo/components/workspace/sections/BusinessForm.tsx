@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
+import { suggestedServices } from "../../../lib/workspace/suggestions";
 import { createId } from "../../../lib/workspace/templates";
 import type { BusinessDetails, ServiceItem } from "../../../lib/workspace/types";
 import { LIMITS, type FieldErrors } from "../../../lib/workspace/validation";
@@ -11,6 +12,8 @@ import styles from "../forms.module.css";
 export default function BusinessForm({ errors, showErrors }: { errors: FieldErrors; showErrors: boolean }) {
   const { draft, updateDraft } = useDraft();
   const { business } = draft;
+  const suggestions = suggestedServices(draft);
+  const room = LIMITS.maxServices - business.services.filter((item) => item.name.trim() || item.duration.trim()).length;
   const errorFor = (path: string) => (showErrors ? errors[path] : undefined);
 
   const setField = (key: Exclude<keyof BusinessDetails, "services">) => (value: string) =>
@@ -23,6 +26,13 @@ export default function BusinessForm({ errors, showErrors }: { errors: FieldErro
     const service = { id: createId("service"), name: "", duration: "" };
     setServices((services) => [...services, service]);
     window.setTimeout(() => document.getElementById(fieldId(`services.${service.id}.name`))?.focus(), 0);
+  }
+
+  /** Adds a suggested service by name; the person adds the duration, so focus moves there. */
+  function addSuggestedService(name: string) {
+    const service = { id: createId("service"), name, duration: "" };
+    setServices((services) => [...services.filter((item) => item.name.trim() || item.duration.trim()), service]);
+    window.setTimeout(() => document.getElementById(fieldId(`services.${service.id}.duration`))?.focus(), 0);
   }
 
   function removeService(id: string) {
@@ -77,6 +87,20 @@ export default function BusinessForm({ errors, showErrors }: { errors: FieldErro
           <Plus size={15} aria-hidden="true" />Dodaj uslugu
         </button>
         <FieldMessage id={fieldId("business.services")} error={errorFor("business.services")} />
+        {suggestions.length > 0 && room > 0 && (
+          <div className={styles.suggestions}>
+            <p id="service-suggestions-label" className={styles.suggestionsLabel}>Česte usluge u vašoj delatnosti. Dodajte one koje radite, pa upišite trajanje.</p>
+            <ul aria-labelledby="service-suggestions-label">
+              {suggestions.map((name) => (
+                <li key={name}>
+                  <button type="button" className={styles.suggestionChip} onClick={() => addSuggestedService(name)} aria-label={`Dodaj uslugu: ${name}`}>
+                    <Plus size={14} aria-hidden="true" />{name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </fieldset>
     </div>
   );

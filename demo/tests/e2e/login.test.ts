@@ -9,7 +9,7 @@ import { withOrganization } from "../../lib/db/context.ts";
 import { recordConversation } from "../../lib/db/conversations.ts";
 import { createInvitation } from "../../lib/db/team.ts";
 import { toStoredConfig } from "../../lib/workspace/persistence.ts";
-import { applyIndustryTemplate, createEmptyDraft } from "../../lib/workspace/templates.ts";
+import { applyIndustryTemplate, chooseIndustry, createEmptyDraft } from "../../lib/workspace/templates.ts";
 
 // Full sign-in round trip through the real Auth0 SDK, proxy, session store,
 // and database, with a mock OpenID Connect provider standing in for Auth0.
@@ -892,6 +892,32 @@ test("the daily cleanup route runs only with the cron secret and reports counts 
   assert.deepEqual(Object.keys(body).sort(), ["conversations", "invitations", "passes", "rateLimits", "reachedPassLimit", "result", "sessions"]);
   assert.ok((body.rateLimits as number) >= 1);
   assert.equal((await stack.db.admin.query("SELECT 1 FROM app.rate_limit_buckets WHERE expires_at < now()")).rowCount, 0);
+});
+
+test("a firm's onboarding is labeled as its own data and suggests instead of inventing", async () => {
+  const owner = new Browser();
+  await owner.get("/auth/login?login_hint=zorana@example.test");
+  const userId = await userIdFor("mock|zorana");
+  const organizationId = await createOrganization(stack.db.appPool, userId, "Zoranin salon");
+  const industry = (await owner.get(`/org/${organizationId}/onboarding/industry/`)).body;
+  assert.match(industry, /Podaci firme/);
+  assert.doesNotMatch(industry, /Demo · primer podataka/);
+  assert.match(industry, /podatke o svom poslu upisujete u sledećem koraku/);
+
+  // What the industry step stores for a real firm: the firm's name and suggested settings, nothing invented.
+  const chosen = chooseIndustry(createEmptyDraft(), "salon", "Zoranin salon");
+  await withOrganization(stack.db.appPool, { userId, organizationId }, (client) =>
+    saveWorkspace(client, { config: toStoredConfig(chosen) as unknown as Record<string, unknown>, knowledge: chosen.knowledge, expectedRevision: 0 }));
+  const business = (await owner.get(`/org/${organizationId}/onboarding/business/`)).body;
+  assert.match(business, /<input[^>]*id="field-business-name"[^>]*>/);
+  assert.match(business.match(/<input[^>]*id="field-business-name"[^>]*>/)![0], /value="Zoranin salon"/);
+  assert.match(business, /aria-label="Dodaj uslugu: Šišanje i feniranje"/);
+  // "Npr. Studio Mila" stays as a placeholder hint; no field holds example data.
+  assert.doesNotMatch(business, /value="[^"]*(Studio Mila|Novi Sad|Cvetna|\.example)/);
+  assert.doesNotMatch(business, /Cvetna 12|studio-mila\.example/);
+  const knowledge = (await owner.get(`/org/${organizationId}/knowledge/`)).body;
+  assert.match(knowledge, /aria-label="Odgovori na pitanje: Da li postoji parking\?"/);
+  assert.doesNotMatch(knowledge, /Vrati primere za delatnost|Parking je dostupan/);
 });
 
 test("a firm's overview shows its own data, never the demo's examples or another firm's", async () => {

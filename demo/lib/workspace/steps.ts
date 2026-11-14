@@ -1,10 +1,12 @@
 import type { StepId, WorkspaceDraft } from "./types.ts";
 import { isStepComplete } from "./validation.ts";
 
-export type StepDefinition = { id: StepId; label: string; title: string; description: string };
+/** `organizationDescription` replaces `description` in a real organization, where nothing is filled with examples. */
+export type StepDefinition = { id: StepId; label: string; title: string; description: string; organizationDescription?: string };
 
 export const STEPS: StepDefinition[] = [
-  { id: "industry", label: "Delatnost", title: "Čime se bavite?", description: "Izaberite delatnost. Popunićemo primer podataka koji zatim možete prilagoditi svom poslu." },
+  { id: "industry", label: "Delatnost", title: "Čime se bavite?", description: "Izaberite delatnost. Popunićemo primer podataka koji zatim možete prilagoditi svom poslu.",
+    organizationDescription: "Izaberite delatnost. Prema njoj predlažemo podešavanja, a podatke o svom poslu upisujete u sledećem koraku." },
   { id: "business", label: "Podaci o poslu", title: "Osnovni podaci o poslu", description: "Asistent koristi ove podatke kada se predstavlja i odgovara na pitanja klijenata." },
   { id: "hours", label: "Radno vreme", title: "Kada radite?", description: "Označite radne dane i vreme. Asistent ne predlaže termine van radnog vremena." },
   { id: "assistant", label: "Ponašanje", title: "Kako asistent razgovara?", description: "Ime, ton, pozdrav i situacije u kojima razgovor prepušta vašem timu." },

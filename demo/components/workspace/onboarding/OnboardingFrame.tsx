@@ -27,7 +27,7 @@ export default function OnboardingFrame({ children }: { children: ReactNode }) {
         <Link href="/" className={styles.brandLink} aria-label="aisistent početna"><Brand /></Link>
         <div className={styles.topbarTitle}>
           <strong>Podešavanje asistenta</strong>
-          <span className={styles.exampleBadge}><span aria-hidden="true" />Demo · primer podataka</span>
+          <span className={styles.exampleBadge}><span aria-hidden="true" />{isDemo ? "Demo · primer podataka" : "Podaci firme"}</span>
         </div>
         <Link href={workspacePath(environment)} className={styles.exitLink}><LayoutDashboard size={16} aria-hidden="true" /><span>Radni prostor</span></Link>
       </header>

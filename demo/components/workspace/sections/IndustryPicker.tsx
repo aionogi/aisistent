@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Briefcase, Scissors, Stethoscope, UtensilsCrossed, Wrench, type LucideIcon } from "lucide-react";
-import { applyIndustryTemplate, INDUSTRY_LABELS, matchesIndustryTemplate } from "../../../lib/workspace/templates";
+import { applyIndustryTemplate, chooseIndustry, INDUSTRY_LABELS, matchesIndustryTemplate } from "../../../lib/workspace/templates";
 import type { IndustryId } from "../../../lib/workspace/types";
 import type { FieldErrors } from "../../../lib/workspace/validation";
 import { useDraft } from "../DraftProvider";
 import { FieldMessage, fieldId } from "../FormControls";
+import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
 import styles from "../forms.module.css";
 
 export const INDUSTRY_ICONS: Record<IndustryId, LucideIcon> = {
@@ -20,11 +21,15 @@ export const INDUSTRY_ICONS: Record<IndustryId, LucideIcon> = {
 const industryIds = Object.keys(INDUSTRY_LABELS) as IndustryId[];
 
 /**
- * Industry choice. While the draft still holds an unedited example, a choice fills it
- * from that industry's template; after edits, the user decides whether to replace them.
+ * Industry choice. In the demo, while the draft still holds an unedited example,
+ * a choice fills it from that industry's template; after edits, the user decides
+ * whether to replace them. In an organization a choice never invents business
+ * data or replaces anything entered (see `chooseIndustry`), so it needs no confirmation.
  */
 export default function IndustryPicker({ errors, showErrors }: { errors: FieldErrors; showErrors: boolean }) {
   const { draft, updateDraft } = useDraft();
+  const environment = useWorkspaceEnvironment();
+  const isDemo = environment.mode === "demo";
   const [pending, setPending] = useState<IndustryId | null>(null);
   const hasOwnDetails = !matchesIndustryTemplate(draft);
   const error = showErrors ? errors.industry : undefined;
@@ -32,6 +37,10 @@ export default function IndustryPicker({ errors, showErrors }: { errors: FieldEr
   function choose(industry: IndustryId) {
     if (industry === draft.industry) {
       setPending(null);
+      return;
+    }
+    if (!isDemo) {
+      updateDraft((current) => chooseIndustry(current, industry, environment.organizationName));
       return;
     }
     if (hasOwnDetails) {
@@ -44,7 +53,9 @@ export default function IndustryPicker({ errors, showErrors }: { errors: FieldEr
   return (
     <fieldset className={styles.fieldset} aria-describedby={error ? `${fieldId("industry")}-error` : undefined}>
       <legend className={styles.legend}>Delatnost</legend>
-      <p className={styles.legendHint}>Primer podataka za izabranu delatnost možete kasnije menjati u svakom koraku.</p>
+      <p className={styles.legendHint}>{isDemo
+        ? "Primer podataka za izabranu delatnost možete kasnije menjati u svakom koraku."
+        : "Prema delatnosti predlažemo radno vreme, ton i česte usluge. Podatke o poslu upisujete vi; sve se može menjati kasnije."}</p>
       <div className={styles.industryGrid}>
         {industryIds.map((industry, index) => {
           const Icon = INDUSTRY_ICONS[industry];
@@ -71,7 +82,7 @@ export default function IndustryPicker({ errors, showErrors }: { errors: FieldEr
       </div>
       <FieldMessage id={fieldId("industry")} error={error} />
 
-      {pending && (
+      {isDemo && pending && (
         <div className={styles.inlineConfirm} role="group" aria-labelledby="industry-confirm-title">
           <p id="industry-confirm-title">
             <strong>Popuniti primerom za „{INDUSTRY_LABELS[pending].label}“?</strong>
