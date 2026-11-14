@@ -62,6 +62,8 @@ Import the GitHub repository with **Root Directory `demo`** (Next.js preset, def
 | `AUTH_REQUIRE_MFA` | `true`; configure the Auth0 factor and post-login Action before enabling privileged writes |
 | `NEXT_PUBLIC_SENTRY_DSN` | Optional: the Sentry project's DSN; see "Error reporting (Sentry)". Read at build time, so redeploy after changing it. It is sent to browsers by design and is not a secret |
 | `LETTERMINT_API_TOKEN`, `EMAIL_FROM` | Optional: see "Invitation email (Lettermint)". The token is a secret; without both, invitations stay link-only |
+| `ASSISTANT_ENABLED`, `ANTHROPIC_API_KEY` | Optional: see "AI assistant (Anthropic)". The key is a secret; the assistant is off unless `ASSISTANT_ENABLED` is exactly `true` and a key is set |
+| `ASSISTANT_MODEL`, `ASSISTANT_DAILY_BUDGET_USD` | Optional: default `claude-haiku-5-5` and `1` (US dollars per UTC day, all firms together) |
 
 Never set `DATABASE_ADMIN_URL` or `DATABASE_APP_PASSWORD` in Vercel. After saving the variables, **redeploy** (variables apply to new deployments only). In the Auth0 application add `https://<project>.vercel.app/auth/callback` (callback) and `https://<project>.vercel.app/` (logout).
 
@@ -108,6 +110,8 @@ The PostgreSQL limiter atomically admits a bounded number of requests per fixed 
 | Organization deletion | 10 / hour | Verified server-resolved account |
 | Sign-out on all devices | 10 / hour | Verified server-resolved account |
 | Knowledge import from a web page | 20 / hour | Verified server-resolved account |
+| Test chat messages | 12 / minute | Verified server-resolved account |
+| Test chat messages per firm | 200 / 24 hours | Organization, counted after membership is confirmed |
 
 User budgets span organizations and sessions. Callbacks and logout have separate budgets so a login burst does not consume their quota. Proxy rejection returns 429 and `Retry-After`, `Cache-Control: no-store`, and a server-generated `x-request-id`. Limiter failures return 503 with a 30-second retry instruction. Action-level rejections use the existing Serbian form/save error UI; they perform no write. Unsaved editor changes remain in browser memory; after waiting, editing again triggers another save.
 
@@ -207,6 +211,24 @@ With a domain, before publishing:
 The app turns open and click tracking off on every email, because click tracking would send the one-time link through the provider's tracking host. Keep it off on the route as well. A failed send, or more than 20 emails an hour from one user, leaves the invitation in place and shows the owner the link. Failures reach Sentry as `action.failed` with operation `invitation.email` and a fixed code: `credentials_rejected` means a wrong token, `message_rejected` usually a sender or recipient the account may not use. To change the token, create a new one, update Vercel, redeploy, then delete the old one.
 
 Lettermint keeps message content, including the link, for 28 days; the link expires after 7 days and works only for the invited verified address. Its free plan has 300 emails a month and one user.
+
+## AI assistant (Anthropic)
+
+M4's first step: owners and admins test their firm's assistant in a text chat ("Asistent" → "Isprobaj asistenta", `/org/<id>/assistant/test/`). The assistant answers from the firm's own settings and knowledge base through Anthropic's Messages API. The only provider code is `demo/lib/assistant/anthropic.ts`; the instructions are built in `instructions.ts`. Without the variables below the page says the test chat is not enabled. Locally, `npm run dev:local-auth` starts a mock provider whose replies say that no AI wrote them.
+
+Turn it on:
+
+1. Apply migration `0009_assistant_test_chat.sql` with `npm run migrate:supabase` from the trusted computer (it adds test conversations and the daily spending counter; no password or secret changes).
+2. Create an account at console.anthropic.com in the company's name, with MFA. Under Billing, add credit and set a **monthly spend limit**: it is the hard ceiling, and the app's own daily limit is only an estimate.
+3. Create an API key (Settings → API keys) named for this deployment. It is shown once; paste it straight into Vercel, never into chat, email or a commit.
+4. In Vercel, for **Production** only, add `ANTHROPIC_API_KEY` with the key and `ASSISTANT_ENABLED` with `true`. Optional: `ASSISTANT_DAILY_BUDGET_USD` (default `1`, from `0.01` to `1000`) and `ASSISTANT_MODEL` (default `claude-haiku-5-5`). Redeploy.
+5. As an owner with MFA, open "Isprobaj asistenta", ask a question that the knowledge base answers and one it does not, and check the answers and the stored test conversation under "Razgovori". Record the date and result in `docs/HANDOFF.md`.
+
+Emergency stop: set `ASSISTANT_ENABLED` to `false` (or delete it) and redeploy; nothing calls the provider afterwards. To rotate the key, create a new one, update Vercel, redeploy, then delete the old key in the console. Moving to another model later is one variable, for example `ASSISTANT_MODEL=claude-opus-5-5`. Check the rates in `demo/lib/assistant/pricing.ts` against Anthropic's price list at that time.
+
+Limits: 12 test messages per minute per person, 200 per firm in 24 hours, 500 characters per message and 60 messages per test conversation. Each request's estimated cost is added to a per-day total (`app.assistant_daily_spend`, totals only). New requests stop once the daily budget is reached, and the page tells the owner. Test conversations are stored like other conversations, with the firm's retention, export and deletion, and are labeled "Probni razgovor". The history sent to the provider is read from the database, never taken from the browser.
+
+What leaves the app: each test message sends the firm's settings, knowledge base and that conversation's history to Anthropic. Anthropic's API processes it outside the EU (risk R23 in `m3-evidence.md`). Logs and Sentry get only the operation and a fixed code (`key_rejected` means a wrong or revoked key; `rate_limited` or `overloaded` means wait). The message text and the key never reach them. Ask testers not to type real customers' data.
 
 ## Backups and isolated restore drill
 

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CircleAlert, CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck, MessagesSquare } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { formatUpdatedAt } from "../../../lib/workspace/format";
 import type { StepId } from "../../../lib/workspace/types";
@@ -12,7 +12,7 @@ import { useDraft } from "../DraftProvider";
 import { Notice } from "../FormControls";
 import { onboardingStartHref } from "../../../lib/workspace/steps";
 import { PageHeader } from "../PageParts";
-import { useWorkspaceEnvironment } from "../WorkspaceEnvironment";
+import { useWorkspaceEnvironment, workspacePath } from "../WorkspaceEnvironment";
 import AssistantForm from "../sections/AssistantForm";
 import BusinessForm from "../sections/BusinessForm";
 import HoursForm from "../sections/HoursForm";
@@ -71,6 +71,9 @@ export default function AssistantSettingsView() {
         badge={environment.mode === "demo" ? "Primer podataka" : "Podaci firme"}
         description={environment.mode === "demo" ? "Izmene se odmah primenjuju na nacrt u ovoj kartici i na primere razgovora."
           : readOnly ? "Pregled podešavanja asistenta vaše firme." : "Izmene se automatski čuvaju za vašu firmu i odmah se vide u primerima razgovora."}
+        actions={environment.mode === "organization" && !readOnly
+          ? <Link href={workspacePath(environment, "assistant/test")} className={styles.primaryLink}><MessagesSquare size={16} aria-hidden="true" />Isprobaj asistenta</Link>
+          : undefined}
       />
 
       {!draft.onboardingCompleted && !readOnly && (

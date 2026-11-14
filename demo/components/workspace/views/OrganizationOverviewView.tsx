@@ -10,7 +10,7 @@ import { PageHeader } from "../PageParts";
 import { useWorkspaceEnvironment, workspacePath } from "../WorkspaceEnvironment";
 import styles from "../pages.module.css";
 import { SetupChecklist } from "./OverviewView";
-import { displayName, initials, OUTCOMES, timeFormat, type ConversationRow } from "./StoredConversationsView";
+import { CHANNELS, displayName, initials, OUTCOMES, timeFormat, type ConversationRow } from "./StoredConversationsView";
 
 /** A real organization's overview. Everything shown comes from its own data; the examples stay in the demo. */
 export default function OrganizationOverviewView({ today, members, pendingInvitations, conversationCount, recent }: {
@@ -115,7 +115,7 @@ export default function OrganizationOverviewView({ today, members, pendingInvita
               return (
                 <li key={row.id}>
                   <span className={styles.initials} aria-hidden="true">{initials(displayName(row))}</span>
-                  <span className={styles.compactPerson}><strong>{displayName(row)}</strong><span>{row.channel === "call" ? "Poziv" : "Poruka"} · {timeFormat.format(new Date(row.startedAt))}</span></span>
+                  <span className={styles.compactPerson}><strong>{displayName(row)}</strong><span>{CHANNELS[row.channel].label} · {timeFormat.format(new Date(row.startedAt))}</span></span>
                   <span className={`${styles.chip} ${outcome.pending ? styles.chipPending : ""}`}>{outcome.label}</span>
                 </li>
               );

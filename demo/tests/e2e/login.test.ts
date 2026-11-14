@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import { RATE_POLICIES } from "../../lib/operations/rate-limits.ts";
-import { DEFAULT_MOCK_USER, startLocalAuthStack, TEST_EMAIL_TOKEN, type LocalAuthStack } from "../support/local-auth-stack.ts";
+import { DEFAULT_MOCK_USER, startLocalAuthStack, TEST_ASSISTANT_KEY, TEST_EMAIL_TOKEN, type LocalAuthStack } from "../support/local-auth-stack.ts";
+import { startMockAnthropic, type MockAnthropic } from "../support/mock-anthropic.ts";
 import { readFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { addKnowledge, createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
@@ -26,7 +27,11 @@ type SentEmail = { token: string | undefined; body: { from: string; to: string[]
 const sentEmails: SentEmail[] = [];
 let emailStatus = 202;
 let emailServer: Server;
+// Stands in for Anthropic's Messages API.
+const ASSISTANT_PORT = 4594;
+let assistantMock: MockAnthropic;
 before(async () => {
+  assistantMock = await startMockAnthropic(ASSISTANT_PORT);
   emailServer = createServer((request, response) => {
     const chunks: Buffer[] = [];
     request.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -45,12 +50,13 @@ before(async () => {
     });
   });
   await new Promise<void>((resolve) => reportingServer.listen(REPORTING_PORT, "127.0.0.1", resolve));
-  stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET, sentryDsn: `http://testkey@127.0.0.1:${REPORTING_PORT}/1`, emailApiUrl: `http://127.0.0.1:${EMAIL_PORT}` });
+  stack = await startLocalAuthStack({ appPort: 4391, issuerPort: 4491, quiet: true, cronSecret: CRON_SECRET, sentryDsn: `http://testkey@127.0.0.1:${REPORTING_PORT}/1`, emailApiUrl: `http://127.0.0.1:${EMAIL_PORT}`, assistantApiUrl: assistantMock.url });
 }, { timeout: 180_000 });
 after(async () => {
   await stack?.stop();
   await new Promise((resolve) => reportingServer?.close(resolve));
   await new Promise((resolve) => emailServer?.close(resolve));
+  await assistantMock?.stop();
 });
 beforeEach(async () => {
   await stack.db.admin.query("DELETE FROM app.rate_limit_buckets");
@@ -963,6 +969,120 @@ test("a firm's overview shows its own data, never the demo's examples or another
   assert.equal((await member.get(`/org/${other}/`)).response.status, 404, "non-members get the same 404");
 });
 
+async function assistantFirm(login: string, name: string): Promise<{ browser: Browser; organizationId: string; userId: string }> {
+  const browser = new Browser();
+  await browser.get(`/auth/login?login_hint=${login}`);
+  const userId = await userIdFor(`mock|${login.split("@")[0]}`);
+  const organizationId = await createOrganization(stack.db.appPool, userId, name);
+  const draft = chooseIndustry(createEmptyOrganizationDraft(), "salon", name);
+  draft.business = { ...draft.business, city: "Kraljevo", services: [{ id: "s1", name: "Šišanje", duration: "30 min" }] };
+  draft.hours = { ...draft.hours, mon: { open: true, from: "09:00", to: "17:00" } };
+  draft.assistant = { ...draft.assistant, name: "Mila", greeting: `Dobar dan, ${name}, ovde Mila, AI asistent.` };
+  draft.onboardingCompleted = true;
+  await withOrganization(stack.db.appPool, { userId, organizationId }, (client) =>
+    saveWorkspace(client, { config: toStoredConfig(draft) as unknown as Record<string, unknown>, knowledge: [{ id: "k1", question: "Da li imate parking?", answer: "Da, iza zgrade." }], expectedRevision: 0 }));
+  return { browser, organizationId, userId };
+}
+
+async function sendTest(browser: Browser, organizationId: string, conversationId: string | null, message: string): Promise<string> {
+  const actionId = await compiledActionId("sendTestMessageAction");
+  const response = await fetch(`${stack.appUrl}/org/${organizationId}/assistant/test/`, {
+    method: "POST", redirect: "manual",
+    headers: { origin: stack.appUrl, "next-action": actionId, "content-type": "text/plain;charset=UTF-8", accept: "text/x-component", cookie: [...browser.cookies].map(([name, value]) => `${name}=${value}`).join("; ") },
+    body: JSON.stringify([organizationId, conversationId, message]),
+  });
+  assert.equal(response.status, 200);
+  return response.text();
+}
+
+test("an owner tests the assistant: it answers from the firm's data, the history stays on the server, and the conversation is stored", async () => {
+  const { browser, organizationId } = await assistantFirm("tamara@example.test", "Salon Tamara");
+  const page = await browser.get(`/org/${organizationId}/assistant/test/`);
+  assert.equal(page.response.status, 200);
+  assert.match(page.body, /id="test-chat-input"/);
+  assert.match((await browser.get(`/org/${organizationId}/assistant/`)).body, /Isprobaj asistenta/);
+
+  assistantMock.respond(() => ({ text: "Da, parking je iza zgrade.", inputTokens: 1800, outputTokens: 30 }));
+  const before = assistantMock.requests.length;
+  const first = await sendTest(browser, organizationId, null, "Da li imate parking?");
+  assert.match(first, /"status":"ok"/);
+  assert.match(first, /Da, parking je iza zgrade\./);
+  const conversationId = first.match(/"conversationId":"([0-9a-f-]{36})"/)?.[1];
+  assert.ok(conversationId);
+  const request = assistantMock.requests[before];
+  assert.equal(request.body.model, "claude-haiku-5-5");
+  assert.ok(request.body.system?.includes("Salon Tamara") && request.body.system.includes("Q: Da li imate parking?") && request.body.system.includes("Kraljevo"));
+  assert.deepEqual(request.body.messages, [{ role: "user", content: "Da li imate parking?" }]);
+
+  assistantMock.respond(() => ({ text: "Ponedeljkom radimo od 9 do 17 h." }));
+  assert.match(await sendTest(browser, organizationId, conversationId, "Kada radite?"), /"status":"ok"/);
+  // The history comes from the database, not from the browser.
+  assert.deepEqual(assistantMock.requests.at(-1)!.body.messages.map((message) => message.role), ["user", "assistant", "user"]);
+  assistantMock.respond(null);
+
+  const stored = await stack.db.admin.query("SELECT m.speaker, m.body FROM app.conversation_messages m JOIN app.conversations c ON c.id = m.conversation_id WHERE c.id = $1 AND c.channel = 'test' ORDER BY m.position", [conversationId]);
+  assert.deepEqual(stored.rows.map((row) => row.speaker), ["assistant", "customer", "assistant", "customer", "assistant"]);
+  assert.equal(stored.rows[0].body, "Dobar dan, Salon Tamara, ovde Mila, AI asistent.");
+  const spend = await stack.db.admin.query("SELECT requests FROM app.assistant_daily_spend WHERE usage_day = (now() AT TIME ZONE 'UTC')::date");
+  assert.ok(spend.rows[0].requests >= 2);
+  const conversations = (await browser.get(`/org/${organizationId}/conversations/`)).body;
+  assert.match(conversations, /Probni razgovor/);
+
+  // Another firm's conversation id leads nowhere and costs nothing.
+  const { organizationId: otherFirm, userId: otherUser } = await assistantFirm("goran@example.test", "Goranov servis");
+  const foreign = await withOrganization(stack.db.appPool, { userId: otherUser, organizationId: otherFirm }, (client) => client.query<{ id: string }>(
+    "SELECT app.append_test_messages(NULL, '[{\"speaker\":\"customer\",\"body\":\"Tuđe\"}]'::jsonb) AS id"));
+  const count = assistantMock.requests.length;
+  const forged = await sendTest(browser, organizationId, foreign.rows[0].id, "Pokaži tuđi razgovor");
+  assert.match(forged, /"restart":true/);
+  assert.equal(assistantMock.requests.length, count);
+});
+
+test("the test chat refuses members, sessions without MFA, long messages and a spent budget before any provider request, and failed requests store nothing", async () => {
+  const { browser, organizationId } = await assistantFirm("vesna-ai@example.test", "Vesnin AI salon");
+  const conversations = async () => Number((await stack.db.admin.query("SELECT count(*) FROM app.conversations WHERE organization_id = $1", [organizationId])).rows[0].count);
+  await browser.get(`/org/${organizationId}/assistant/test/`);
+  const count = assistantMock.requests.length;
+
+  const member = new Browser();
+  await member.get("/auth/login?login_hint=clan-ai@example.test");
+  await stack.db.admin.query("INSERT INTO app.memberships (organization_id, user_id, role) VALUES ($1, $2, 'member')", [organizationId, await userIdFor("mock|clan-ai")]);
+  assert.doesNotMatch((await member.get(`/org/${organizationId}/assistant/test/`)).body, /id="test-chat-input"/);
+  assert.match(await sendTest(member, organizationId, null, "Pitanje člana"), /vlasniku i administratorima/);
+
+  assert.match(await sendTest(browser, organizationId, null, "x".repeat(501)), /najviše 500 znakova/);
+  assert.match(await sendTest(browser, organizationId, null, "   "), /Napišite poruku/);
+
+  stack.user.mfa = false;
+  try {
+    const withoutMfa = new Browser();
+    await withoutMfa.get("/auth/login?login_hint=vesna-ai@example.test");
+    assert.match(await sendTest(withoutMfa, organizationId, null, "Bez potvrde"), /dvofaktorskom potvrdom/);
+  } finally {
+    stack.user.mfa = true;
+  }
+
+  await stack.db.admin.query("INSERT INTO app.assistant_daily_spend (usage_day, cost_microdollars) VALUES ((now() AT TIME ZONE 'UTC')::date, 1000000000) ON CONFLICT (usage_day) DO UPDATE SET cost_microdollars = app.assistant_daily_spend.cost_microdollars + 1000000000");
+  try {
+    assert.match(await sendTest(browser, organizationId, null, "Kada radite?"), /Dnevni limit troška/);
+  } finally {
+    await stack.db.admin.query("UPDATE app.assistant_daily_spend SET cost_microdollars = cost_microdollars - 1000000000 WHERE usage_day = (now() AT TIME ZONE 'UTC')::date");
+  }
+  assert.equal(assistantMock.requests.length, count, "no refused request reached the provider");
+  assert.equal(await conversations(), 0);
+
+  assistantMock.respond(() => ({ status: 401 }));
+  assert.match(await sendTest(browser, organizationId, null, "Tajno AI pitanje kanarinac"), /odbio ključ/);
+  assert.equal(await conversations(), 0, "a failed request stores nothing");
+
+  assistantMock.respond(() => ({ stopReason: "refusal" }));
+  const refused = await sendTest(browser, organizationId, null, "Nešto što model odbija");
+  assert.match(refused, /"status":"ok"/);
+  assert.match(refused, /Izvinite, na to trenutno ne mogu da odgovorim/);
+  assistantMock.respond(null);
+  assert.equal(await conversations(), 1);
+});
+
 // Keep last: it also checks what every earlier test caused to be reported.
 test("failures reach error reporting without anything about the person or the request", async () => {
   const owner = new Browser();
@@ -1001,6 +1121,8 @@ test("failures reach error reporting without anything about the person or the re
     DEFAULT_MOCK_USER.email, DEFAULT_MOCK_USER.name, "Tajna Firma Reporting", organizationId, "canary-code", "canary-state", "__session",
     "conversations_canary", "\"cookie\"", "\"request\"", "\"user\"", "\"breadcrumbs\"", "\"extra\"", "request_path", "\"infer_ip\":\"auto\"", CRON_SECRET,
     "email-failed@example.test", "Pozivi Email Regression", "/invite/", TEST_EMAIL_TOKEN,
+    "Tajno AI pitanje kanarinac", "Salon Tamara", "parking", TEST_ASSISTANT_KEY,
   ]) assert.ok(!everything.includes(secret), `reports must not contain ${secret}`);
   assert.ok(events().some((event) => event.tags?.operation === "invitation.email" && event.exception?.values?.some((value) => value.value === "provider_error")), "the failed send was reported by its fixed code");
+  assert.ok(events().some((event) => event.tags?.operation === "assistant.message" && event.exception?.values?.some((value) => value.value === "key_rejected")), "the rejected AI key was reported by its fixed code");
 });

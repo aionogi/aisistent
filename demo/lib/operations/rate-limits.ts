@@ -22,6 +22,9 @@ export const RATE_POLICIES = {
   "account.sessions": { limit: 10, seconds: 3600 },
   // Each import makes an outbound request of up to 10 s and 2 MB.
   "knowledge.import": { limit: 20, seconds: 3600 },
+  // Each test message is a paid request to the AI provider: per user, and per organization over 24 hours.
+  "assistant.message": { limit: 12, seconds: 60 },
+  "assistant.daily": { limit: 200, seconds: 86400 },
 } as const satisfies Record<Operation, { limit: number; seconds: number }>;
 
 /** Select budgets using a fixed route class, never attacker-controlled paths or query strings. */
