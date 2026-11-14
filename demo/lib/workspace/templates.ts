@@ -217,7 +217,59 @@ export function createCompleteExample(): WorkspaceDraft {
   return { ...applyIndustryTemplate(createEmptyDraft(), "salon"), onboardingCompleted: true };
 }
 
-/** True while the draft's details are still exactly its industry's example, so switching industry loses nothing. */
+// Field by field: PostgreSQL jsonb does not keep key order, so stored hours serialize differently.
+function sameHours(a: Record<DayId, DayHours>, b: Record<DayId, DayHours>): boolean {
+  return DAY_IDS.every((day) => a[day].open === b[day].open && a[day].from === b[day].from && a[day].to === b[day].to);
+}
+
+function sameTopics(a: HandoffTopic[], b: HandoffTopic[]): boolean {
+  return a.length === b.length && a.every((topic) => b.includes(topic));
+}
+
+/**
+ * Chooses the industry of a real organization. Unlike the demo's example, it
+ * writes nothing invented about the business: the business name starts from
+ * the organization's name when it is still empty, and only settings still at
+ * their previous suggestion (hours, tone, topics for the team, a suggested
+ * greeting) take the new industry's suggestion. Anything the person entered
+ * stays. Services and answers are offered separately as suggestions
+ * (lib/workspace/suggestions.ts) for the person to accept.
+ */
+export function chooseIndustry(draft: WorkspaceDraft, industry: IndustryId, organizationName?: string): WorkspaceDraft {
+  const next = templates[industry];
+  const empty = createEmptyDraft();
+  const previous = draft.industry ? templates[draft.industry] : { hours: empty.hours, tone: empty.assistant.tone, handoffTopics: empty.assistant.handoffTopics };
+  // Organization names share the business name's 60-character limit.
+  const businessName = draft.business.name.trim() ? draft.business.name : (organizationName ?? "").trim().slice(0, 60);
+  const assistantName = draft.assistant.name.trim() || DEFAULT_ASSISTANT_NAME;
+  const toneUntouched = draft.assistant.tone === previous.tone;
+  const tone = toneUntouched ? next.tone : draft.assistant.tone;
+  const greeting = draft.assistant.greeting.trim();
+  const greetingUntouched = !greeting || greeting === suggestGreeting(draft.assistant.tone, draft.business.name, assistantName);
+  return {
+    ...draft,
+    industry,
+    business: { ...draft.business, name: businessName },
+    hours: sameHours(draft.hours, previous.hours) ? structuredClone(next.hours) : draft.hours,
+    assistant: {
+      ...draft.assistant,
+      tone,
+      handoffTopics: sameTopics(draft.assistant.handoffTopics, previous.handoffTopics) ? [...next.handoffTopics] : draft.assistant.handoffTopics,
+      greeting: greetingUntouched ? (businessName.trim() ? suggestGreeting(tone, businessName, assistantName) : "") : draft.assistant.greeting,
+    },
+  };
+}
+
+/** Typical services and customer questions of an industry, offered as suggestions without durations or answers. */
+export function industrySuggestions(industry: IndustryId | null): { services: string[]; questions: string[] } {
+  if (!industry) return { services: [], questions: [] };
+  const template = templates[industry];
+  return {
+    services: template.services.map((service) => service.name).filter(Boolean),
+    questions: template.knowledge.map((entry) => entry.question),
+  };
+}
+
 /** True while the business details, services and hours are still the example for the chosen industry. */
 export function businessMatchesTemplate(draft: WorkspaceDraft): boolean {
   if (!draft.industry) return !draft.business.name.trim();
@@ -226,12 +278,7 @@ export function businessMatchesTemplate(draft: WorkspaceDraft): boolean {
   const sameBusiness = (Object.keys(template.business) as Array<keyof IndustryTemplate["business"]>).every((key) => business[key] === template.business[key]);
   const sameServices = business.services.length === template.services.length
     && business.services.every((service, index) => service.name === template.services[index].name && service.duration === template.services[index].duration);
-  // Field by field: PostgreSQL jsonb does not keep key order, so stored hours serialize differently.
-  const sameHours = DAY_IDS.every((day) => {
-    const [own, example] = [draft.hours[day], template.hours[day]];
-    return own.open === example.open && own.from === example.from && own.to === example.to;
-  });
-  return sameBusiness && sameServices && sameHours;
+  return sameBusiness && sameServices && sameHours(draft.hours, template.hours);
 }
 
 /** True while the knowledge base is still the example for the chosen industry. */

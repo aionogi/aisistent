@@ -16,6 +16,24 @@
 .workspaceCard strong { display: block; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspaceCard div span { display: block; margin-top: 2px; font-size: 12px; color: var(--secondary-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Organizations: the card opens a menu to switch organizations or reach the account. */
+.organizationMenu { border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.organizationMenu summary { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 9px; cursor: pointer; list-style: none; }
+.organizationMenu summary::-webkit-details-marker { display: none; }
+.organizationMenu summary:hover { background: #f5f7fc; }
+.organizationLabel { flex: 1; min-width: 0; }
+.organizationLabel strong { display: block; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.organizationLabel span { display: block; margin-top: 2px; font-size: 12px; color: var(--secondary-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menuChevron { flex: 0 0 auto; color: var(--secondary-text); }
+.organizationPanel { display: grid; gap: 2px; padding: 6px; border-top: 1px solid var(--line); }
+.organizationPanel ul { display: grid; gap: 2px; margin: 0 0 4px; padding: 0 0 6px; list-style: none; border-bottom: 1px solid var(--line); }
+.menuLabel { margin: 4px 8px 2px; font-size: 12px; font-weight: 700; color: var(--secondary-text); }
+.organizationPanel a { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 8px 10px; border-radius: 7px; color: var(--ink); font-size: 13px; font-weight: 650; }
+.organizationPanel a:hover { background: #edf1f8; }
+.organizationPanel li a { justify-content: space-between; }
+.organizationPanel li a span { min-width: 0; overflow-wrap: anywhere; }
+.organizationPanel .currentOrganization, .organizationPanel .currentOrganization:hover { background: #eaf0ff; color: var(--blue); }
+
 .navigation { display: grid; gap: 4px; }
 .navigation a { display: flex; align-items: center; gap: 11px; min-height: 44px; padding: 10px 12px; border-radius: 8px; color: var(--muted); font-size: 14px; font-weight: 650; transition: background .15s, color .15s; }
 .navigation a:hover { background: #edf1f8; color: var(--ink); }
@@ -56,6 +74,8 @@
   .saveCompact { display: inline-flex; }
   .resetIcon { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #d5def0; border-radius: 8px; background: #fff; color: var(--ink); }
   .workspaceCard { order: -1; display: none; }
+  .organizationMenu summary { gap: 8px; padding: 6px 10px 6px 6px; }
+  .organizationMenu .workspaceIcon { flex-basis: 30px; height: 30px; font-size: 14px; }
   .navigation { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
   .navigationWide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .navigation a { flex-direction: column; justify-content: center; gap: 4px; min-height: 52px; padding: 6px 4px; font-size: 11px; text-align: center; line-height: 1.2; }

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bot, Building2, History, LayoutDashboard, MessageSquare, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
+import { BookOpen, Bot, Building2, Check, ChevronsUpDown, History, LayoutDashboard, LogOut, MessageSquare, Plus, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { organizationHomePath } from "../../lib/workspace/entry.ts";
 import { completedStepCount, EDITABLE_STEP_COUNT, onboardingStartHref } from "../../lib/workspace/steps";
 import { INDUSTRY_LABELS } from "../../lib/workspace/templates";
 import Brand from "../Brand";
@@ -65,13 +66,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
             ? <button type="button" className={styles.resetIcon} onClick={() => setConfirmReset(true)} aria-label="Obriši nacrt i počni ispočetka" disabled={!ready}><RotateCcw size={17} aria-hidden="true" /></button>
             : <SaveIndicator className={styles.saveCompact} />}
         </div>
-        <div className={styles.workspaceCard}>
-          <span className={styles.workspaceIcon} aria-hidden="true">{(displayName || "a").charAt(0).toUpperCase()}</span>
-          <div>
-            <strong>{ready ? displayName || "Novi radni prostor" : "Radni prostor"}</strong>
-            <span>{subtitle}</span>
+        {isDemo ? (
+          <div className={styles.workspaceCard}>
+            <span className={styles.workspaceIcon} aria-hidden="true">{(displayName || "a").charAt(0).toUpperCase()}</span>
+            <div>
+              <strong>{ready ? displayName || "Novi radni prostor" : "Radni prostor"}</strong>
+              <span>{subtitle}</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <OrganizationMenu name={displayName || "Firma"} subtitle={subtitle} />
+        )}
 
         {/* Narrow screens: rows of four, or of three when that fills them evenly (six items). */}
         <nav className={`${styles.navigation} ${items.length === 6 ? styles.navigationWide : ""}`} aria-label="Radni prostor">
@@ -142,5 +147,53 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </ConfirmDialog>
       )}
     </div>
+  );
+}
+
+/**
+ * The organization card, in a workspace with real data, opens a menu to switch
+ * organizations, create one, or reach the account. Plain links: each loads
+ * the next page fully, so unsaved edits trigger the browser's leave warning
+ * and another organization's data is never prefetched.
+ */
+function OrganizationMenu({ name, subtitle }: { name: string; subtitle: string }) {
+  const environment = useWorkspaceEnvironment();
+  const organizations = environment.organizations ?? [];
+  return (
+    <details className={styles.organizationMenu}>
+      <summary>
+        <span className={styles.workspaceIcon} aria-hidden="true">{name.charAt(0).toUpperCase()}</span>
+        <span className={styles.organizationLabel}>
+          <strong>{name}</strong>
+          {subtitle && <span>{subtitle}</span>}
+        </span>
+        <span className="visually-hidden">: firme i nalog</span>
+        <ChevronsUpDown size={16} className={styles.menuChevron} aria-hidden="true" />
+      </summary>
+      <div className={styles.organizationPanel}>
+        {organizations.length > 1 && (
+          <>
+            <p className={styles.menuLabel} id="organization-menu-label">Vaše firme</p>
+            <ul aria-labelledby="organization-menu-label">
+              {organizations.map((organization) => {
+                const current = organization.id === environment.organizationId;
+                return (
+                  <li key={organization.id}>
+                    <a href={organizationHomePath(organization.id)} className={current ? styles.currentOrganization : undefined} aria-current={current ? "true" : undefined}>
+                      <span>{organization.name}</span>
+                      {current && <Check size={15} aria-hidden="true" />}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+        <a href="/account/#nova-firma"><Plus size={15} aria-hidden="true" />Nova firma</a>
+        <a href="/account/"><UserRound size={15} aria-hidden="true" />Nalog</a>
+        {/* Plain link: auth routes must not be prefetched. */}
+        <a href="/auth/logout"><LogOut size={15} aria-hidden="true" />Odjava</a>
+      </div>
+    </details>
   );
 }

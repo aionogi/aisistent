@@ -4,6 +4,7 @@ import { getPool } from "./lib/db/pool.ts";
 import { reportingOrigin } from "./lib/observability/reporting.ts";
 import { checkRateLimit, clientIdentity, limitMessage, requestOperation } from "./lib/operations/rate-limits.ts";
 import { contentSecurityPolicy } from "./lib/security/content-security-policy.ts";
+import { forgetOrganizationCookie } from "./lib/workspace/entry.ts";
 
 /**
  * Runs before every page and auth route:
@@ -39,6 +40,9 @@ export async function proxy(request: NextRequest) {
   if (authResponse && authResponse.headers.get("x-middleware-next") !== "1") {
     authResponse.headers.set("x-request-id", requestId);
     authResponse.headers.set("Cache-Control", "no-store");
+    // Signing out also forgets which organization this device opened last.
+    // Compared without the trailing slash, as the identity SDK matches its routes (`trailingSlash: true`).
+    if (request.nextUrl.pathname.replace(/\/+$/, "") === "/auth/logout") authResponse.headers.append("set-cookie", forgetOrganizationCookie(request.nextUrl.protocol === "https:"));
     return authResponse;
   }
 

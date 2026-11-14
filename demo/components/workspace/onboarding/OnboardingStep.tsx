@@ -81,7 +81,7 @@ export default function OnboardingStep({ step }: { step: StepId }) {
     <section className={styles.card} aria-labelledby="step-title">
       <div className={styles.stepIntro}>
         <h1 id="step-title" ref={headingRef} tabIndex={-1} className={styles.stepTitle}>{definition.title}</h1>
-        <p>{definition.description}</p>
+        <p>{!isDemo && definition.organizationDescription ? definition.organizationDescription : definition.description}</p>
       </div>
 
       {showErrors && step !== "review" && <ErrorSummary ref={summaryRef} errors={errors} />}
@@ -106,10 +106,17 @@ export default function OnboardingStep({ step }: { step: StepId }) {
               <ConfigSummary editHref={stepHref} />
               <div className={styles.knowledgeNote}>
                 <BookOpen size={17} aria-hidden="true" />
-                <p>
-                  <strong>Baza znanja: {draft.knowledge.length === 1 ? "1 odgovor" : `${draft.knowledge.length} odgovora`} iz primera.</strong>
-                  {" "}Odgovore dodajete i menjate u radnom prostoru, posle podešavanja.
-                </p>
+                {isDemo ? (
+                  <p>
+                    <strong>Baza znanja: {draft.knowledge.length === 1 ? "1 odgovor" : `${draft.knowledge.length} odgovora`} iz primera.</strong>
+                    {" "}Odgovore dodajete i menjate u radnom prostoru, posle podešavanja.
+                  </p>
+                ) : (
+                  <p>
+                    <strong>Baza znanja: {draft.knowledge.length === 0 ? "još nema odgovora" : draft.knowledge.length === 1 ? "1 odgovor" : `${draft.knowledge.length} odgovora`}.</strong>
+                    {" "}Odgovore dodajete u radnom prostoru, posle podešavanja; tamo su i česta pitanja klijenata za vašu delatnost.
+                  </p>
+                )}
               </div>
             </div>
             <AssistantPreview />

@@ -24,9 +24,10 @@ function answersLabel(count: number): string {
 }
 
 /**
- * What an organization should do next, from its real data. Onboarding fills in
- * an example for the chosen industry, so details that still match it count as
- * unfinished even though they are valid.
+ * What an organization should do next, from its real data. Before 2026-11-14,
+ * onboarding filled organizations with the chosen industry's example, so
+ * details that still match it count as unfinished even though they are valid.
+ * New organizations start empty (`chooseIndustry`).
  */
 export function nextSteps(draft: WorkspaceDraft, team: { members: number; pendingInvitations: number }): NextStep[] {
   const businessComplete = isStepComplete("business", draft) && isStepComplete("hours", draft);

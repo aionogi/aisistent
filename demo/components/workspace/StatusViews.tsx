@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
+import { APP_HOME_PATH } from "../../lib/workspace/entry.ts";
 import { formatUpdatedAt } from "../../lib/workspace/format";
 import { useDraft } from "./DraftProvider";
 import { Notice } from "./FormControls";
@@ -39,7 +40,7 @@ export function DraftNotices() {
         </Notice>
       )}
       {saveState.status === "signed-out" && (
-        <Notice tone="warning" title="Sesija je istekla" action={<a href="/account/">Prijava</a>}>
+        <Notice tone="warning" title="Sesija je istekla" action={<a href={APP_HOME_PATH}>Prijava</a>}>
           Prijavite se ponovo. Izmene posle isteka sesije nisu sačuvane.
         </Notice>
       )}

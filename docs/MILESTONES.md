@@ -1,6 +1,6 @@
 # Delivery milestones
 
-Updated: 2026-11-03.
+Updated: 2026-11-14.
 
 The user requested a demo first, followed by security, then pricing and recurring revenue. The phases below preserve that order. No delivery dates or provider commitments are assigned.
 
@@ -51,6 +51,8 @@ The M1 landing dashboard preview was left intact; the workspace reuses its visua
 ## M3 — Persistent platform and production security
 
 Goal: support real organizations and data through the requested Next.js/Node.js stack.
+
+Workspace entry (2026-11-14): sign-in lands on `/app/`, which opens the person's own firm (the last one used on this device when there are several) or asks them to create one; the workspace sidebar switches firms and signs out. Real firms now start empty: the industry choice suggests settings, services and customer questions instead of writing the demo's invented business data. This is a usability step on top of existing M3 authorization, not a new acceptance criterion.
 
 Backup follow-up (2026-11-03): trusted-worker commands for encrypted consistent PostgreSQL copies, safe retention, offline restore verification and an independent missing/stale-copy watchdog are implemented and tested with synthetic data ([activation guide](operations/BACKUPS.md)). The offsite destination/plan, policy, worker schedule, actual backup/restore and delivered alerts are pending operator configuration. This is tooling readiness, not production backup coverage; M3 stays open.
 

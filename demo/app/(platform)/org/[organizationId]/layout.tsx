@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import OrganizationDraftProvider from "../../../../components/workspace/OrganizationDraftProvider";
+import RememberOrganization from "../../../../components/workspace/RememberOrganization";
 import { WorkspaceEnvironmentProvider, type WorkspaceEnvironment } from "../../../../components/workspace/WorkspaceEnvironment";
 import { getCurrentAccount } from "../../../../lib/auth/account.ts";
 import { getAuth0, mfaRequired, mfaStepUpPath } from "../../../../lib/auth/auth0.ts";
 import { canManage, ForbiddenError, withOrganization } from "../../../../lib/db/context.ts";
 import { getPool } from "../../../../lib/db/pool.ts";
-import { getAssistantConfig, getOrganizationName, listKnowledge } from "../../../../lib/db/repositories.ts";
+import { getAssistantConfig, getOrganizationName, listKnowledge, listMemberships } from "../../../../lib/db/repositories.ts";
+import { isOrganizationId } from "../../../../lib/workspace/entry.ts";
 import { draftFromStored } from "../../../../lib/workspace/persistence.ts";
 import { importKnowledgeFromUrlAction, saveWorkspaceAction } from "./actions.ts";
 
 export const metadata: Metadata = { title: "Radni prostor firme — aisistent" };
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Loads one organization for a signed-in member and provides it to the shared
@@ -21,7 +21,7 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
  */
 export default async function OrganizationLayout({ children, params }: LayoutProps<"/org/[organizationId]">) {
   const { organizationId } = await params;
-  if (!uuidPattern.test(organizationId)) notFound();
+  if (!isOrganizationId(organizationId)) notFound();
   const pool = getPool();
   if (!getAuth0() || !pool) redirect("/account/");
   const account = await getCurrentAccount();
@@ -40,6 +40,8 @@ export default async function OrganizationLayout({ children, params }: LayoutPro
     throw error;
   }
 
+  // For the organization switcher; read after access to this organization is confirmed.
+  const memberships = await listMemberships(pool, account.userId);
   const draft = draftFromStored(loaded.config?.config ?? null, loaded.knowledge, loaded.config?.updatedAt ?? null);
   // A stored document in an unexpected shape is not overwritten from the editor.
   if (!draft) throw new Error("The organization's stored configuration does not match the current format.");
@@ -48,14 +50,17 @@ export default async function OrganizationLayout({ children, params }: LayoutPro
     mode: "organization",
     basePath: `/org/${organizationId}`,
     onboardingBasePath: `/org/${organizationId}/onboarding`,
+    organizationId,
     organizationName: loaded.name ?? undefined,
     role: loaded.role,
+    organizations: memberships.map((membership) => ({ id: membership.organizationId, name: membership.organizationName, role: membership.role })),
     stepUpPath: canManage(loaded.role) && mfaRequired() && !account.mfa ? mfaStepUpPath(`/org/${organizationId}/`) : undefined,
     importFromUrl: importKnowledgeFromUrlAction.bind(null, organizationId),
   };
 
   return (
     <WorkspaceEnvironmentProvider value={environment}>
+      <RememberOrganization organizationId={organizationId} />
       <OrganizationDraftProvider
         initialDraft={draft}
         initialRevision={loaded.config?.revision ?? 0}
