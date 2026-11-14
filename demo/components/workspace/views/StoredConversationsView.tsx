@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquare, Phone, Search, SearchX, Trash2 } from "lucide-react";
+import { FlaskConical, MessageSquare, Phone, Search, SearchX, Trash2, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
 import type { ConversationActionResult } from "../../../app/(platform)/org/[organizationId]/(shell)/conversations/actions";
-import type { ConversationOutcome, ConversationSpeaker } from "../../../lib/db/conversations";
+import type { ConversationChannel, ConversationOutcome, ConversationSpeaker } from "../../../lib/db/conversations";
 import ConfirmDialog from "../ConfirmDialog";
 import { useDraft } from "../DraftProvider";
 import { Notice } from "../FormControls";
@@ -13,7 +13,7 @@ import styles from "../pages.module.css";
 
 export type ConversationRow = {
   id: string;
-  channel: "call" | "message";
+  channel: ConversationChannel;
   outcome: ConversationOutcome;
   customerName: string | null;
   customerContact: string | null;
@@ -32,13 +32,26 @@ export const OUTCOMES: Record<ConversationOutcome, { label: string; pending: boo
 // The same zone as the server render, so times do not change on hydration.
 export const timeFormat = new Intl.DateTimeFormat("sr-Latn-RS", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Belgrade" });
 
-export const displayName = (row: Pick<ConversationRow, "customerName" | "customerContact">) => row.customerName ?? row.customerContact ?? "Nepoznat klijent";
+export const CHANNELS: Record<ConversationChannel, { label: string; icon: LucideIcon }> = {
+  call: { label: "Poziv", icon: Phone },
+  message: { label: "Poruka", icon: MessageSquare },
+  test: { label: "Probni razgovor", icon: FlaskConical },
+};
+
+export const displayName = (row: Pick<ConversationRow, "channel" | "customerName" | "customerContact">) =>
+  row.customerName ?? row.customerContact ?? (row.channel === "test" ? "Probni razgovor" : "Nepoznat klijent");
 // Letters only, so a phone number shown in place of a name gives "?" rather than "+6".
 export const initials = (name: string) => name.split(/\s+/).filter((part) => /^\p{L}/u.test(part)).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?";
 function duration(row: ConversationRow): string | null {
-  if (!row.endedAt) return null;
+  // A test chat's length in seconds says nothing useful.
+  if (!row.endedAt || row.channel === "test") return null;
   const seconds = Math.max(0, Math.round((Date.parse(row.endedAt) - Date.parse(row.startedAt)) / 1000));
   return seconds < 60 ? `${seconds} s` : `${Math.round(seconds / 60)} min`;
+}
+
+function ChannelIcon({ channel }: { channel: ConversationChannel }) {
+  const Icon = CHANNELS[channel].icon;
+  return <Icon size={12} aria-hidden="true" />;
 }
 
 /** Conversations the assistant recorded for this organization, with transcripts and deletion for owners and admins. */
@@ -100,7 +113,7 @@ export default function StoredConversationsView({ conversations, selectedId, mes
                     <span className={styles.initials} aria-hidden="true">{initials(displayName(row))}</span>
                     <span className={styles.compactPerson}>
                       <strong>{displayName(row)}</strong>
-                      <span>{row.channel === "call" ? <Phone size={12} aria-hidden="true" /> : <MessageSquare size={12} aria-hidden="true" />}{row.channel === "call" ? "Poziv" : "Poruka"}{duration(row) ? ` · ${duration(row)}` : ""}</span>
+                      <span><ChannelIcon channel={row.channel} />{CHANNELS[row.channel].label}{duration(row) ? ` · ${duration(row)}` : ""}</span>
                     </span>
                     <span className={styles.rowMeta}>
                       <span className={`${styles.chip} ${outcome.pending ? styles.chipPending : ""}`}>{outcome.label}</span>
@@ -117,7 +130,7 @@ export default function StoredConversationsView({ conversations, selectedId, mes
               <div className={styles.detailHeader}>
                 <div>
                   <h2 id="conversation-detail-title">{displayName(selected)}</h2>
-                  <span>{selected.channel === "call" ? "Poziv" : "Poruka"} · {timeFormat.format(new Date(selected.startedAt))}{duration(selected) ? ` · ${duration(selected)}` : ""}{selected.customerContact && selected.customerName ? ` · ${selected.customerContact}` : ""}</span>
+                  <span>{CHANNELS[selected.channel].label} · {timeFormat.format(new Date(selected.startedAt))}{duration(selected) ? ` · ${duration(selected)}` : ""}{selected.customerContact && selected.customerName ? ` · ${selected.customerContact}` : ""}</span>
                 </div>
                 <span className={`${styles.chip} ${OUTCOMES[selected.outcome].pending ? styles.chipPending : ""}`}>{OUTCOMES[selected.outcome].label}</span>
               </div>
@@ -131,7 +144,7 @@ export default function StoredConversationsView({ conversations, selectedId, mes
                 <ol className={styles.transcript} aria-label="Tok razgovora">
                   {messages.map((message, index) => (
                     <li key={index} className={`${styles.bubble} ${message.speaker === "customer" ? styles.callerBubble : styles.assistantBubble}`}>
-                      <span className={styles.bubbleSpeaker}>{message.speaker === "assistant" ? assistantName : message.speaker === "team" ? "Vaš tim" : displayName(selected)}</span>
+                      <span className={styles.bubbleSpeaker}>{message.speaker === "assistant" ? assistantName : message.speaker === "team" ? "Vaš tim" : selected.channel === "test" ? "Vi" : displayName(selected)}</span>
                       <p>{message.body}</p>
                     </li>
                   ))}
@@ -152,7 +165,7 @@ export default function StoredConversationsView({ conversations, selectedId, mes
 
       {canDelete && (
         <ConfirmDialog open={confirmDelete} title="Obrisati razgovor?" confirmLabel="Obriši razgovor" onClose={() => setConfirmDelete(false)} onConfirm={deleteSelected}>
-          <p>Razgovor sa „{selected ? displayName(selected) : ""}“ i njegov zapis biće trajno obrisani.</p>
+          <p>{selected?.channel === "test" ? "Probni razgovor i njegov zapis biće trajno obrisani." : <>Razgovor sa „{selected ? displayName(selected) : ""}“ i njegov zapis biće trajno obrisani.</>}</p>
         </ConfirmDialog>
       )}
     </>

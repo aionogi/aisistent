@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { useState } from "react";
+import { recommendedBehavior } from "../../../lib/workspace/suggestions";
 import { HANDOFF_LABELS, suggestGreeting, TONE_LABELS, UNKNOWN_ANSWER_LABELS } from "../../../lib/workspace/templates";
 import type { AssistantBehavior, AssistantTone, HandoffTopic, UnknownAnswerAction } from "../../../lib/workspace/types";
 import { LIMITS, type FieldErrors } from "../../../lib/workspace/validation";
@@ -18,6 +19,9 @@ export default function AssistantForm({ errors, showErrors }: { errors: FieldErr
   const { assistant } = draft;
   const [status, setStatus] = useState("");
   const errorFor = (path: string) => (showErrors ? errors[path] : undefined);
+  // Marked as recommended for the industry; the person still chooses.
+  const recommended = recommendedBehavior(draft);
+  const greetingExample = `Npr. ${suggestGreeting(assistant.tone, draft.business.name.trim() || "Studio Mila", assistant.name)}`;
 
   const setAssistant = (patch: Partial<AssistantBehavior>) =>
     updateDraft((current) => ({ ...current, assistant: { ...current.assistant, ...patch } }));
@@ -48,14 +52,17 @@ export default function AssistantForm({ errors, showErrors }: { errors: FieldErr
           {tones.map((tone) => (
             <label key={tone} className={`${styles.choiceCard} ${styles.compactChoice} ${assistant.tone === tone ? styles.choiceSelected : ""}`}>
               <input type="radio" name="assistant-tone" value={tone} checked={assistant.tone === tone} onChange={() => setAssistant({ tone })} className={styles.visuallyHidden} />
-              <span className={styles.choiceText}><strong>{TONE_LABELS[tone].label}</strong><span>{TONE_LABELS[tone].description}</span></span>
+              <span className={styles.choiceText}>
+                <strong>{TONE_LABELS[tone].label}</strong><span>{TONE_LABELS[tone].description}</span>
+                {recommended.tone === tone && <span className={styles.recommendedBadge}>Preporučeno za vašu delatnost</span>}
+              </span>
             </label>
           ))}
         </div>
       </fieldset>
 
       <div className={styles.greetingBlock}>
-        <TextField path="assistant.greeting" label="Pozdrav na početku razgovora" multiline rows={3} showCount value={assistant.greeting} onChange={(greeting) => setAssistant({ greeting })} error={errorFor("assistant.greeting")} maxLength={LIMITS.greeting} placeholder="Npr. Dobar dan, dobili ste Studio Mila…" />
+        <TextField path="assistant.greeting" label="Pozdrav na početku razgovora" multiline rows={3} showCount value={assistant.greeting} onChange={(greeting) => setAssistant({ greeting })} error={errorFor("assistant.greeting")} maxLength={LIMITS.greeting} placeholder={greetingExample} />
         <div className={styles.hoursToolbar}>
           <button type="button" className={styles.secondaryButton} onClick={proposeGreeting}><Sparkles size={15} aria-hidden="true" />Predloži pozdrav prema tonu</button>
           <p className={styles.inlineStatus} role="status">{status}</p>
@@ -79,6 +86,7 @@ export default function AssistantForm({ errors, showErrors }: { errors: FieldErr
             <label key={topic} className={styles.checkRow}>
               <input type="checkbox" checked={assistant.handoffTopics.includes(topic)} onChange={(event) => toggleTopic(topic, event.target.checked)} />
               <span>{HANDOFF_LABELS[topic]}</span>
+              {recommended.handoffTopics.includes(topic) && <span className={styles.recommendedBadge}>Preporučeno</span>}
             </label>
           ))}
         </div>

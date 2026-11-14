@@ -9,7 +9,7 @@ The user requested a demo first, followed by security, then pricing and recurrin
 | [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
 | [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete and pushed | M1 | `milestone-2-app-shell` |
 | [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | In progress; synthetic logical recovery verified; deployment/managed recovery gates pending | M2 | `milestone-3-secure-platform` |
-| [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Planned; deferred | M3 safeguards | `milestone-4-live-assistant` |
+| [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Started 2026-11-14 at the user's request, alongside M3's open backup work: step 1, the AI test chat, built locally; provider not yet connected | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
 The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. The M2 tag is published at commit `479188b983699114e0393875592292f109273dbe`. M3-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
@@ -52,7 +52,7 @@ The M1 landing dashboard preview was left intact; the workspace reuses its visua
 
 Goal: support real organizations and data through the requested Next.js/Node.js stack.
 
-Workspace entry (2026-11-14): sign-in lands on `/app/`, which opens the person's own firm (the last one used on this device when there are several) or asks them to create one; the workspace sidebar switches firms and signs out. Real firms now start empty: the industry choice suggests settings, services and customer questions instead of writing the demo's invented business data. This is a usability step on top of existing M3 authorization, not a new acceptance criterion.
+Workspace entry (2026-11-14): sign-in lands on `/app/`, which opens the person's own firm (the last one used on this device when there are several) or asks them to create one; the workspace sidebar switches firms and signs out. Real firms now start empty: nothing is entered on the person's behalf, and the industry's hours, tone, topics, services and customer questions are suggestions applied with a click. This is a usability step on top of existing M3 authorization, not a new acceptance criterion.
 
 Backup follow-up (2026-11-03): trusted-worker commands for encrypted consistent PostgreSQL copies, safe retention, offline restore verification and an independent missing/stale-copy watchdog are implemented and tested with synthetic data ([activation guide](operations/BACKUPS.md)). The offsite destination/plan, policy, worker schedule, actual backup/restore and delivered alerts are pending operator configuration. This is tooling readiness, not production backup coverage; M3 stays open.
 
@@ -101,6 +101,13 @@ CI: the workflow is active on GitHub since 2026-11-02 and runs every suite, incl
 Market note (2026-11-01): the market is the Balkans, so the assistant's languages and each firm's time zone must not be fixed to Serbia (R19 and R20 in `security/m3-evidence.md`).
 
 Goal: conduct bounded, authorized live calls, preserve useful conversation outcomes, and answer visitors' questions on the aisistent website through an AI support chat.
+
+**Step 1 — AI test chat (2026-11-14, built locally, off on the live site):** the user approved starting M4 and chose Anthropic as the AI provider, with Claude Haiku 5.5 (`claude-haiku-5-5`) while the app is developed and a later move to Opus through `ASSISTANT_MODEL`. Owners and admins test their firm's assistant in a text chat. Answers come only from the firm's settings and knowledge base, with its unknown-answer, handoff and booking rules and AI disclosure. The work includes:
+- per-person and per-firm limits, a server-wide daily budget and an emergency stop (`ASSISTANT_ENABLED`);
+- server-side history and test conversations stored with retention, export and deletion;
+- fixed-code logs.
+
+The account, the key and the live check wait for the user (runbook, "AI assistant (Anthropic)"). This advances the knowledge, limits, privacy and prompt-boundary items below, but completes none of them: telephony, live calls, real-model evaluations and the website support chat remain.
 
 - [ ] Select approved AI/speech and telephony providers and record their operational constraints.
 - [ ] Add a Node.js voice gateway if persistent audio connections require it.

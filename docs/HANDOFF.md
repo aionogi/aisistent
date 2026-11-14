@@ -4,6 +4,18 @@ Updated: 2026-11-14.
 
 ## Current objective
 
+**Latest checkpoint — M4 step 1, AI test chat (2026-11-14):** the user approved starting M4 and chose Anthropic, with `claude-haiku-5-5` during development (Opus later via `ASSISTANT_MODEL`). Built locally and tested; **off on the live site until the user creates the Anthropic account and key**.
+- **What it does:** owners and admins with MFA open "Asistent" → "Isprobaj asistenta" (`/org/<id>/assistant/test/`) and write as a customer. The assistant answers only from the firm's settings and knowledge base, follows its unknown-answer, handoff and booking rules, never invents prices or availability, and says it is an AI.
+- **Code:** provider code only in `demo/lib/assistant/anthropic.ts` (SDK `@anthropic-ai/sdk` pinned at 1.6.0, low effort, default thinking, no sampling parameters). Instructions in `instructions.ts`, with firm text fenced as data. Configuration in `config.ts`; cost estimate in `pricing.ts`.
+- **Database:** migration `0009_assistant_test_chat.sql` adds channel `test` and editor-only functions `append_test_messages`, `assistant_budget_available` and `record_assistant_usage`, plus the totals-only table `assistant_daily_spend`. `record_conversation` stays ungranted.
+- **Limits:** 12 messages per minute per person, 200 per firm per day, a daily USD budget, 500 characters per message and 60 messages per conversation. The emergency stop is `ASSISTANT_ENABLED`. The history comes from the database.
+- **Where it shows up:** test conversations appear in Razgovori as "Probni razgovor". `npm run dev:local-auth` uses a mock provider whose replies say no AI wrote them.
+- **User's next steps** (runbook "AI assistant (Anthropic)"): `npm run migrate:supabase`, an Anthropic account with a monthly spend limit, then the key and `ASSISTANT_ENABLED=true` in Vercel, a redeploy, and the live check.
+- **Agent's next steps after that:** real-model checks in Serbian and prompt-injection evaluations; R23 (data outside the EU) before real customer data.
+- **Not run here:** `npm run test:recovery`. The new migration needs PostgreSQL 17 clients, which this container lacks; GitHub CI runs the recovery suite on the pull request.
+
+**Latest checkpoint — suggestions stay suggestions (2026-11-14, after PR #1 merged):** at the user's request the UX rule is now: nothing is entered on the person's behalf. Empty fields show only a placeholder, and industry recommendations are applied with a click. A firm that has not saved yet starts from `createEmptyOrganizationDraft` (no working days, empty times, no greeting; tone, topics and the unknown-answer rule keep neutral defaults because a choice always holds a value). `chooseIndustry` now fills in only the business name, from the firm's own name. The industry's typical hours appear as a suggestion with "Primeni ovo radno vreme". Its usual tone and topics for the team are marked "Preporučeno" without being selected. The greeting field's placeholder shows an example with the firm's name, and "Predloži pozdrav prema tonu" fills it. The hours and behavior steps are therefore unfinished until the person acts. The demo is unchanged. Next: the user wants to keep developing the workspace; ask which area comes next (options in the final message of this session).
+
 **Latest checkpoint — new firms start empty (2026-11-14):** in a real organization, choosing an industry (onboarding and the Asistent page) no longer writes the demo's invented business, services, address, website and answers into the firm. `chooseIndustry` (`lib/workspace/templates.ts`) sets the industry, starts the business name from the firm's name when it is empty, and moves only settings still at their previous suggestion (hours, tone, topics for the team, an unchanged suggested greeting) to the new industry's suggestion; nothing the person entered is replaced, so no confirmation is needed. Typical services (names only, the person adds the duration) and typical customer questions (the person writes each answer) are offered as pale azure suggestion pills in the business form and on the knowledge page (`lib/workspace/suggestions.ts`); the knowledge page's "Vrati primere za delatnost" stays in the demo only. The demo still fills its full example. The onboarding header of a real firm now says "Podaci firme" instead of "Demo · primer podataka" (a pre-existing mislabel found in the browser check). Firms created earlier may still hold the example; their overview keeps flagging it ("Još stoji primer"), and nothing changes their stored data automatically. Pushed to PR [aionogi/aisistent#1](https://github.com/aionogi/aisistent/pull/1) together with the sign-in entry.
 
 **Latest checkpoint — sign-in opens the real workspace (2026-11-14):** the user handed backup activation to another person and asked to develop the workspace, starting with sign-in landing in the person's own firm instead of the demo. Sign-in now returns to a new entry page, `/app/` (`app/(platform)/app/page.tsx`, rules in `lib/workspace/entry.ts`): no firm → a welcome page with the create form (then onboarding, as before); one firm → `/org/<id>/`; several → the firm last opened on this device, otherwise a choice page. The last firm is remembered in the `aisistent_last_org` cookie (only the id, 90 days, `SameSite=Lax`, `Secure` on HTTPS), written in the browser by `RememberOrganization` when a firm's page is shown (the proxy cannot tell prefetches from visits), used only when it matches a current membership read from the database, and cleared by the proxy on `/auth/logout`. The home page's "Prijava" links go to `/app/`; the footer's demo link now reads "Demo radni prostor". In a firm, the sidebar card opens a menu with the person's firms, "Nova firma", "Nalog" and "Odjava" (also on phones, where the account had been unreachable from the workspace). No migration, Auth0, Vercel or Supabase change is needed; the Auth0 callback URL is unchanged. Next workspace step to propose: new firms start empty instead of with industry examples. See the verification record.
@@ -270,6 +282,61 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M4 step 1: AI test chat (2026-11-14)
+
+- **Unit, `tests/unit/assistant.test.ts` (6 tests):**
+  - the assistant is off without `ASSISTANT_ENABLED=true` and a key, and malformed model, budget, URL or key values keep it off;
+  - the default model is `claude-haiku-5-5`;
+  - cost estimates per model, the long-prompt Haiku rate, unknown models and cache tokens;
+  - instructions contain the firm's data, rules, AI disclosure, Belgrade date and time and greeting, and firm text cannot close `<business_data>`;
+  - the provider turns start at the customer's first message;
+  - against a mock server, the adapter sends a low-effort `claude-haiku-5-5` request with no sampling, thinking or tools fields, and returns text only;
+  - refusals, empty answers and HTTP failures map to fixed codes that survive error reporting's scrubbing.
+- **Database, `tests/db/assistant.test.ts` (5 tests):**
+  - owners and admins append, and members read;
+  - export includes test conversations;
+  - members cannot write;
+  - another firm's conversation and recorded calls cannot be extended;
+  - messages are validated and limited to 60 per conversation;
+  - daily totals are counted for editors only, and the budget closes at its limit;
+  - the runtime cannot read the spend table, insert conversations directly, call `require_editor` or `record_conversation`.
+- **HTTP (2 new, plus the reporting test):**
+  - an owner's two messages reach the mock with the firm's data, and the second request carries database history;
+  - the stored transcript, daily totals and Razgovori label are checked;
+  - another firm's conversation id is refused without a provider call;
+  - members, sessions without MFA, empty and over-long messages and a spent budget are refused before any provider request;
+  - a 401 stores nothing;
+  - a refusal stores the fallback reply;
+  - Sentry gets `key_rejected` and no question text, firm name or key.
+  - The first run caught `credentials_rejected` (20 characters) being scrubbed to `[id]`, so the code is now `key_rejected`.
+- **Browser** (Playwright Chromium against `npm run dev:local-auth` with the mock provider, 1280 and 390 px):
+  - onboarding of "Salon Lepa", then "Isprobaj asistenta" from the Asistent page, with Asistent highlighted;
+  - greeting bubble, Enter sends and focus returns to the field, Shift+Enter adds a line, "Novi razgovor" clears;
+  - the stored conversation in Razgovori with "Lena" and "Vi" labels;
+  - phone layout with no overflow, and no console errors.
+- **Validation:** `npm run typecheck`; `npm test` **247/247**; `npm run test:e2e` **32/32**; `npm run build`. `npm run test:recovery` was not run (PostgreSQL 17 clients unavailable here); CI runs it.
+- **Limitations:** no request to the real Anthropic API has been made, so answer quality in Serbian, latency and real refusals are unmeasured. The cost estimate uses the 2026-11-03 price list. No screen reader test.
+
+### Suggestions stay suggestions (2026-11-14)
+
+- Unit (`tests/unit/industry-suggestions.test.ts`, now 7 tests):
+  - an unsaved firm's draft has no open days, empty times and no greeting, and is storable;
+  - the industry choice changes only `industry` and an empty business name;
+  - switching industry keeps everything entered;
+  - typical hours are suggested until applied, and none for "other";
+  - tone and topics are recommended but never selected;
+  - service and question suggestions are unchanged.
+- HTTP: the onboarding test now starts from the organization draft; 30/30 pass.
+- Browser (Playwright Chromium against `npm run dev:local-auth`, 1280 px and 390 px), a new "Auto-servis" firm:
+  - hours started with no open days, and the step refused to continue until set;
+  - "Primeni ovo radno vreme" applied Mon–Fri 08:00–17:00 and Sat 08:00–14:00, moved focus to the first day, and the suggestion then disappeared;
+  - the greeting was empty with a placeholder naming the firm, and the suggestion button filled it;
+  - "Professional" stayed selected while "Kratak i jasan", "Pitanja o cenama i ponudama" and "Posebni zahtevi" were marked "Preporučeno";
+  - no overflow and no console errors.
+  - The run caught the suggestion button stretching across the box, which is now fixed (199 px wide on both widths).
+- Validation: `npm run typecheck`; `npm test` **236/236**; `npm run test:e2e` **30/30**; `npm run build`; `git diff --check`. No migration.
+- Limitations: no screen reader test. Firms that already saved keep their stored hours and greeting.
 
 ### New firms start empty (2026-11-14)
 

@@ -82,7 +82,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <nav className={`${styles.navigation} ${items.length === 6 ? styles.navigationWide : ""}`} aria-label="Radni prostor">
           {items.map(({ page, label, icon: Icon }) => {
             const href = workspacePath(environment, page);
-            const active = normalize(href) === pathname;
+            // Subpages (such as the assistant's test chat) keep their section highlighted.
+            const active = normalize(href) === pathname || (page !== "" && pathname.startsWith(`${normalize(href)}/`));
             return (
               <Link key={page || "overview"} href={href} className={active ? styles.activeLink : undefined} aria-current={active ? "page" : undefined}>
                 <Icon size={17} aria-hidden="true" /><span>{label}</span>

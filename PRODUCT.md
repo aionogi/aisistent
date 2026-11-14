@@ -30,7 +30,7 @@ Strong security is a confirmed requirement. Tenant isolation, protected billing,
 
 ## Evidence on Hand
 
-An interactive frontend prototype is implemented in `demo/`: a landing page with scripted conversations (M1) and a demo workspace with guided assistant onboarding (M2). Its conversations and business records are illustrative, and the M2 configuration is stored only in the visitor's browser tab. There are no verified customer testimonials, security certifications, commercial benchmarks, final prices, or live AI/telephony integrations available for publication.
+An interactive frontend prototype is implemented in `demo/`: a landing page with scripted conversations (M1) and a demo workspace with guided assistant onboarding (M2). Its conversations and business records are illustrative, and the M2 configuration is stored only in the visitor's browser tab. Since 2026-11-14 a signed-in firm's owners and admins can test the assistant in a text chat answered by Anthropic's Claude (M4 step 1). It is off until the operator adds a key, and it is not a customer channel. There are no verified customer testimonials, security certifications, commercial benchmarks, final prices, or live telephony integrations available for publication.
 
 ## Current Delivery Scope
 
