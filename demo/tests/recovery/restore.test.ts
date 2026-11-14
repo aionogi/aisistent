@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -8,7 +8,7 @@ import pg from "pg";
 import type { SessionData } from "@auth0/nextjs-auth0/types";
 import { PostgresSessionStore } from "../../lib/auth/session-store.ts";
 import { ForbiddenError, withOrganization, withUser } from "../../lib/db/context.ts";
-import { ensureAppLogin, migrate } from "../../lib/db/migrator.ts";
+import { ensureAppLogin, migrate, readMigrations } from "../../lib/db/migrator.ts";
 import { createOrganization, getAssistantConfig, listKnowledge, provisionUser, recordAudit, saveWorkspace } from "../../lib/db/repositories.ts";
 import { acceptInvitation, createInvitation, previewInvitation, removeMember, revokeInvitation, TeamError } from "../../lib/db/team.ts";
 import { consumeRateLimit } from "../../lib/operations/store.ts";
@@ -86,8 +86,8 @@ test("isolated logical recovery preserves data and tenant controls, then invalid
   await t.test("all table digests, migration checksums and security definitions match the snapshot", async () => {
     assert.deepEqual(await dataSnapshot(target.admin), snapshot);
     assert.deepEqual(await securitySnapshot(target.admin), security);
-    const files = (await readdir(MIGRATIONS_DIR)).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort();
-    const expected = await Promise.all(files.map(async (name) => ({ version: name.replace(/\.sql$/, ""), checksum: digest(await readFile(path.join(MIGRATIONS_DIR, name))) })));
+    // The migrator stores each migration's checksum with LF line endings, whatever the checkout uses.
+    const expected = (await readMigrations(MIGRATIONS_DIR)).map(({ version, checksum }) => ({ version, checksum }));
     assert.deepEqual((await target.admin.query("SELECT version, checksum FROM public.schema_migrations ORDER BY version")).rows, expected);
     // Only after the comparison: an intact restore must require no migration repair.
     assert.deepEqual((await migrate(target.admin, MIGRATIONS_DIR)).applied, []);
