@@ -1,13 +1,13 @@
 import { execFile } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
 import pg from "pg";
 import { APP_LOGIN_ROLE, connectionOptions, RUNTIME_ROLE } from "../../lib/db/config.ts";
 import { ForbiddenError, withOrganization, withUser } from "../../lib/db/context.ts";
-import { ensureAppLogin, migrate } from "../../lib/db/migrator.ts";
+import { ensureAppLogin, migrate, readMigrations } from "../../lib/db/migrator.ts";
 import { createOrganization, provisionUser, saveWorkspace } from "../../lib/db/repositories.ts";
 import { startTestDatabase, type TestDatabase } from "../db/harness.ts";
 import { checkClientTools, executable } from "./postgres-tools.ts";
@@ -221,10 +221,10 @@ export async function runRestoreDrill(options: DrillOptions): Promise<{ report: 
     // any test writes add events to the restored copy. These IDs stay private.
     const snapshotAuditIds = (await target.admin.query<{ id: string }>("SELECT id::text AS id FROM app.audit_events")).rows.map(({ id }) => id);
 
-    const files = (await readdir(options.migrationsDir)).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort();
-    const expected = await Promise.all(files.map(async (name) => ({ version: name.replace(/\.sql$/, ""), checksum: digest(await readFile(path.join(options.migrationsDir, name))) })));
-    const restored = (await target.admin.query("SELECT version, checksum FROM public.schema_migrations ORDER BY version")).rows;
-    if (!isDeepStrictEqual(restored, expected)) {
+    // Line endings differ between checkouts, so a checksum of the same text with CRLF endings counts as a match (lib/db/migrator.ts).
+    const expected = await readMigrations(options.migrationsDir);
+    const restored = (await target.admin.query<{ version: string; checksum: string }>("SELECT version, checksum FROM public.schema_migrations ORDER BY version")).rows;
+    if (restored.length !== expected.length || restored.some((row, index) => row.version !== expected[index].version || !expected[index].accepted.has(row.checksum))) {
       throw new DrillError(`The live database's migrations (${restored.length}) do not match this checkout's (${expected.length}). Run the drill from the release that is deployed.`);
     }
     if ((await migrate(target.admin, options.migrationsDir)).applied.length) throw new DrillError("The restored copy needed migrations.");

@@ -34,13 +34,29 @@ async function revokeProviderRoles(client: Client): Promise<string[]> {
   return rows.map(({ rolname }) => rolname);
 }
 
-type MigrationFile = { version: string; sql: string; checksum: string };
+type MigrationFile = { version: string; sql: string; checksum: string; accepted: ReadonlySet<string> };
 
-async function readMigrations(directory: string): Promise<MigrationFile[]> {
+const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+
+/**
+ * Line endings depend on the checkout, not on the migration: Git on Windows
+ * (core.autocrlf) writes CRLF, other checkouts LF, and the live database holds
+ * checksums from both. A migration is identified by its text with LF line
+ * endings; a stored checksum of the same text with CRLF endings also counts
+ * as unchanged. New migrations store the LF checksum.
+ */
+export function migrationChecksums(text: string): { checksum: string; accepted: ReadonlySet<string> } {
+  const normalized = text.replace(/\r\n/g, "\n");
+  const checksum = sha256(normalized);
+  return { checksum, accepted: new Set([checksum, sha256(normalized.replace(/\n/g, "\r\n"))]) };
+}
+
+/** The migration files of a directory in order, with their checksums. */
+export async function readMigrations(directory: string): Promise<MigrationFile[]> {
   const names = (await readdir(directory)).filter((name) => /^\d{4}_[a-z0-9_]+\.sql$/.test(name)).sort();
   return Promise.all(names.map(async (name) => {
-    const sql = await readFile(path.join(directory, name), "utf8");
-    return { version: name.replace(/\.sql$/, ""), sql, checksum: createHash("sha256").update(sql).digest("hex") };
+    const sql = (await readFile(path.join(directory, name), "utf8")).replace(/\r\n/g, "\n");
+    return { version: name.replace(/\.sql$/, ""), sql, ...migrationChecksums(sql) };
   }));
 }
 
@@ -64,7 +80,7 @@ export async function migrate(client: Client, directory: string): Promise<Migrat
     for (const migration of await readMigrations(directory)) {
       const previous = applied.get(migration.version);
       if (previous) {
-        if (previous !== migration.checksum) {
+        if (!migration.accepted.has(previous)) {
           throw new Error(`Migration ${migration.version} was changed after it was applied. Add a new migration instead.`);
         }
         result.skipped.push(migration.version);

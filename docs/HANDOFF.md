@@ -4,6 +4,16 @@ Updated: 2026-11-14.
 
 ## Current objective
 
+**Decisions (2026-11-24):**
+- The user works from a fresh clone at `C:\Users\Djordje\Desktop\aisistent` on their current computer. Local settings files were copied there; the Supabase CA certificate is kept outside the repository.
+- For testing the AI test chat, the user may use a personal Anthropic account. Before real customer data the key moves to a company account; the runbook "AI assistant (Anthropic)" has the switch.
+- Still pending:
+  - the user's `npm run migrate:supabase` for 0009, which needs the line-ending fix in `main`;
+  - the Anthropic key in Vercel;
+  - the overdue Auth0 MFA continuity check (trial ended about 2026-11-19).
+
+**Fix — migrations across Windows and Linux checkouts (2026-11-14):** the user's `npm run migrate:supabase` for 0009 stopped with "Migration 0004_operational_safeguards was changed after it was applied". The live `public.schema_migrations` holds CRLF-file checksums for 0001–0003 and 0006–0008, but LF-file checksums for 0004 and 0005. The user's new checkout (`C:\Users\Djordje\Desktop\aisistent\aisistent`, `core.autocrlf=true`) has CRLF files. The migrator now hashes migration text with LF line endings and also accepts the CRLF checksum of the same text (`migrationChecksums` in `lib/db/migrator.ts`); new rows store the LF checksum. The restore drill and the synthetic restore test use the same rule. `.gitattributes` keeps `*.sql` LF. The failed run applied nothing.
+
 **Latest checkpoint — M4 step 1, AI test chat (2026-11-14):** the user approved starting M4 and chose Anthropic, with `claude-haiku-5-5` during development (Opus later via `ASSISTANT_MODEL`). Built locally and tested; **off on the live site until the user creates the Anthropic account and key**.
 - **What it does:** owners and admins with MFA open "Asistent" → "Isprobaj asistenta" (`/org/<id>/assistant/test/`) and write as a customer. The assistant answers only from the firm's settings and knowledge base, follows its unknown-answer, handoff and booking rules, never invents prices or availability, and says it is an AI.
 - **Code:** provider code only in `demo/lib/assistant/anthropic.ts` (SDK `@anthropic-ai/sdk` pinned at 1.6.0, low effort, default thinking, no sampling parameters). Instructions in `instructions.ts`, with firm text fenced as data. Configuration in `config.ts`; cost estimate in `pricing.ts`.
@@ -282,6 +292,19 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### Migration checksums across line endings (2026-11-14)
+
+- Diagnosis from the user's output (no secrets were shared):
+  - live checksums `bb23…`/`8915…`/`e132…` (0001–0003) and `7054…`/`5ea1…`/`1489…` (0006–0008) are the CRLF variants;
+  - `7f55…`/`8615…` (0004, 0005) are the LF ones;
+  - the local 0004 hashed to `a1ea…`, the CRLF variant.
+- `tests/db/migration-line-endings.test.ts` (3 tests):
+  - LF and CRLF text give the same checksum and the same accepted pair, and different text a different checksum;
+  - a database with mixed CRLF and LF checksums accepts both a CRLF and an LF checkout and applies nothing;
+  - a real edit to applied 0004 is still refused;
+  - a new CRLF migration stores the LF checksum.
+- Validation: `npm run typecheck`; `npm test` **250/250**; `npm run build`. `npm run test:recovery` (drill and restore use the shared rule) is left to CI, because PostgreSQL 17 clients are unavailable here.
 
 ### M4 step 1: AI test chat (2026-11-14)
 

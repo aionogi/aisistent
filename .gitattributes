@@ -1,0 +1,4 @@
+# Migrations are identified by checksum. Keep them byte-identical on every
+# checkout, including Windows with core.autocrlf, so the live database and
+# every computer agree. The migrator also accepts either line ending.
+*.sql text eol=lf
