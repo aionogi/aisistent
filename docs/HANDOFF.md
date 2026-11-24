@@ -4,6 +4,14 @@ Updated: 2026-11-14.
 
 ## Current objective
 
+**Decisions (2026-11-24):**
+- The user works from a fresh clone at `C:\Users\Djordje\Desktop\aisistent` on their current computer. Local settings files were copied there; the Supabase CA certificate is kept outside the repository.
+- For testing the AI test chat, the user may use a personal Anthropic account. Before real customer data the key moves to a company account; the runbook "AI assistant (Anthropic)" has the switch.
+- Still pending:
+  - the user's `npm run migrate:supabase` for 0009, which needs the line-ending fix in `main`;
+  - the Anthropic key in Vercel;
+  - the overdue Auth0 MFA continuity check (trial ended about 2026-11-19).
+
 **Fix — migrations across Windows and Linux checkouts (2026-11-14):** the user's `npm run migrate:supabase` for 0009 stopped with "Migration 0004_operational_safeguards was changed after it was applied". The live `public.schema_migrations` holds CRLF-file checksums for 0001–0003 and 0006–0008, but LF-file checksums for 0004 and 0005. The user's new checkout (`C:\Users\Djordje\Desktop\aisistent\aisistent`, `core.autocrlf=true`) has CRLF files. The migrator now hashes migration text with LF line endings and also accepts the CRLF checksum of the same text (`migrationChecksums` in `lib/db/migrator.ts`); new rows store the LF checksum. The restore drill and the synthetic restore test use the same rule. `.gitattributes` keeps `*.sql` LF. The failed run applied nothing.
 
 **Latest checkpoint — M4 step 1, AI test chat (2026-11-14):** the user approved starting M4 and chose Anthropic, with `claude-haiku-5-5` during development (Opus later via `ASSISTANT_MODEL`). Built locally and tested; **off on the live site until the user creates the Anthropic account and key**.

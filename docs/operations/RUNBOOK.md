@@ -221,7 +221,7 @@ M4's first step: owners and admins test their firm's assistant in a text chat ("
 Turn it on:
 
 1. Apply migration `0009_assistant_test_chat.sql` with `npm run migrate:supabase` from the trusted computer (it adds test conversations and the daily spending counter; no password or secret changes).
-2. Create an account at console.anthropic.com in the company's name, with MFA. Under Billing, add credit and set a **monthly spend limit**: it is the hard ceiling, and the app's own daily limit is only an estimate.
+2. Create an account at console.anthropic.com, with MFA. Under Billing, add credit and set a **monthly spend limit**: it is the hard ceiling, and the app's own daily limit is only an estimate. For testing without real customer data, a personal account is acceptable (user decision 2026-11-24). Before real customers, create the key in a company account instead: put the new key in Vercel, redeploy, then delete the old key. Stored test conversations stay in the app's database and do not depend on the account. API usage is billed separately from a claude.ai subscription.
 3. Create an API key (Settings → API keys) named for this deployment. It is shown once; paste it straight into Vercel, never into chat, email or a commit.
 4. In Vercel, for **Production** only, add `ANTHROPIC_API_KEY` with the key and `ASSISTANT_ENABLED` with `true`. Optional: `ASSISTANT_DAILY_BUDGET_USD` (default `1`, from `0.01` to `1000`) and `ASSISTANT_MODEL` (default `claude-haiku-5-5`). Redeploy.
 5. As an owner with MFA, open "Isprobaj asistenta", ask a question that the knowledge base answers and one it does not, and check the answers and the stored test conversation under "Razgovori". Record the date and result in `docs/HANDOFF.md`.
