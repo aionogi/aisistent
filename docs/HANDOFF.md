@@ -4,6 +4,17 @@ Updated: 2026-11-14.
 
 ## Current objective
 
+**Live AI test chat works (2026-11-26):** the user ran `npm run migrate:supabase` and added `ANTHROPIC_API_KEY` (personal test account) and `ASSISTANT_ENABLED=true` to Vercel Production, then redeployed. In the live test chat the assistant (`claude-haiku-5-5`) behaved correctly on a garage firm's data:
+- it read the opening hours (08:00–17:00) and took "u 2" as 14:00;
+- it said it cannot see the calendar, so it did not confirm the slot;
+- it offered to note the request for the team, listed the firm's own services, and asked for a name and phone number.
+
+Observations: the firm's own greeting did not mention that the assistant is an AI, and the reply ran four sentences against the one-to-three in the instructions. The test chat requires an MFA session, so the Auth0 step-up apparently still works after the trial (user to confirm). Next proposals:
+- a warning in the assistant settings when the greeting does not disclose AI;
+- tighter reply length;
+- a Serbian evaluation set against the real model;
+- then the next M4 channel.
+
 **Decisions (2026-11-24):**
 - The user works from a fresh clone at `C:\Users\Djordje\Desktop\aisistent` on their current computer. Local settings files were copied there; the Supabase CA certificate is kept outside the repository.
 - For testing the AI test chat, the user may use a personal Anthropic account. Before real customer data the key moves to a company account; the runbook "AI assistant (Anthropic)" has the switch.
