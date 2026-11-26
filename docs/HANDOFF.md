@@ -4,6 +4,17 @@ Updated: 2026-11-14.
 
 ## Current objective
 
+**Checkpoint — AI disclosure, reply style and evaluation set (2026-11-26):**
+- **AI disclosure:** the assistant settings warn when a greeting does not say the assistant is an AI (Latin or Cyrillic; EU AI Act Article 50, market risk R20), with a "Dodaj u pozdrav" button. The instructions then make the first reply disclose it. Code: `lib/workspace/disclosure.ts`.
+- **Reply style:** one to three short sentences, about 40 words, no explaining the reasoning, one question at a time.
+- **Evaluation set:** `npm run eval:assistant` (`lib/assistant/evaluation.ts`, `scripts/assistant/evaluate.ts`) runs 20 Serbian conversations against the real model with the key from `demo/.env.assistant.local`. It has not yet been run against the real API: the user runs it locally.
+- **User decision for M4 step 2:** the site chat widget for firms' own websites, with conversations in the firm's workspace ("Razgovori"). Firms keep only the widget on their site. Abuse protection from day one:
+  - allowed domains per firm;
+  - per-visitor, per-IP and per-firm limits, the server budget and per-firm and global stops;
+  - message length limits and repeat rejection;
+  - network DDoS protection (Vercel, later Cloudflare with Turnstile when traffic looks suspicious);
+  - short replies, and an off-topic counter that ends a conversation after repeated unrelated messages without further AI requests.
+
 **Live AI test chat works (2026-11-26):** the user ran `npm run migrate:supabase` and added `ANTHROPIC_API_KEY` (personal test account) and `ASSISTANT_ENABLED=true` to Vercel Production, then redeployed. In the live test chat the assistant (`claude-haiku-5-5`) behaved correctly on a garage firm's data:
 - it read the opening hours (08:00–17:00) and took "u 2" as 14:00;
 - it said it cannot see the calendar, so it did not confirm the slot;
@@ -303,6 +314,21 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### AI disclosure, reply style and evaluation set (2026-11-26)
+
+- **Unit, `tests/unit/disclosure.test.ts` (3 tests):**
+  - AI mentions are recognized in Latin and Cyrillic, without false matches inside words;
+  - the disclosure is appended in the greeting's script and within the 300-character limit;
+  - the instructions add the first-reply disclosure and the 40-word style.
+- **Unit, `tests/unit/assistant-evaluation.test.ts` (4 tests):**
+  - the invented firm is valid and has no prices;
+  - the checks catch an invented price, a confirmed booking, the wrong script, leaked instructions, a solved math task, long and formatted replies;
+  - a run against the mock provider sends every case with the firm's data, keeps two-turn history and totals the cost;
+  - the command refuses to run without a key and never prints it.
+- **Browser** (Playwright against `npm run dev:local-auth`): the warning appears for "Zdravo! Kako vam mogu pomoći?"; "Dodaj u pozdrav" makes it "… Ja sam Lena, AI asistent." and the warning disappears. No overflow, no console errors.
+- **Validation:** `npm run typecheck`; `npm test` **257/257**; `npm run test:e2e` **32/32**; `npm run build`. The real-model evaluation has not been run yet: it needs the user's key locally.
+- **Next.js advisory:** `npm audit` reports moderate advisories for `next` 16.0.0–16.4.4 (cache and image-optimization issues, GHSA-mfr8-8qww-v76h and others); 16.4.5 and 16.4.6 exist. CI's `npm audit --audit-level=high` still passes. In this container `next build` and `next dev` sometimes stop once with an upgrade notice and succeed on retry. Proposed: a separate patch upgrade of `next`.
 
 ### Migration checksums across line endings (2026-11-14)
 

@@ -226,6 +226,15 @@ Turn it on:
 4. In Vercel, for **Production** only, add `ANTHROPIC_API_KEY` with the key and `ASSISTANT_ENABLED` with `true`. Optional: `ASSISTANT_DAILY_BUDGET_USD` (default `1`, from `0.01` to `1000`) and `ASSISTANT_MODEL` (default `claude-haiku-5-5`). Redeploy.
 5. As an owner with MFA, open "Isprobaj asistenta", ask a question that the knowledge base answers and one it does not, and check the answers and the stored test conversation under "Razgovori". Record the date and result in `docs/HANDOFF.md`.
 
+Evaluation set: `npm run eval:assistant` from `demo/` on your own computer sends 20 Serbian test conversations about an invented garage to the real model and prints each reply with simple checks. The cases cover:
+- knowledge, hours, address and unknown questions;
+- prices and complaints that belong to the team;
+- bookings, including a closed day;
+- AI disclosure, Cyrillic and a two-turn conversation;
+- prompt injection, off-topic requests (politics, math, an essay, a translation) and a card number.
+
+Put the key in `demo/.env.assistant.local` as `ANTHROPIC_API_KEY='…'`; Git ignores the file and the key is never printed. With Claude Haiku a run costs about a cent. Run it after changing `lib/assistant/instructions.ts` or the model, and keep the output with the change. A failed check means "read that reply", not a verdict.
+
 Emergency stop: set `ASSISTANT_ENABLED` to `false` (or delete it) and redeploy; nothing calls the provider afterwards. To rotate the key, create a new one, update Vercel, redeploy, then delete the old key in the console. Moving to another model later is one variable, for example `ASSISTANT_MODEL=claude-opus-5-5`. Check the rates in `demo/lib/assistant/pricing.ts` against Anthropic's price list at that time.
 
 Limits: 12 test messages per minute per person, 200 per firm in 24 hours, 500 characters per message and 60 messages per test conversation. Each request's estimated cost is added to a per-day total (`app.assistant_daily_spend`, totals only). New requests stop once the daily budget is reached, and the page tells the owner. Test conversations are stored like other conversations, with the firm's retention, export and deletion, and are labeled "Probni razgovor". The history sent to the provider is read from the database, never taken from the browser.
