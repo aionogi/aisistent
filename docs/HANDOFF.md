@@ -1,8 +1,15 @@
 # Development handoff
 
-Updated: 2026-11-14.
+Updated: 2026-11-26.
 
 ## Current objective
+
+**Checkpoint — M4 step 2, chat on firms' websites (2026-11-26):** built locally and tested; **off until a firm turns it on, and only for test websites until R23 is resolved**.
+- **What it does:** owners and admins with MFA open "Kanali" (`/org/<id>/channels/`), turn on "Chat na sajtu", list up to five https websites and a daily message limit (default 300), and copy the embed code `<script src="…/widget.js" data-aisistent="<widget id>" async></script>`. The firm's website shows a round button; the chat page `/chat/<widget id>/` opens in a frame, says that an AI answers and asks visitors not to type passwords or card details. Conversations appear under "Razgovori" as "Chat sa sajta" ("Posetilac sajta").
+- **Code:** migration `0010_site_chat.sql` (channel `web`, `site_chat_settings`, `site_chat_threads`, functions `set_site_chat`, `site_chat_frame`, `site_chat_open`, `site_chat_thread`, `site_chat_append`, `record_site_chat_usage`; the export now includes the settings). Server logic in `lib/site-chat/` (`policy.ts` rules and origins, `token.ts` visitor tokens, `conversation.ts` answering), database access in `lib/db/site-chat.ts`, endpoint `app/api/chat/[publicId]/route.ts`, chat page `app/chat/[publicId]/page.tsx` with `components/site-chat/`, embed script `public/widget.js`, settings page `channels/` with `ChannelsView`. `buildInstructions(draft, now, "site")` keeps the assistant on the business and marks unrelated replies with `[OFF_TOPIC]`, which is removed before storing.
+- **Abuse protection** (the user's question, 2026-11-26): only the listed websites may frame the chat (`frame-ancestors` per firm in `proxy.ts`; `X-Frame-Options: DENY` stays on every other page). The endpoint accepts JSON only from the chat page's own origin. Limits: 8 messages a minute and 40 an hour per address, the firm's daily limit, 40 messages per conversation and 500 characters per message. Repeats are refused, and three unrelated messages in a row end the conversation. The shared daily budget, the "Kanali" switch and `ASSISTANT_ENABLED` stop it. Risk R24 records the rest (Cloudflare with Turnstile if abuse appears).
+- **User's next steps** (runbook "Website chat"): `npm run migrate:supabase` for 0010; check `RATE_LIMIT_IP_HEADER=x-forwarded-for` in Vercel; try it on a test website only.
+- Also changed: the workspace footer no longer calls a firm's conversations examples; "Kanali" is in the navigation of real firms.
 
 **Checkpoint — AI disclosure, reply style and evaluation set (2026-11-26):**
 - **AI disclosure:** the assistant settings warn when a greeting does not say the assistant is an AI (Latin or Cyrillic; EU AI Act Article 50, market risk R20), with a "Dodaj u pozdrav" button. The instructions then make the first reply disclose it. Code: `lib/workspace/disclosure.ts`.
@@ -314,6 +321,39 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### M4 step 2: chat on firms' websites (2026-11-26)
+
+- **Unit, `tests/unit/site-chat.test.ts` (8 tests):**
+  - typed websites become https origins, international names their ASCII form; http, ports, IP addresses, credentials and single names are refused;
+  - the websites field parses lines and commas and names the first wrong entry;
+  - the off-topic marker is removed anywhere and only a run of three ends the chat;
+  - visitor tokens are 256-bit and only well-formed ones hash;
+  - the site instructions differ from the test chat's as intended;
+  - `frame-ancestors` takes only exact https origins;
+  - `X-Frame-Options` is missing only on `/chat/`;
+  - `widget.js` builds no HTML strings, checks the id and loads only from its own address.
+- **Database, `tests/db/site-chat.test.ts` (9 tests):**
+  - editors turn the chat on, members only read the settings, and the public id stays the same;
+  - origins and limits are checked again in the database;
+  - a conversation continues only with its token and only on its widget; stale counts are refused;
+  - 40 messages at most, the ended state, off chats store nothing;
+  - spending is counted, the runtime has no direct access, and the export holds the settings but no token hashes;
+  - deleting a conversation or the firm removes the visitor threads.
+- **Database with a mock provider, `tests/db/site-chat-conversation.test.ts` (5 tests):**
+  - answers come from the firm's data with history from the database, and a repeated message is refused;
+  - the marker is never shown or stored, and the third unrelated message ends the conversation;
+  - every refusal happens before a provider request: chat off, bad input, unknown token, address burst, the spending ceiling and the firm's limit;
+  - provider failures store nothing and do not mention keys;
+  - two simultaneous messages never interleave.
+- **HTTP, `tests/e2e/login.test.ts` (1 new test):** the native "Kanali" form saves normalized origins and refuses http. The chat page carries the firm's `frame-ancestors`, no `X-Frame-Options` and no cookies, and none of the firm's settings. Other pages keep `DENY` and `'none'`, and an unknown widget is not framable. The endpoint refuses foreign origins, cross-site requests, non-JSON, large and malformed bodies before any provider request. It then answers, reloads the conversation, and stops when the chat is turned off.
+- **Browser** (Playwright; sign-in on `npm run dev:local-auth`, the embedded chat on `next start` with the same database, the firm's site simulated at `https://salon-test.rs`):
+  - "Kanali" saves and shows the embed code;
+  - the button opens the chat on the allowed site, a message gets the mock reply, and the conversation is still there after moving to another page of the site;
+  - a site not on the list gets no chat (refused by the frame policy);
+  - the iPhone 13 layout fits; "Razgovori" lists "Chat sa sajta".
+  - Dev-only note: inside a frame proxied through another https name, `next dev` does not hydrate (its HMR socket cannot connect), so the framed check uses the production build.
+- **Validation:** `npm run typecheck`; `npm test` **279/279**; `npm run test:e2e` **33/33**; `npm run build`. Not run here: `npm run test:recovery` (needs PostgreSQL 17 client tools; CI runs it).
 
 ### AI disclosure, reply style and evaluation set (2026-11-26)
 

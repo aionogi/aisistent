@@ -7,8 +7,11 @@ import { recordAudit } from "./repositories.ts";
  * deletes to owners and admins.
  */
 
-/** `test`: a conversation an owner or admin had with the assistant in the workspace (migration 0009). */
-export type ConversationChannel = "call" | "message" | "test";
+/**
+ * `test`: a conversation an owner or admin had with the assistant in the workspace (migration 0009).
+ * `web`: a visitor's conversation in the chat on the firm's website (migration 0010).
+ */
+export type ConversationChannel = "call" | "message" | "test" | "web";
 export type ConversationOutcome = "booked" | "answered" | "handoff" | "unanswered";
 export type ConversationSpeaker = "assistant" | "customer" | "team";
 

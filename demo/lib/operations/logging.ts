@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 const EVENTS = ["request.blocked", "rate_limit.unavailable", "action.completed", "action.failed", "auth.callback_failed", "database.idle_error"] as const;
-const OPERATIONS = ["auth.login", "auth.callback", "auth.logout", "auth.other", "action.ip", "organization.create", "workspace.save", "team.change", "invitation.email", "invitation.accept", "organization.export", "organization.delete", "account.sessions", "knowledge.import", "assistant.message", "assistant.daily"] as const;
+const OPERATIONS = ["auth.login", "auth.callback", "auth.logout", "auth.other", "action.ip", "organization.create", "workspace.save", "team.change", "invitation.email", "invitation.accept", "organization.export", "organization.delete", "account.sessions", "knowledge.import", "assistant.message", "assistant.daily", "site.settings", "site.message", "site.hourly", "site.read", "site.daily"] as const;
 export type Operation = typeof OPERATIONS[number];
 type Event = typeof EVENTS[number];
 type Fields = { requestId?: string; operation?: Operation; outcome?: "success" | "denied" | "error"; retryAfterSeconds?: number };

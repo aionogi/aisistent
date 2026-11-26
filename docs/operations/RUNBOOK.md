@@ -114,6 +114,10 @@ The PostgreSQL limiter atomically admits a bounded number of requests per fixed 
 | Knowledge import from a web page | 20 / hour | Verified server-resolved account |
 | Test chat messages | 12 / minute | Verified server-resolved account |
 | Test chat messages per firm | 200 / 24 hours | Organization, counted after membership is confirmed |
+| Website chat settings | 30 / hour | Verified server-resolved account |
+| Website chat messages | 8 / minute and 40 / hour | Ingress IP or shared fallback |
+| Website chat conversation reloads | 30 / minute | Ingress IP or shared fallback |
+| Website chat messages per firm | The firm's daily limit (default 300, 10 to 5,000) / 24 hours | Organization, counted only for messages that reach its assistant |
 
 User budgets span organizations and sessions. Callbacks and logout have separate budgets so a login burst does not consume their quota. Proxy rejection returns 429 and `Retry-After`, `Cache-Control: no-store`, and a server-generated `x-request-id`. Limiter failures return 503 with a 30-second retry instruction. Action-level rejections use the existing Serbian form/save error UI; they perform no write. Unsaved editor changes remain in browser memory; after waiting, editing again triggers another save.
 
@@ -240,6 +244,34 @@ Emergency stop: set `ASSISTANT_ENABLED` to `false` (or delete it) and redeploy; 
 Limits: 12 test messages per minute per person, 200 per firm in 24 hours, 500 characters per message and 60 messages per test conversation. Each request's estimated cost is added to a per-day total (`app.assistant_daily_spend`, totals only). New requests stop once the daily budget is reached, and the page tells the owner. Test conversations are stored like other conversations, with the firm's retention, export and deletion, and are labeled "Probni razgovor". The history sent to the provider is read from the database, never taken from the browser.
 
 What leaves the app: each test message sends the firm's settings, knowledge base and that conversation's history to Anthropic. Anthropic's API processes it outside the EU (risk R23 in `m3-evidence.md`). Logs and Sentry get only the operation and a fixed code (`key_rejected` means a wrong or revoked key; `rate_limited` or `overloaded` means wait). The message text and the key never reach them. Ask testers not to type real customers' data.
+
+## Website chat
+
+M4's second step: a chat that firms put on their own websites. Owners and admins turn it on in the workspace under "Kanali" (`/org/<id>/channels/`), list up to five https websites that may show it, set a daily message limit, and copy a one-line embed code:
+
+```html
+<script src="https://<this site>/widget.js" data-aisistent="<widget id>" async></script>
+```
+
+`public/widget.js` adds a round button; the chat itself is the page `/chat/<widget id>/`, shown in a frame. Visitors' conversations appear under "Razgovori" as "Chat sa sajta" and follow the firm's retention, export and deletion. The widget id is public; each visitor conversation is reached only with a random token held by the visitor's browser (the database stores its hash). The chat answers through the same provider and daily budget as the test chat ("AI assistant (Anthropic)" above), so it needs `ASSISTANT_ENABLED=true` and the key; without them the chat says it is not available.
+
+Turn it on:
+
+1. Apply migration `0010_site_chat.sql` with `npm run migrate:supabase` from the trusted computer (no password or secret changes).
+2. Check that `RATE_LIMIT_IP_HEADER=x-forwarded-for` is set in Vercel. Without it every visitor of every firm shares one per-address budget of 8 messages a minute.
+3. Until risk R23 is resolved, turn the chat on only for a test website, never one with real customers (the Kanali page says so too).
+4. Put the embed code on the test website's pages. A site with its own Content-Security-Policy must allow this site's address in `script-src` and `frame-src`. Ask a question, then check the conversation under "Razgovori".
+
+Protection against abuse, cheapest first (`lib/site-chat/conversation.ts`):
+- Only the firm's listed websites may frame the chat: `frame-ancestors` is set per firm in `proxy.ts`, and the chat page is the only page without `X-Frame-Options: DENY` (`next.config.ts`).
+- The message endpoint `POST /api/chat/<widget id>/` accepts JSON only from the chat page on this site (`Origin`, `Sec-Fetch-Site`), at most 4 KB. Other websites cannot make their visitors' browsers send messages. Scripts outside a browser meet the limits below.
+- Limits per client address, as in the table above; at most 500 characters per message. The same message twice in a row is refused.
+- The firm's daily limit counts only messages that reach its assistant. A conversation holds at most 40 messages.
+- The server's daily spending budget and the provider's monthly spend limit apply as for the test chat.
+- The instructions keep the assistant on the firm's business. Replies to unrelated messages (math, homework, essays, general knowledge) carry a hidden marker. After three in a row the conversation ends and makes no further AI requests; the visitor can start a new one.
+- Turning the chat off on the Kanali page stops it at once. `ASSISTANT_ENABLED` stops every AI request.
+
+Network floods are the hosting layer's job: Vercel's platform protection now, and Cloudflare with a Turnstile challenge if abusive traffic appears (not built). Logs and Sentry get only the operation and an outcome, never the visitor's text.
 
 ## Backups and isolated restore drill
 

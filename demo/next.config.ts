@@ -19,7 +19,12 @@ const config: NextConfig = {
   devIndicators: false,
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path((?!chat/).*)", headers: securityHeaders },
+      // A firm's website chat is framed by the firm's own websites; proxy.ts lists them in the
+      // Content-Security-Policy (frame-ancestors), which replaces X-Frame-Options there.
+      { source: "/chat/:path*", headers: securityHeaders.filter((header) => header.key !== "X-Frame-Options") },
+    ];
   },
 };
 

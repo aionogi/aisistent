@@ -1083,6 +1083,77 @@ test("the test chat refuses members, sessions without MFA, long messages and a s
   assert.equal(await conversations(), 1);
 });
 
+test("a firm turns on its website chat: only its websites may frame it, only the chat page may send, and visitors' conversations reach Razgovori", async () => {
+  const { browser, organizationId } = await assistantFirm("nada-sajt@example.test", "Salon Nada");
+  const page = await browser.get(`/org/${organizationId}/channels/`);
+  assert.equal(page.response.status, 200);
+  assert.match(page.body, /Chat na vašem sajtu/);
+  assert.match(page.body, /Probna faza/);
+  assert.ok(page.body.includes(`href="/org/${organizationId}/channels/"`), "Kanali is in the navigation");
+
+  const saved = await browser.post(`/org/${organizationId}/channels/`, nativeForm(page.body, "site-daily-limit", { enabled: "on", origins: "salon-nada.rs\nhttps://www.salon-nada.rs/kontakt", dailyLimit: "50" }));
+  assert.equal(saved.response.status, 200);
+  const { rows } = await stack.db.admin.query("SELECT public_id, enabled, allowed_origins, daily_message_limit FROM app.site_chat_settings WHERE organization_id = $1", [organizationId]);
+  assert.deepEqual([rows[0].enabled, rows[0].allowed_origins, rows[0].daily_message_limit], [true, ["https://salon-nada.rs", "https://www.salon-nada.rs"], 50]);
+  const publicId = rows[0].public_id as string;
+  assert.ok((await browser.get(`/org/${organizationId}/channels/`)).body.includes(publicId), "the embed code is shown");
+  const refused = await browser.post(`/org/${organizationId}/channels/`, nativeForm(page.body, "site-daily-limit", { enabled: "on", origins: "http://nesigurno.rs", dailyLimit: "50" }));
+  assert.match(refused.body, /nije adresa sajta/);
+
+  const chatPage = await fetch(`${stack.appUrl}/chat/${publicId}/`);
+  assert.equal(chatPage.status, 200);
+  assert.match(chatPage.headers.get("content-security-policy") ?? "", /frame-ancestors 'self' https:\/\/salon-nada\.rs https:\/\/www\.salon-nada\.rs(;|$)/);
+  assert.equal(chatPage.headers.get("x-frame-options"), null);
+  assert.equal(chatPage.headers.get("set-cookie"), null, "the chat page sets no cookies");
+  const chatHtml = await chatPage.text();
+  assert.match(chatHtml, /Dobar dan, Salon Nada, ovde Mila, AI asistent\./);
+  assert.match(chatHtml, /Odgovara AI asistent, ne čovek/);
+  assert.doesNotMatch(chatHtml, /Da li imate parking\?|Kraljevo/, "the firm's settings stay on the server");
+  const workspace = await browser.get(`/org/${organizationId}/`);
+  assert.equal(workspace.response.headers.get("x-frame-options"), "DENY");
+  assert.match(workspace.response.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
+  const unknown = await fetch(`${stack.appUrl}/chat/0123456789abcdef0123/`);
+  assert.match(unknown.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
+  assert.match(await unknown.text(), /Chat trenutno nije dostupan/);
+
+  const widget = await fetch(`${stack.appUrl}/widget.js`);
+  assert.equal(widget.status, 200);
+  assert.match(widget.headers.get("content-type") ?? "", /javascript/);
+  assert.match(await widget.text(), /data-aisistent/);
+
+  const api = (body: unknown, headers: Record<string, string> = {}) => fetch(`${stack.appUrl}/api/chat/${publicId}/`, {
+    method: "POST", headers: { "content-type": "application/json", origin: stack.appUrl, ...headers }, body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+  const question = { type: "message", token: null, message: "Da li imate parking?" };
+  const requests = assistantMock.requests.length;
+  assert.equal((await api(question, { origin: "https://salon-nada.rs" })).status, 403, "only the chat page itself may send");
+  assert.equal((await api(question, { "sec-fetch-site": "cross-site" })).status, 403);
+  assert.equal((await api(question, { "content-type": "text/plain" })).status, 415);
+  assert.equal((await api(JSON.stringify({ ...question, message: "x".repeat(5000) }))).status, 413);
+  assert.equal((await api("{not json")).status, 400);
+  assert.equal(assistantMock.requests.length, requests);
+
+  assistantMock.respond(() => ({ text: "Da, parking je iza zgrade." }));
+  const answered = await api(question);
+  assert.equal(answered.status, 200);
+  assert.match(answered.headers.get("cache-control") ?? "", /no-store/);
+  const reply = await answered.json() as { status: string; token: string; reply: string };
+  assert.equal(reply.reply, "Da, parking je iza zgrade.");
+  assert.ok(assistantMock.requests.at(-1)!.body.system?.includes("in the chat on its website"));
+  assistantMock.respond(null);
+  const history = await (await api({ type: "history", token: reply.token })).json() as { messages: Array<{ speaker: string }> };
+  assert.deepEqual(history.messages.map((message) => message.speaker), ["assistant", "customer", "assistant"]);
+
+  const conversations = (await browser.get(`/org/${organizationId}/conversations/`)).body;
+  assert.match(conversations, /Chat sa sajta/);
+  assert.match(conversations, /Posetilac sajta/);
+
+  await withOrganization(stack.db.appPool, { userId: await userIdFor("mock|nada-sajt"), organizationId }, (client) => client.query("SELECT app.set_site_chat(false, ARRAY['https://salon-nada.rs'], 50)"));
+  const off = await api({ type: "message", token: reply.token, message: "Još jedno pitanje" });
+  assert.equal(off.status, 404);
+  assert.match(await off.text(), /nije dostupan/);
+});
+
 // Keep last: it also checks what every earlier test caused to be reported.
 test("failures reach error reporting without anything about the person or the request", async () => {
   const owner = new Browser();

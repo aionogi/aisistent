@@ -9,7 +9,7 @@ The user requested a demo first, followed by security, then pricing and recurrin
 | [M1 — Interactive website demo](https://github.com/aionogi/aisistent/milestone/1) | Complete and pushed | None | `milestone-1-interactive-demo` |
 | [M2 — App shell and onboarding UI](https://github.com/aionogi/aisistent/milestone/2) | Complete and pushed | M1 | `milestone-2-app-shell` |
 | [M3 — Persistent platform and production security](https://github.com/aionogi/aisistent/milestone/3) | In progress; synthetic logical recovery verified; deployment/managed recovery gates pending | M2 | `milestone-3-secure-platform` |
-| [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Started 2026-11-14 at the user's request, alongside M3's open backup work: step 1, the AI test chat, built locally; provider not yet connected | M3 safeguards | `milestone-4-live-assistant` |
+| [M4 — Live AI and telephony](https://github.com/aionogi/aisistent/milestone/4) | Started 2026-11-14 at the user's request, alongside M3's open backup work: step 1, the AI test chat, live since 2026-11-26; step 2, the chat on firms' websites, built locally | M3 safeguards | `milestone-4-live-assistant` |
 | [M5 — Pricing and subscriptions](https://github.com/aionogi/aisistent/milestone/5) | Planned; deferred | M3, M4, merchant approval | `milestone-5-subscriptions` |
 
 The M1 tag is published at commit `0517b631fc31d7b579cc089a40eb9d404f70e72f`. The M2 tag is published at commit `479188b983699114e0393875592292f109273dbe`. M3-M5 tags are planned names, not published releases. Create each future tag only after its acceptance criteria pass.
@@ -108,6 +108,14 @@ Goal: conduct bounded, authorized live calls, preserve useful conversation outco
 - fixed-code logs.
 
 On 2026-11-26 the live test chat answered through Anthropic with the firm's data (user's check, personal test account). This advances the knowledge, limits, privacy and prompt-boundary items below, but completes none of them: telephony, live calls, real-model evaluations and the website support chat remain.
+
+**Step 2 — chat on firms' websites (2026-11-26, built locally, off by default):** at the user's request, firms put a chat on their own websites with one line of code, and the conversations appear in the firm's workspace under "Razgovori". Owners and admins turn it on under "Kanali" for up to five https websites and set a daily limit. The work includes:
+- framing allowed only on those websites, and a message endpoint that accepts only the chat page's own origin;
+- per-address, per-firm and per-conversation limits, refused repeats, the shared daily budget;
+- answers only about the firm's business, with a conversation ending after three unrelated messages;
+- an AI label and a short privacy notice in the chat.
+
+Until R23 is resolved it is for test websites only. It advances the knowledge, limits and prompt-boundary items below without completing them.
 
 - [ ] Select approved AI/speech and telephony providers and record their operational constraints.
 - [ ] Add a Node.js voice gateway if persistent audio connections require it.

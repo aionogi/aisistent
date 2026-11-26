@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FlaskConical, MessageSquare, Phone, Search, SearchX, Trash2, type LucideIcon } from "lucide-react";
+import { FlaskConical, Globe, MessageSquare, Phone, Search, SearchX, Trash2, type LucideIcon } from "lucide-react";
 import { useState, useTransition } from "react";
 import type { ConversationActionResult } from "../../../app/(platform)/org/[organizationId]/(shell)/conversations/actions";
 import type { ConversationChannel, ConversationOutcome, ConversationSpeaker } from "../../../lib/db/conversations";
@@ -36,15 +36,16 @@ export const CHANNELS: Record<ConversationChannel, { label: string; icon: Lucide
   call: { label: "Poziv", icon: Phone },
   message: { label: "Poruka", icon: MessageSquare },
   test: { label: "Probni razgovor", icon: FlaskConical },
+  web: { label: "Chat sa sajta", icon: Globe },
 };
 
 export const displayName = (row: Pick<ConversationRow, "channel" | "customerName" | "customerContact">) =>
-  row.customerName ?? row.customerContact ?? (row.channel === "test" ? "Probni razgovor" : "Nepoznat klijent");
+  row.customerName ?? row.customerContact ?? (row.channel === "test" ? "Probni razgovor" : row.channel === "web" ? "Posetilac sajta" : "Nepoznat klijent");
 // Letters only, so a phone number shown in place of a name gives "?" rather than "+6".
 export const initials = (name: string) => name.split(/\s+/).filter((part) => /^\p{L}/u.test(part)).slice(0, 2).map((part) => part[0]!.toUpperCase()).join("") || "?";
 function duration(row: ConversationRow): string | null {
-  // A test chat's length in seconds says nothing useful.
-  if (!row.endedAt || row.channel === "test") return null;
+  // A written chat's length in seconds says nothing useful.
+  if (!row.endedAt || row.channel === "test" || row.channel === "web") return null;
   const seconds = Math.max(0, Math.round((Date.parse(row.endedAt) - Date.parse(row.startedAt)) / 1000));
   return seconds < 60 ? `${seconds} s` : `${Math.round(seconds / 60)} min`;
 }

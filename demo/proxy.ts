@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getAuth0 } from "./lib/auth/auth0.ts";
 import { getPool } from "./lib/db/pool.ts";
+import { siteChatFrameOrigins } from "./lib/db/site-chat.ts";
 import { reportingOrigin } from "./lib/observability/reporting.ts";
 import { checkRateLimit, clientIdentity, limitMessage, requestOperation } from "./lib/operations/rate-limits.ts";
 import { contentSecurityPolicy } from "./lib/security/content-security-policy.ts";
@@ -14,11 +15,34 @@ import { forgetOrganizationCookie } from "./lib/workspace/entry.ts";
  *    lib/security/content-security-policy.ts). Next.js reads the nonce from
  *    the request header and applies it to its own scripts, which is why every
  *    page renders dynamically (see app/layout.tsx).
+ * 3. A firm's website chat (/chat/<widget id>/) may be framed by the websites
+ *    the firm listed, and runs without the identity SDK: visitors have no
+ *    accounts, and the page sets no cookies.
  */
+const SITE_CHAT_PATH = /^\/chat\/([0-9a-f]{20})\/?$/;
+
+async function frameAncestors(pathname: string): Promise<string[] | null> {
+  const widget = SITE_CHAT_PATH.exec(pathname)?.[1];
+  const pool = widget ? getPool() : null;
+  if (!widget || !pool) return null;
+  try {
+    return await siteChatFrameOrigins(pool, widget);
+  } catch {
+    // Without the list the page cannot be framed, which fails closed.
+    return null;
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const policy = contentSecurityPolicy(nonce, process.env.NODE_ENV === "development", reportingOrigin(process.env.NEXT_PUBLIC_SENTRY_DSN));
+  const siteChat = request.nextUrl.pathname.startsWith("/chat/");
+  const policy = contentSecurityPolicy(
+    nonce,
+    process.env.NODE_ENV === "development",
+    reportingOrigin(process.env.NEXT_PUBLIC_SENTRY_DSN),
+    siteChat ? await frameAncestors(request.nextUrl.pathname) : null,
+  );
 
   // Every POST is covered, including native form submissions without Next-Action.
   // Budgets run before the identity SDK and do not trust prefetch headers.
@@ -34,7 +58,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  const auth0 = getAuth0();
+  const auth0 = siteChat ? null : getAuth0();
   const authResponse = auth0 ? await auth0.middleware(request) : null;
   // Auth routes answer directly (redirects, logout, 204s); pass them through unchanged.
   if (authResponse && authResponse.headers.get("x-middleware-next") !== "1") {
@@ -59,5 +83,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api/|_next/static|_next/image|icon.svg).*)"],
+  matcher: ["/((?!api/|_next/static|_next/image|icon.svg|widget.js).*)"],
 };

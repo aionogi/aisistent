@@ -1,4 +1,4 @@
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 /**
  * Test conversations and AI spending (migration 0009). Every function runs
@@ -46,7 +46,7 @@ export async function appendTestMessages(client: PoolClient, conversationId: str
 }
 
 /** True while today's (UTC) spending on the AI provider is below the server's daily limit. */
-export async function assistantBudgetAvailable(client: PoolClient, limitMicrodollars: number): Promise<boolean> {
+export async function assistantBudgetAvailable(client: Pool | PoolClient, limitMicrodollars: number): Promise<boolean> {
   const { rows } = await client.query<{ available: boolean }>("SELECT app.assistant_budget_available($1) AS available", [limitMicrodollars]);
   return rows[0]?.available === true;
 }

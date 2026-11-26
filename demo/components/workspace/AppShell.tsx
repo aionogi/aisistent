@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bot, Building2, Check, ChevronsUpDown, History, LayoutDashboard, LogOut, MessageSquare, Plus, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
+import { BookOpen, Bot, Building2, Check, ChevronsUpDown, Globe, History, LayoutDashboard, LogOut, MessageSquare, Plus, RotateCcw, UserRound, Users, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { organizationHomePath } from "../../lib/workspace/entry.ts";
 import { completedStepCount, EDITABLE_STEP_COUNT, onboardingStartHref } from "../../lib/workspace/steps";
@@ -25,7 +25,8 @@ const navigation: NavigationItem[] = [
   { page: "knowledge", label: "Baza znanja", icon: BookOpen },
 ];
 
-// Organizations also have team and organization pages, and owners and admins an activity log.
+// Organizations also have channels, team and organization pages, and owners and admins an activity log.
+const channelsItem: NavigationItem = { page: "channels", label: "Kanali", icon: Globe };
 const teamItem: NavigationItem = { page: "team", label: "Tim", icon: Users };
 const activityItem: NavigationItem = { page: "activity", label: "Aktivnost", icon: History };
 const organizationItem: NavigationItem = { page: "settings", label: "Firma", icon: Building2 };
@@ -43,7 +44,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const completed = completedStepCount(draft);
   const flashPath = useRef(pathname);
   const items = isDemo ? navigation
-    : [...navigation, teamItem, ...(environment.role === "owner" || environment.role === "admin" ? [activityItem] : []), organizationItem];
+    : [...navigation, channelsItem, teamItem, ...(environment.role === "owner" || environment.role === "admin" ? [activityItem] : []), organizationItem];
 
   // A confirmation belongs to the page where it appeared; drop it once the user moves on.
   useEffect(() => {
@@ -132,7 +133,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <footer className={styles.footer}>
           {isDemo
             ? "Demo radni prostor bez prijave. Prikazani razgovori i brojke su izmišljeni primeri; nema stvarnih poziva, AI modela ni naplate."
-            : "Test okruženje. Podešavanje i baza znanja su podaci vaše firme; razgovori i brojke su i dalje primeri. Asistent nije povezan sa telefonom."}
+            : "Test okruženje. Podešavanje, baza znanja i razgovori su podaci vaše firme. Asistent odgovara u probnom razgovoru i u chatu na sajtu; još nije povezan sa telefonom."}
         </footer>
       </div>
 

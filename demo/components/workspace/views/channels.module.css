@@ -1,0 +1,9 @@
+/* Kanali: the website chat's settings, its embed code and how it is protected. */
+
+.form { display: grid; gap: 16px; max-width: 640px; }
+.number { max-width: 160px; }
+.embed { display: grid; gap: 8px; max-width: 640px; padding-top: 16px; border-top: 1px solid var(--line); }
+.code { width: 100%; padding: 10px 12px; border: 1px solid #cfd8ea; border-radius: 8px; background: var(--surface); color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.55; resize: none; overflow-wrap: anywhere; }
+.code:focus-visible { outline: 3px solid #93b5ff; outline-offset: 1px; border-color: var(--blue); }
+.list { display: grid; gap: 8px; margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.submit { justify-self: start; }

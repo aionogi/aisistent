@@ -25,6 +25,14 @@ export const RATE_POLICIES = {
   // Each test message is a paid request to the AI provider: per user, and per organization over 24 hours.
   "assistant.message": { limit: 12, seconds: 60 },
   "assistant.daily": { limit: 200, seconds: 86400 },
+  "site.settings": { limit: 30, seconds: 3600 },
+  // Website chat visitors are anonymous: per client address, a burst and an hourly
+  // budget for messages (each a paid AI request), and one for reopening a conversation.
+  "site.message": { limit: 8, seconds: 60 },
+  "site.hourly": { limit: 40, seconds: 3600 },
+  "site.read": { limit: 30, seconds: 60 },
+  // Per firm and day; the firm's own limit (Kanali page) replaces this default.
+  "site.daily": { limit: 300, seconds: 86400 },
 } as const satisfies Record<Operation, { limit: number; seconds: number }>;
 
 /** Select budgets using a fixed route class, never attacker-controlled paths or query strings. */
@@ -57,11 +65,14 @@ export function rateLimitKey(operation: Operation, identity: string, secret = pr
 
 export type LimitResult = { allowed: true } | { allowed: false; status: 429 | 503; retryAfterSeconds: number };
 
-/** Database/configuration failure blocks protected work; there is no in-memory fallback. */
-export async function checkRateLimit(pool: Pool, operation: Operation, identity: string, requestId?: string): Promise<LimitResult> {
+/**
+ * Database/configuration failure blocks protected work; there is no in-memory fallback.
+ * `limit` replaces the policy's count where an organization sets its own.
+ */
+export async function checkRateLimit(pool: Pool, operation: Operation, identity: string, requestId?: string, limit?: number): Promise<LimitResult> {
   try {
     const policy = RATE_POLICIES[operation];
-    const result = await consumeRateLimit(pool, rateLimitKey(operation, identity), policy.limit, policy.seconds);
+    const result = await consumeRateLimit(pool, rateLimitKey(operation, identity), limit ?? policy.limit, policy.seconds);
     if (result.allowed) return { allowed: true };
     logEvent("request.blocked", { operation, requestId, outcome: "denied", retryAfterSeconds: result.retryAfterSeconds });
     return { allowed: false, status: 429, retryAfterSeconds: result.retryAfterSeconds };

@@ -8,8 +8,12 @@
  * Development keeps 'unsafe-inline' for styles and 'unsafe-eval' for scripts,
  * which the Next.js dev overlay and hot reloading need.
  * `reportingOrigin` is the error-reporting host, when one is configured.
+ * `frameAncestors` are the websites that may frame the page: only a firm's
+ * website chat (app/chat) passes them; every other page refuses framing.
  */
-export function contentSecurityPolicy(nonce: string, development: boolean, reportingOrigin?: string | null): string {
+export function contentSecurityPolicy(nonce: string, development: boolean, reportingOrigin?: string | null, frameAncestors?: readonly string[] | null): string {
+  // Only exact https origins (normalized by lib/site-chat/policy.ts and checked again in the database) reach the header.
+  const ancestors = (frameAncestors ?? []).filter((origin) => /^https:\/\/[a-z0-9.-]{1,253}$/.test(origin));
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
@@ -20,7 +24,7 @@ export function contentSecurityPolicy(nonce: string, development: boolean, repor
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'none'",
+    ancestors.length > 0 ? `frame-ancestors 'self' ${ancestors.join(" ")}` : "frame-ancestors 'none'",
     ...(development ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }
