@@ -107,7 +107,7 @@ Goal: conduct bounded, authorized live calls, preserve useful conversation outco
 - server-side history and test conversations stored with retention, export and deletion;
 - fixed-code logs.
 
-The account, the key and the live check wait for the user (runbook, "AI assistant (Anthropic)"). This advances the knowledge, limits, privacy and prompt-boundary items below, but completes none of them: telephony, live calls, real-model evaluations and the website support chat remain.
+On 2026-11-26 the live test chat answered through Anthropic with the firm's data (user's check, personal test account). This advances the knowledge, limits, privacy and prompt-boundary items below, but completes none of them: telephony, live calls, real-model evaluations and the website support chat remain.
 
 - [ ] Select approved AI/speech and telephony providers and record their operational constraints.
 - [ ] Add a Node.js voice gateway if persistent audio connections require it.

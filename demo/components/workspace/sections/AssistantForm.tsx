@@ -1,13 +1,14 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { BotMessageSquare, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { greetingDisclosesAi, greetingWithAiDisclosure } from "../../../lib/workspace/disclosure";
 import { recommendedBehavior } from "../../../lib/workspace/suggestions";
 import { HANDOFF_LABELS, suggestGreeting, TONE_LABELS, UNKNOWN_ANSWER_LABELS } from "../../../lib/workspace/templates";
 import type { AssistantBehavior, AssistantTone, HandoffTopic, UnknownAnswerAction } from "../../../lib/workspace/types";
 import { LIMITS, type FieldErrors } from "../../../lib/workspace/validation";
 import { useDraft } from "../DraftProvider";
-import { TextField } from "../FormControls";
+import { Notice, TextField } from "../FormControls";
 import styles from "../forms.module.css";
 
 const tones = Object.keys(TONE_LABELS) as AssistantTone[];
@@ -33,6 +34,19 @@ export default function AssistantForm({ errors, showErrors }: { errors: FieldErr
       else selected.delete(topic);
       return { ...current, assistant: { ...current.assistant, handoffTopics: topics.filter((item) => selected.has(item)) } };
     });
+  }
+
+  const needsDisclosure = assistant.greeting.trim().length > 0 && !greetingDisclosesAi(assistant.greeting);
+
+  /** Appends "Ja sam …, AI asistent." to the person's own greeting, only when they ask. */
+  function addAiDisclosure() {
+    const next = greetingWithAiDisclosure(assistant.greeting, assistant.name, LIMITS.greeting);
+    if (!next) {
+      setStatus(`Pozdrav bi bio duži od ${LIMITS.greeting} znakova. Skratite ga, pa dodajte da je asistent AI.`);
+      return;
+    }
+    setAssistant({ greeting: next });
+    setStatus("U pozdrav je dodato da je asistent AI. Možete ga dalje menjati.");
   }
 
   function proposeGreeting() {
@@ -67,6 +81,12 @@ export default function AssistantForm({ errors, showErrors }: { errors: FieldErr
           <button type="button" className={styles.secondaryButton} onClick={proposeGreeting}><Sparkles size={15} aria-hidden="true" />Predloži pozdrav prema tonu</button>
           <p className={styles.inlineStatus} role="status">{status}</p>
         </div>
+        {needsDisclosure && (
+          <Notice tone="warning" title="Pozdrav ne kaže da je asistent AI"
+            action={<button type="button" className={styles.secondaryButton} onClick={addAiDisclosure}><BotMessageSquare size={15} aria-hidden="true" />Dodaj u pozdrav</button>}>
+            Klijenti treba odmah da znaju da razgovaraju sa AI asistentom; u EU je to i zakonska obaveza. Dok pozdrav to ne kaže, asistent će to reći u svom prvom odgovoru.
+          </Notice>
+        )}
       </div>
 
       <fieldset className={styles.fieldset}>

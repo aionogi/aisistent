@@ -24,6 +24,7 @@
     "ops:backup:check": "node scripts/operations/backup.ts check",
     "ops:backup:verify": "node scripts/operations/backup.ts verify",
     "dev:local-auth": "node scripts/dev/local-auth.ts",
+    "eval:assistant": "node scripts/assistant/evaluate.ts",
     "dev:auth0": "node scripts/dev/auth0-local.ts",
     "test:e2e": "node scripts/test/run-tests.ts \"tests/e2e/**/*.test.ts\"",
     "test:recovery": "node scripts/test/run-tests.ts \"tests/recovery/**/*.test.ts\""
