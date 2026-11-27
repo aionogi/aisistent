@@ -14,7 +14,7 @@ Updated: 2026-11-26.
 **Checkpoint — AI disclosure, reply style and evaluation set (2026-11-26):**
 - **AI disclosure:** the assistant settings warn when a greeting does not say the assistant is an AI (Latin or Cyrillic; EU AI Act Article 50, market risk R20), with a "Dodaj u pozdrav" button. The instructions then make the first reply disclose it. Code: `lib/workspace/disclosure.ts`.
 - **Reply style:** one to three short sentences, about 40 words, no explaining the reasoning, one question at a time.
-- **Evaluation set:** `npm run eval:assistant` (`lib/assistant/evaluation.ts`, `scripts/assistant/evaluate.ts`) runs 20 Serbian conversations against the real model with the key from `demo/.env.assistant.local`. It has not yet been run against the real API: the user runs it locally.
+- **Evaluation set:** `npm run eval:assistant` (`lib/assistant/evaluation.ts`, `scripts/assistant/evaluate.ts`) runs Serbian conversations (now 21) against the real model with the key from `demo/.env.assistant.local`. First real run 2026-11-27, see the verification record.
 - **User decision for M4 step 2:** the site chat widget for firms' own websites, with conversations in the firm's workspace ("Razgovori"). Firms keep only the widget on their site. Abuse protection from day one:
   - allowed domains per firm;
   - per-visitor, per-IP and per-firm limits, the server budget and per-firm and global stops;
@@ -321,6 +321,19 @@ Sign-in with the real Auth0 tenant on this computer: `npm run dev:auth0` starts 
 Read [PRODUCT.md](../PRODUCT.md) for current requirements, [MILESTONES.md](MILESTONES.md) for acceptance criteria, and [security-and-billing.md](architecture/security-and-billing.md) before adding protected data or payment features. The older [Serbian plan](../ai-asistent-plan.md) contains future proposals; its planned monorepo structure is not the current file tree.
 
 ## Verification record
+
+### First real-model evaluation (2026-11-27)
+
+The user ran `npm run eval:assistant` with `claude-haiku-5-5` (personal test key, local file): **18 of 20 passed, about $0.0034**.
+- **Script mixing (real fault):** a Cyrillic question got a reply that switched to Latin halfway ("Ако желите termin, recite mi…"). The instructions now say to keep one script for the whole reply and to transliterate the business's details. The check now fails any Latin word except "AI".
+- **Motorcycles:** the reply "we service only passenger cars, so no motorcycles" is grounded in the firm's own description ("Auto-servis za putnička vozila"). The check was too strict. That question is now its own case ("Zaključak iz opisa firme", which only forbids claiming they do repair them). The unknown-question case now asks about the warranty, which the data does not answer.
+- **Seen but not checked:**
+  - the booking reply explained its reasoning ("Sutra je sreda… tako da 10:00 spada u radno vreme"), despite the style rule;
+  - the card reply had broken Serbian grammar ("Plaćanje i zakazivanje mali servis mogu da proslede timu").
+
+  Both suggest comparing with `claude-sonnet-5-5` (about 20 times Haiku's price, still cents per run) before choosing the production model.
+- All other cases behaved as intended: knowledge answers, closed days, prices and complaints to the team, no confirmed bookings, AI disclosure, refusal to reveal instructions or change role, off-topic refusals and the card number refused.
+- **Validation after the changes:** the unit tests for the evaluation checks and the instructions pass. The real-model rerun is the user's next step.
 
 ### M4 step 2: chat on firms' websites (2026-11-26)
 

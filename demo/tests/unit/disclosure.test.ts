@@ -30,6 +30,7 @@ test("the first reply discloses AI when the greeting did not, and replies are as
   assert.ok(plain.includes("one to three short sentences, about 40 words at most"));
   assert.ok(plain.includes("do not explain how you reached the answer"));
   assert.ok(plain.includes("Ask one question at a time."));
+  assert.ok(plain.includes("when the customer writes in Cyrillic, write every word in Cyrillic"));
 
   draft.assistant = { ...draft.assistant, greeting: "Zdravo! Ja sam Lena, AI asistent." };
   assert.ok(!buildInstructions(draft, new Date()).includes("That greeting did not say"));

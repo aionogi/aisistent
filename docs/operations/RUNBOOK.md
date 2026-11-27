@@ -230,8 +230,8 @@ Turn it on:
 4. In Vercel, for **Production** only, add `ANTHROPIC_API_KEY` with the key and `ASSISTANT_ENABLED` with `true`. Optional: `ASSISTANT_DAILY_BUDGET_USD` (default `1`, from `0.01` to `1000`) and `ASSISTANT_MODEL` (default `claude-haiku-5-5`). Redeploy.
 5. As an owner with MFA, open "Isprobaj asistenta", ask a question that the knowledge base answers and one it does not, and check the answers and the stored test conversation under "Razgovori". Record the date and result in `docs/HANDOFF.md`.
 
-Evaluation set: `npm run eval:assistant` from `demo/` on your own computer sends 20 Serbian test conversations about an invented garage to the real model and prints each reply with simple checks. The cases cover:
-- knowledge, hours, address and unknown questions;
+Evaluation set: `npm run eval:assistant` from `demo/` on your own computer sends 21 Serbian test conversations about an invented garage to the real model and prints each reply with simple checks. The cases cover:
+- knowledge, hours, address, a question the data does not answer (warranty) and one it answers only by inference (motorcycles);
 - prices and complaints that belong to the team;
 - bookings, including a closed day;
 - AI disclosure, Cyrillic and a two-turn conversation;
