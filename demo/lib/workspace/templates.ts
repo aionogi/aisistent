@@ -32,9 +32,9 @@ export const INDUSTRY_LABELS: Record<IndustryId, { label: string; description: s
 };
 
 export const TONE_LABELS: Record<AssistantTone, { label: string; description: string }> = {
-  professional: { label: "Profesionalan", description: "Smiren, učtiv i jasan." },
-  warm: { label: "Srdačan", description: "Topao i opušten, kao vaš tim." },
-  concise: { label: "Kratak i jasan", description: "Bez suvišnih reči, brzo do cilja." },
+  professional: { label: "Profesionalan", description: "Učtivo i kratko, persira, bez emodžija." },
+  warm: { label: "Srdačan", description: "Opušteno i toplo, kao vaš tim, ponekad i sa emodžijem." },
+  concise: { label: "Kratak i jasan", description: "Samo najvažnije, u jednoj ili dve rečenice." },
 };
 
 export const HANDOFF_LABELS: Record<HandoffTopic, string> = {
@@ -64,7 +64,8 @@ export function suggestGreeting(tone: AssistantTone, businessName: string, assis
   const assistant = assistantName.trim() || DEFAULT_ASSISTANT_NAME;
   switch (tone) {
     case "warm":
-      return `Zdravo i dobro došli u ${business}! Ja sam ${assistant}, AI asistent. Rado ću vam pomoći.`;
+      // No emoji: the same greeting will open phone calls too.
+      return `Hej, dobro došli u ${business}! Ja sam ${assistant}, AI asistent. Kako mogu da pomognem?`;
     case "concise":
       return `${business}, dobar dan. Ovde ${assistant}, AI asistent. Izvolite?`;
     default:

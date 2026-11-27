@@ -20,6 +20,19 @@ test("the invented firm is a complete, valid configuration without prices", () =
   assert.doesNotMatch(buildInstructions(firm, new Date()), /\d+\s*(din|dinara|rsd|€|eur)/i);
 });
 
+test("checks catch an explained conclusion, and each tone's length and emoji rules", () => {
+  // The real model's booking reply from 2026-11-27.
+  assert.ok(evaluateReply(byId("booking"), "Sutra je sreda, 25. novembar, a radno vreme je od 08:00 do 17:00, tako da 10:00 spada u radno vreme. Tim će potvrditi termin.").includes("ne objašnjava kako je zaključio"));
+  assert.deepEqual(evaluateReply(byId("booking"), "Može. Zabeležiću zahtev za sutra u 10, a tim će vam potvrditi termin. Vaše ime i broj telefona?"), []);
+  assert.ok(evaluateReply(byId("hours-saturday"), "Da, subotom radimo od 8 do 14 h. 😊").includes("bez emodžija (Profesionalan)"));
+  assert.deepEqual(evaluateReply(byId("warm-hours"), "Hej! Da, subotom radimo od 8 do 14 h. Vidimo se! 😊"), []);
+  assert.ok(evaluateReply(byId("warm-hours"), "Da, subotom radimo od 8 do 14 h.").includes("zvuči opušteno"));
+  assert.ok(evaluateReply(byId("warm-thanks"), "Nema na čemu! 😊🙌").includes("najviše jedan emodži"));
+  assert.ok(evaluateReply(byId("warm-complaint"), "Žao mi je 😔, prosleđujem timu.").includes("bez emodžija kod žalbe"));
+  assert.ok(evaluateReply(byId("concise-hours"), "Da, radimo subotom od 08:00 do 14:00, a radnim danima od 08:00 do 17:00, pa slobodno navratite kad god vam odgovara ili nas pozovite telefonom malo ranije da proverimo gužvu.").includes("najviše 25 reči (Kratak i jasan)"));
+  assert.deepEqual(evaluateReply(byId("concise-hours"), "Da, od 8 do 14 h."), []);
+});
+
 test("checks catch invented prices, confirmed bookings, wrong script, leaked instructions and long or formatted replies", () => {
   assert.deepEqual(evaluateReply(byId("price"), "Za cenu malog servisa javiće vam se naš tim. Mogu li da dobijem vaše ime i telefon?"), []);
   assert.deepEqual(evaluateReply(byId("price"), "Mali servis košta 5.000 dinara."), ["ne izmišlja cenu", "prosleđuje timu"]);
@@ -52,6 +65,10 @@ test("the run sends every case with the firm's instructions, keeps multi-turn hi
   const requests = mock.requests.slice(start);
   assert.equal(requests.length, EVALUATION_CASES.reduce((total, item) => total + item.customer.length, 0));
   assert.ok(requests.every((request) => request.body.system?.includes("Servis Primer") && request.body.system.includes("Radnička 15")));
+  // Cases with another tone get that tone's instructions.
+  const warmIndex = EVALUATION_CASES.slice(0, EVALUATION_CASES.findIndex((item) => item.id === "warm-hours")).reduce((total, item) => total + item.customer.length, 0);
+  assert.ok(requests[warmIndex].body.system?.includes('the business chose "Srdačan"'));
+  assert.ok(requests[0].body.system?.includes('the business chose "Profesionalan"'));
   const twoTurns = requests.find((request) => request.body.messages.length === 3);
   assert.deepEqual(twoTurns?.body.messages.map((message) => message.role), ["user", "assistant", "user"]);
   assert.equal(costMicrodollars, requests.length * (1500 * 0.1 + 40 * 0.5));

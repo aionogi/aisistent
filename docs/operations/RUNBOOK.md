@@ -230,12 +230,15 @@ Turn it on:
 4. In Vercel, for **Production** only, add `ANTHROPIC_API_KEY` with the key and `ASSISTANT_ENABLED` with `true`. Optional: `ASSISTANT_DAILY_BUDGET_USD` (default `1`, from `0.01` to `1000`) and `ASSISTANT_MODEL` (default `claude-haiku-5-5`). Redeploy.
 5. As an owner with MFA, open "Isprobaj asistenta", ask a question that the knowledge base answers and one it does not, and check the answers and the stored test conversation under "Razgovori". Record the date and result in `docs/HANDOFF.md`.
 
-Evaluation set: `npm run eval:assistant` from `demo/` on your own computer sends 21 Serbian test conversations about an invented garage to the real model and prints each reply with simple checks. The cases cover:
+Evaluation set: `npm run eval:assistant` from `demo/` on your own computer sends 27 Serbian test conversations about an invented garage to the real model and prints each reply with simple checks. The cases cover:
 - knowledge, hours, address, a question the data does not answer (warranty) and one it answers only by inference (motorcycles);
 - prices and complaints that belong to the team;
 - bookings, including a closed day;
 - AI disclosure, Cyrillic and a two-turn conversation;
-- prompt injection, off-topic requests (politics, math, an essay, a translation) and a card number.
+- prompt injection, off-topic requests (politics, math, an essay, a translation) and a card number;
+- the same firm with the tones "Srdačan" and "Kratak i jasan": relaxed wording, at most one emoji and none with a complaint, and each tone's length.
+
+Every reply is also checked for explaining how it reached the answer ("Sutra je sreda… tako da…").
 
 Put the key in `demo/.env.assistant.local` as `ANTHROPIC_API_KEY='…'`; Git ignores the file and the key is never printed. With Claude Haiku a run costs about a cent. Run it after changing `lib/assistant/instructions.ts` or the model, and keep the output with the change. A failed check means "read that reply", not a verdict.
 
